@@ -1,4 +1,9 @@
 import {
+    Head,
+    router,
+    usePage,
+} from '@inertiajs/react';
+import {
     AlertCircle,
     CheckCircle2,
     Clock3,
@@ -9,11 +14,6 @@ import {
     UserRound,
 } from 'lucide-react';
 
-import {
-    Head,
-    router,
-    usePage,
-} from '@inertiajs/react';
 
 import {
     useEffect,
@@ -30,7 +30,9 @@ import AdminLayout from '@/layouts/AdminLayout';
 
 type WaitingStatus =
     | 'waiting'
-    | 'ready';
+    | 'ready'
+    | 'paid'
+    | 'expired';
 
 interface WaitingStudent {
     name: string;
@@ -157,6 +159,12 @@ interface WaitingListSummary {
         number;
 
     ready:
+        number;
+
+    paid:
+        number;
+
+    expired:
         number;
 
     total_quantity:
@@ -432,7 +440,8 @@ export default function Index({
                         grid
                         gap-4
                         sm:grid-cols-2
-                        xl:grid-cols-4
+                        xl:grid-cols-3
+                        2xl:grid-cols-6
                     "
                 >
                     <SummaryCard
@@ -454,7 +463,7 @@ export default function Index({
                             summary
                                 .waiting
                         }
-                        description="Entries still waiting for enough stock"
+                        description="Still waiting for enough stock"
                         icon={
                             Clock3
                         }
@@ -467,11 +476,37 @@ export default function Index({
                             summary
                                 .ready
                         }
-                        description="Entries with enough stock available"
+                        description="Stock reserved, not yet paid"
                         icon={
                             CheckCircle2
                         }
                         tone="green"
+                    />
+
+                    <SummaryCard
+                        label="Paid"
+                        value={
+                            summary
+                                .paid
+                        }
+                        description="Paid, awaiting release conversion"
+                        icon={
+                            PlayCircle
+                        }
+                        tone="blue"
+                    />
+
+                    <SummaryCard
+                        label="Expired"
+                        value={
+                            summary
+                                .expired
+                        }
+                        description="Reservation released after the deadline passed"
+                        icon={
+                            AlertCircle
+                        }
+                        tone="slate"
                     />
 
                     <SummaryCard
@@ -530,7 +565,7 @@ export default function Index({
                                     text-blue-950
                                 "
                             >
-                                Preorder Availability
+                                Preorder Lifecycle
                             </h2>
 
                             <p
@@ -541,12 +576,10 @@ export default function Index({
                                     text-blue-800
                                 "
                             >
-                                An entry is marked
-                                Ready when current
-                                available inventory is
-                                equal to or greater than
-                                the quantity requested
-                                by the student.
+                                <strong>Waiting</strong> — not enough stock yet.{' '}
+                                <strong>Ready</strong> — stock reserved automatically, student notified to pay.{' '}
+                                <strong>Paid</strong> — payment confirmed; it is converted to a normal order automatically, so this should rarely be seen for long.{' '}
+                                <strong>Expired</strong> — the payment deadline passed and its reservation was released.
                             </p>
                         </div>
                     </div>
@@ -673,6 +706,34 @@ export default function Index({
                                 }
                             >
                                 Ready
+                            </FilterButton>
+
+                            <FilterButton
+                                active={
+                                    status ===
+                                    'paid'
+                                }
+                                onClick={() =>
+                                    changeStatus(
+                                        'paid',
+                                    )
+                                }
+                            >
+                                Paid
+                            </FilterButton>
+
+                            <FilterButton
+                                active={
+                                    status ===
+                                    'expired'
+                                }
+                                onClick={() =>
+                                    changeStatus(
+                                        'expired',
+                                    )
+                                }
+                            >
+                                Expired
                             </FilterButton>
                         </div>
                     </div>
@@ -1453,7 +1514,9 @@ function WaitingRow({
     "
 >
     {item.waiting_status ===
-    'ready' ? (
+        'ready'
+    || item.waiting_status ===
+        'paid' ? (
         <ProcessPreorderButton
             item={
                 item
@@ -1467,7 +1530,10 @@ function WaitingRow({
                 text-slate-400
             "
         >
-            Waiting for stock
+            {item.waiting_status ===
+            'expired'
+                ? 'Reservation released'
+                : 'Waiting for stock'}
         </span>
     )}
 </td>
@@ -1491,6 +1557,62 @@ function WaitingStatusBadge({
     status:
         WaitingStatus;
 }) {
+    if (
+        status ===
+        'paid'
+    ) {
+        return (
+            <span
+                className="
+                    inline-flex
+                    items-center
+                    gap-2
+                    rounded-full
+                    bg-blue-100
+                    px-3
+                    py-1.5
+                    text-xs
+                    font-black
+                    text-blue-700
+                "
+            >
+                <PlayCircle
+                    size={14}
+                />
+
+                Paid
+            </span>
+        );
+    }
+
+    if (
+        status ===
+        'expired'
+    ) {
+        return (
+            <span
+                className="
+                    inline-flex
+                    items-center
+                    gap-2
+                    rounded-full
+                    bg-slate-200
+                    px-3
+                    py-1.5
+                    text-xs
+                    font-black
+                    text-slate-600
+                "
+            >
+                <AlertCircle
+                    size={14}
+                />
+
+                Expired
+            </span>
+        );
+    }
+
     if (
         status ===
         'ready'
@@ -1553,7 +1675,8 @@ type SummaryTone =
     | 'blue'
     | 'green'
     | 'amber'
-    | 'purple';
+    | 'purple'
+    | 'slate';
 
 function SummaryCard({
     label,
@@ -1633,6 +1756,17 @@ function SummaryCard({
 
             value:
                 'text-violet-700',
+        },
+
+        slate: {
+            card:
+                'border-slate-200 bg-slate-50',
+
+            icon:
+                'bg-slate-200 text-slate-600',
+
+            value:
+                'text-slate-700',
         },
     };
 
@@ -1838,7 +1972,7 @@ function ProcessPreorderButton({
                     +
                     `Requested quantity: ${item.quantity}\n\n`
                     +
-                    'The requested stock will be reserved for this student.',
+                    'Its stock is already reserved. This converts it into a normal order item so it can be released.',
                 );
 
             if (!confirmed) {

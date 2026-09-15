@@ -21,7 +21,6 @@ class WaitingListController extends Controller
      */
     public function index(
         Request $request,
-        PreorderAvailabilityService $preorderAvailabilityService,
     ): Response {
         $user =
             $request->user();
@@ -58,8 +57,10 @@ class WaitingListController extends Controller
                 $status,
                 [
                     '',
-                    'waiting',
-                    'ready',
+                    OrderItem::PREORDER_STATUS_WAITING,
+                    OrderItem::PREORDER_STATUS_READY,
+                    OrderItem::PREORDER_STATUS_PAID,
+                    OrderItem::PREORDER_STATUS_EXPIRED,
                 ],
                 true,
             )
@@ -83,6 +84,29 @@ class WaitingListController extends Controller
                     'item_type',
                     OrderItem::TYPE_PREORDER,
                 );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Status Filter
+        |--------------------------------------------------------------------------
+        |
+        | With no explicit filter, expired entries are hidden by
+        | default — their reservation was already released and they
+        | need no further attention, so they would only be clutter.
+        */
+
+        if ($status !== '') {
+            $query->where(
+                'preorder_status',
+                $status,
+            );
+        } else {
+            $query->where(
+                'preorder_status',
+                '!=',
+                OrderItem::PREORDER_STATUS_EXPIRED,
+            );
+        }
 
         /*
         |--------------------------------------------------------------------------
@@ -151,34 +175,6 @@ class WaitingListController extends Controller
         }
 
         /*
-|--------------------------------------------------------------------------
-| FIFO Readiness Map
-|--------------------------------------------------------------------------
-*/
-
-        $variantIds =
-            (clone $query)
-                ->pluck(
-                    'product_variant_id',
-                )
-                ->filter()
-                ->unique()
-                ->values();
-
-        $readinessMap =
-            [];
-
-        foreach (
-            $variantIds as $variantId
-        ) {
-            $readinessMap +=
-                $preorderAvailabilityService
-                    ->readinessForVariant(
-                        (int)
-                        $variantId,
-                    );
-        }
-        /*
         |--------------------------------------------------------------------------
         | Fetch Waiting List
         |--------------------------------------------------------------------------
@@ -194,8 +190,6 @@ class WaitingListController extends Controller
                 ->through(
                     function (
                         OrderItem $item,
-                    ) use (
-                        $readinessMap,
                     ): array {
 
                         /*
@@ -226,22 +220,6 @@ class WaitingListController extends Controller
                                         ->quantity_reserved,
                                 )
                                 : 0;
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | Waiting Status
-                        |--------------------------------------------------------------------------
-                        |
-                        | A preorder is "ready" once enough stock exists for the
-                        | requested quantity.
-                        |
-                        */
-
-                        $waitingStatus =
-                        $readinessMap[
-                            $item->id
-                        ]
-                        ?? 'waiting';
 
                         $student =
                             $item
@@ -334,7 +312,8 @@ class WaitingListController extends Controller
                                         : 0,
                             ],
 
-                            'waiting_status' => $waitingStatus,
+                            'waiting_status' => $item
+                                ->preorder_status,
 
                             'created_at' => $item
                                 ->created_at
@@ -347,109 +326,56 @@ class WaitingListController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Status Filter
+        | Summary
         |--------------------------------------------------------------------------
         |
-        | Because "ready" is calculated using current inventory, filter the
-        | transformed collection instead of the database query.
-        |
+        | preorder_status is the authoritative record of where each
+        | item actually stands — no need to re-simulate FIFO
+        | allocation against live inventory just to count entries.
         */
 
-        if (
-            $status !== ''
-        ) {
-            $filtered =
-                collect(
-                    $waitingItems
-                        ->items(),
-                )
-                    ->filter(
-                        fn (
-                            array $item,
-                        ): bool => $item[
-                                'waiting_status'
-                            ]
-                            ===
-                            $status,
-                    )
-                    ->values();
-
-            $waitingItems
-                ->setCollection(
-                    $filtered,
-                );
-        }
-
-        /*
-|--------------------------------------------------------------------------
-| Summary
-|--------------------------------------------------------------------------
-*/
-
-        $allPreorders =
+        $allPreorderItems =
             OrderItem::query()
                 ->where(
                     'item_type',
                     OrderItem::TYPE_PREORDER,
-                )
-                ->get();
-
-        $allVariantIds =
-            $allPreorders
-                ->pluck(
-                    'product_variant_id',
-                )
-                ->filter()
-                ->unique()
-                ->values();
-
-        $allReadiness =
-            [];
-
-        foreach (
-            $allVariantIds as $variantId
-        ) {
-            $allReadiness +=
-                $preorderAvailabilityService
-                    ->readinessForVariant(
-                        (int)
-                        $variantId,
-                    );
-        }
+                );
 
         $waitingCount =
-            0;
+            (clone $allPreorderItems)
+                ->where(
+                    'preorder_status',
+                    OrderItem::PREORDER_STATUS_WAITING,
+                )
+                ->count();
 
         $readyCount =
-            0;
+            (clone $allPreorderItems)
+                ->where(
+                    'preorder_status',
+                    OrderItem::PREORDER_STATUS_READY,
+                )
+                ->count();
+
+        $paidCount =
+            (clone $allPreorderItems)
+                ->where(
+                    'preorder_status',
+                    OrderItem::PREORDER_STATUS_PAID,
+                )
+                ->count();
+
+        $expiredCount =
+            (clone $allPreorderItems)
+                ->where(
+                    'preorder_status',
+                    OrderItem::PREORDER_STATUS_EXPIRED,
+                )
+                ->count();
 
         $totalQuantity =
-            0;
-
-        foreach (
-            $allPreorders as $item
-        ) {
-            $totalQuantity +=
-                (int)
-                $item->quantity;
-
-            if (
-                (
-                    $allReadiness[
-                        $item->id
-                    ]
-                    ?? 'waiting'
-                )
-                ===
-                'ready'
-            ) {
-                $readyCount++;
-
-                continue;
-            }
-
-            $waitingCount++;
-        }
+            (int) (clone $allPreorderItems)
+                ->sum('quantity');
 
         /*
         |--------------------------------------------------------------------------
@@ -469,23 +395,24 @@ class WaitingListController extends Controller
                 ],
 
                 'summary' => [
-                    'total_entries' => $allPreorders
-                        ->count(),
+                    'total_entries' => $waitingCount
+                        + $readyCount
+                        + $paidCount
+                        + $expiredCount,
 
                     'waiting' => $waitingCount,
 
                     'ready' => $readyCount,
+
+                    'paid' => $paidCount,
+
+                    'expired' => $expiredCount,
 
                     'total_quantity' => $totalQuantity,
                 ],
             ],
         );
     }
-    /**
-     * Return FIFO readiness for preorder items of one variant.
-     *
-     * @return array<int, string>
-     */
 
     /**
      * Convert a ready preorder item into a normal order item
