@@ -1,7 +1,12 @@
+
+import {
+    Head,
+    Link,
+    useForm,
+} from '@inertiajs/react';
 import {
     ArrowLeft,
     ClipboardList,
-    PackagePlus,
     Plus,
     Search,
     Pencil,
@@ -9,25 +14,20 @@ import {
     X,
 } from 'lucide-react';
 
+import type {
+    FormEvent} from 'react';
 import {
-    Head,
-    Link,
-    useForm,
-} from '@inertiajs/react';
-
-import {
-    FormEvent,
     useMemo,
     useState,
 } from 'react';
 
-import AdminLayout from '@/layouts/AdminLayout';
 
 
 import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal';
 import ActionNotification from '@/components/action-feedback/ActionNotification';
 import ActionProcessingButton from '@/components/action-feedback/ActionProcessingButton';
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
+import AdminLayout from '@/layouts/AdminLayout';
 
 /*
 |--------------------------------------------------------------------------
@@ -42,11 +42,6 @@ type AddMode =
 type SourceType =
     | 'existing_catalog'
     | 'new_inventory';
-
-type VariantMode =
-    | 'standard'
-    | 'size_only'
-    | 'program_and_size';
 
 interface VariantInventory {
     quantity_on_hand: number;
@@ -72,30 +67,8 @@ interface PurchaseVariant {
     inventory: VariantInventory;
 }
 
-interface CategoryOption {
-    id: number;
-    name: string;
-}
-
-interface ConfigurationOption {
-    value: string;
-    label: string;
-    code?: string;
-}
-
-interface ProductConfiguration {
-    variant_modes: Array<{
-        value: VariantMode;
-        label: string;
-    }>;
-    programs: ConfigurationOption[];
-    sizes: ConfigurationOption[];
-}
-
 interface Props {
     variants: PurchaseVariant[];
-    categories: CategoryOption[];
-    productConfiguration: ProductConfiguration;
 }
 
 interface PurchaseOrderItemForm {
@@ -103,13 +76,8 @@ interface PurchaseOrderItemForm {
 
     product_variant_id: number | null;
 
-    category_id: number | null;
     product_name: string | null;
     product_description: string | null;
-    base_price: string | null;
-    variant_mode: VariantMode | null;
-    programs: string[];
-    sizes: string[];
 
     quantity_ordered: number;
     unit_cost: string;
@@ -131,8 +99,6 @@ interface PurchaseOrderForm {
 
 export default function Create({
     variants,
-    categories,
-    productConfiguration,
 }: Props) {
     const [
         addMode,
@@ -182,11 +148,6 @@ export default function Create({
     */
 
     const [
-        newCategoryId,
-        setNewCategoryId,
-    ] = useState('');
-
-    const [
         newProductName,
         setNewProductName,
     ] = useState('');
@@ -195,28 +156,6 @@ export default function Create({
         newProductDescription,
         setNewProductDescription,
     ] = useState('');
-
-    const [
-        newBasePrice,
-        setNewBasePrice,
-    ] = useState('');
-
-    const [
-        newVariantMode,
-        setNewVariantMode,
-    ] = useState<VariantMode>(
-        'standard',
-    );
-
-    const [
-        newPrograms,
-        setNewPrograms,
-    ] = useState<string[]>([]);
-
-    const [
-        newSizes,
-        setNewSizes,
-    ] = useState<string[]>([]);
 
     /*
     |--------------------------------------------------------------------------
@@ -249,11 +188,6 @@ export default function Create({
     ] = useState('');
 
     const [
-        editCategoryId,
-        setEditCategoryId,
-    ] = useState('');
-
-    const [
         editProductName,
         setEditProductName,
     ] = useState('');
@@ -262,28 +196,6 @@ export default function Create({
         editProductDescription,
         setEditProductDescription,
     ] = useState('');
-
-    const [
-        editBasePrice,
-        setEditBasePrice,
-    ] = useState('');
-
-    const [
-        editVariantMode,
-        setEditVariantMode,
-    ] = useState<VariantMode>(
-        'standard',
-    );
-
-    const [
-        editPrograms,
-        setEditPrograms,
-    ] = useState<string[]>([]);
-
-    const [
-        editSizes,
-        setEditSizes,
-    ] = useState<string[]>([]);
 
     const [
         editError,
@@ -376,10 +288,6 @@ const {
     |--------------------------------------------------------------------------
     | Summary
     |--------------------------------------------------------------------------
-    |
-    | For a new product, the backend creates one PO line for every generated
-    | variant. Therefore the summary counts quantity × generated variants.
-    |
     */
 
     const totalUnits =
@@ -389,10 +297,7 @@ const {
                 item,
             ) =>
                 total
-                + item.quantity_ordered
-                    * getItemVariantCount(
-                        item,
-                    ),
+                + item.quantity_ordered,
             0,
         );
 
@@ -412,9 +317,6 @@ const {
                     total
                     + price
                         * item.quantity_ordered
-                        * getItemVariantCount(
-                            item,
-                        )
                 );
             },
             0,
@@ -496,26 +398,11 @@ const {
                         product_variant_id:
                             selectedVariant.id,
 
-                        category_id:
-                            null,
-
                         product_name:
                             null,
 
                         product_description:
                             null,
-
-                        base_price:
-                            null,
-
-                        variant_mode:
-                            null,
-
-                        programs:
-                            [],
-
-                        sizes:
-                            [],
 
                         quantity_ordered:
                             parsedQuantity,
@@ -557,23 +444,8 @@ const {
 
             const validationError =
                 validateNewInventoryItem({
-                    categoryId:
-                        newCategoryId,
-
                     productName:
                         newProductName,
-
-                    basePrice:
-                        newBasePrice,
-
-                    variantMode:
-                        newVariantMode,
-
-                    programs:
-                        newPrograms,
-
-                    sizes:
-                        newSizes,
 
                     quantity,
 
@@ -604,11 +476,6 @@ const {
                         product_variant_id:
                             null,
 
-                        category_id:
-                            Number(
-                                newCategoryId,
-                            ),
-
                         product_name:
                             newProductName
                                 .trim(),
@@ -617,25 +484,6 @@ const {
                             newProductDescription
                                 .trim()
                             || null,
-
-                        base_price:
-                            newBasePrice
-                                .trim(),
-
-                        variant_mode:
-                            newVariantMode,
-
-                        programs:
-                            newVariantMode ===
-                            'program_and_size'
-                                ? newPrograms
-                                : [],
-
-                        sizes:
-                            newVariantMode ===
-                            'standard'
-                                ? []
-                                : newSizes,
 
                         quantity_ordered:
                             parsedQuantity,
@@ -657,10 +505,6 @@ const {
 
     const resetNewInventoryFields =
         (): void => {
-            setNewCategoryId(
-                '',
-            );
-
             setNewProductName(
                 '',
             );
@@ -669,69 +513,12 @@ const {
                 '',
             );
 
-            setNewBasePrice(
-                '',
-            );
-
-            setNewVariantMode(
-                'standard',
-            );
-
-            setNewPrograms(
-                [],
-            );
-
-            setNewSizes(
-                [],
-            );
-
             setQuantity(
                 '1',
             );
 
             setUnitCost(
                 '',
-            );
-        };
-
-    /*
-    |--------------------------------------------------------------------------
-    | Variant Mode Change
-    |--------------------------------------------------------------------------
-    */
-
-    const changeNewVariantMode =
-        (
-            mode: VariantMode,
-        ): void => {
-            setNewVariantMode(
-                mode,
-            );
-
-            if (
-                mode ===
-                'standard'
-            ) {
-                setNewPrograms(
-                    [],
-                );
-
-                setNewSizes(
-                    [],
-                );
-            }
-
-            if (
-                mode ===
-                'size_only'
-            ) {
-                setNewPrograms(
-                    [],
-                );
-            }
-
-            setLocalError(
-                null,
             );
         };
 
@@ -772,14 +559,6 @@ const {
                 item.source_type ===
                 'new_inventory'
             ) {
-                setEditCategoryId(
-                    item.category_id
-                        ? String(
-                              item.category_id,
-                          )
-                        : '',
-                );
-
                 setEditProductName(
                     item.product_name
                     ?? '',
@@ -788,24 +567,6 @@ const {
                 setEditProductDescription(
                     item.product_description
                     ?? '',
-                );
-
-                setEditBasePrice(
-                    item.base_price
-                    ?? '',
-                );
-
-                setEditVariantMode(
-                    item.variant_mode
-                    ?? 'standard',
-                );
-
-                setEditPrograms(
-                    item.programs,
-                );
-
-                setEditSizes(
-                    item.sizes,
                 );
             }
 
@@ -878,23 +639,8 @@ const {
             ) {
                 const validationError =
                     validateNewInventoryItem({
-                        categoryId:
-                            editCategoryId,
-
                         productName:
                             editProductName,
-
-                        basePrice:
-                            editBasePrice,
-
-                        variantMode:
-                            editVariantMode,
-
-                        programs:
-                            editPrograms,
-
-                        sizes:
-                            editSizes,
 
                         quantity:
                             editQuantity,
@@ -946,11 +692,6 @@ const {
                         return {
                             ...item,
 
-                            category_id:
-                                Number(
-                                    editCategoryId,
-                                ),
-
                             product_name:
                                 editProductName
                                     .trim(),
@@ -959,25 +700,6 @@ const {
                                 editProductDescription
                                     .trim()
                                 || null,
-
-                            base_price:
-                                editBasePrice
-                                    .trim(),
-
-                            variant_mode:
-                                editVariantMode,
-
-                            programs:
-                                editVariantMode ===
-                                'program_and_size'
-                                    ? editPrograms
-                                    : [],
-
-                            sizes:
-                                editVariantMode ===
-                                'standard'
-                                    ? []
-                                    : editSizes,
 
                             quantity_ordered:
                                 parsedQuantity,
@@ -1611,18 +1333,18 @@ const confirmCreatePurchaseOrder =
                                 <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
                                     <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
                                         <p className="text-sm font-black text-blue-900">
-                                            Register a new PROWARE inventory product
+                                            New / non-catalog item
                                         </p>
 
                                         <p className="mt-1 text-xs leading-5 text-blue-700">
-                                            PROWARE will automatically generate the permanent product code, variants, SKUs, and zero-stock inventory records when this purchase order is created.
+                                            This merchandise isn&apos;t in the PROWARE catalog yet. It&apos;s added to the purchase order as-is; the Specialist resolves it into a real product (category, selling price, variants) when it&apos;s received.
                                         </p>
                                     </div>
 
                                     <div className="mt-5 grid gap-5 md:grid-cols-2">
                                         <div>
                                             <label className="mb-2 block text-sm font-bold text-slate-700">
-                                                Product Name *
+                                                Item Name *
                                             </label>
 
                                             <input
@@ -1644,122 +1366,6 @@ const confirmCreatePurchaseOrder =
                                             />
                                         </div>
 
-                                        <div>
-                                            <label className="mb-2 block text-sm font-bold text-slate-700">
-                                                Category *
-                                            </label>
-
-                                            <select
-                                                value={
-                                                    newCategoryId
-                                                }
-                                                onChange={(
-                                                    event,
-                                                ) =>
-                                                    setNewCategoryId(
-                                                        event
-                                                            .target
-                                                            .value,
-                                                    )
-                                                }
-                                                className={inputClass}
-                                            >
-                                                <option value="">
-                                                    Select category
-                                                </option>
-
-                                                {categories.map(
-                                                    (
-                                                        category,
-                                                    ) => (
-                                                        <option
-                                                            key={
-                                                                category.id
-                                                            }
-                                                            value={
-                                                                category.id
-                                                            }
-                                                        >
-                                                            {
-                                                                category.name
-                                                            }
-                                                        </option>
-                                                    ),
-                                                )}
-                                            </select>
-                                        </div>
-
-                                        <div>
-                                            <label className="mb-2 block text-sm font-bold text-slate-700">
-                                                Selling Price *
-                                            </label>
-
-                                            <input
-                                                type="number"
-                                                min={0}
-                                                step="0.01"
-                                                value={
-                                                    newBasePrice
-                                                }
-                                                onChange={(
-                                                    event,
-                                                ) =>
-                                                    setNewBasePrice(
-                                                        event
-                                                            .target
-                                                            .value,
-                                                    )
-                                                }
-                                                placeholder="Example: 650.00"
-                                                className={inputClass}
-                                            />
-
-                                            <p className="mt-2 text-xs text-slate-400">
-                                                This becomes the product&apos;s base selling price in PROWARE.
-                                            </p>
-                                        </div>
-
-                                        <div>
-                                            <label className="mb-2 block text-sm font-bold text-slate-700">
-                                                Variant Mode *
-                                            </label>
-
-                                            <select
-                                                value={
-                                                    newVariantMode
-                                                }
-                                                onChange={(
-                                                    event,
-                                                ) =>
-                                                    changeNewVariantMode(
-                                                        event
-                                                            .target
-                                                            .value as VariantMode,
-                                                    )
-                                                }
-                                                className={inputClass}
-                                            >
-                                                {productConfiguration.variant_modes.map(
-                                                    (
-                                                        mode,
-                                                    ) => (
-                                                        <option
-                                                            key={
-                                                                mode.value
-                                                            }
-                                                            value={
-                                                                mode.value
-                                                            }
-                                                        >
-                                                            {
-                                                                mode.label
-                                                            }
-                                                        </option>
-                                                    ),
-                                                )}
-                                            </select>
-                                        </div>
-
                                         <div className="md:col-span-2">
                                             <label className="mb-2 block text-sm font-bold text-slate-700">
                                                 Description
@@ -1778,82 +1384,10 @@ const confirmCreatePurchaseOrder =
                                                             .value,
                                                     )
                                                 }
-                                                placeholder="Optional product description"
+                                                placeholder="Optional description"
                                                 className={`${inputClass} min-h-24 resize-y`}
                                             />
                                         </div>
-                                    </div>
-
-                                    {newVariantMode ===
-                                        'program_and_size' && (
-                                        <div className="mt-5">
-                                            <OptionChecklist
-                                                title="Programs *"
-                                                description="Select every program that needs this product."
-                                                options={
-                                                    productConfiguration.programs
-                                                }
-                                                selected={
-                                                    newPrograms
-                                                }
-                                                onToggle={(
-                                                    value,
-                                                ) =>
-                                                    setNewPrograms(
-                                                        toggleValue(
-                                                            newPrograms,
-                                                            value,
-                                                        ),
-                                                    )
-                                                }
-                                            />
-                                        </div>
-                                    )}
-
-                                    {(newVariantMode ===
-                                        'size_only'
-                                        || newVariantMode ===
-                                            'program_and_size') && (
-                                        <div className="mt-5">
-                                            <OptionChecklist
-                                                title="Sizes *"
-                                                description="Select every size that will be ordered."
-                                                options={
-                                                    productConfiguration.sizes
-                                                }
-                                                selected={
-                                                    newSizes
-                                                }
-                                                onToggle={(
-                                                    value,
-                                                ) =>
-                                                    setNewSizes(
-                                                        toggleValue(
-                                                            newSizes,
-                                                            value,
-                                                        ),
-                                                    )
-                                                }
-                                            />
-                                        </div>
-                                    )}
-
-                                    <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
-                                        <p className="text-xs font-black uppercase tracking-wide text-slate-500">
-                                            Generated Inventory Variants
-                                        </p>
-
-                                        <p className="mt-1 text-2xl font-black text-slate-900">
-                                            {getVariantCount(
-                                                newVariantMode,
-                                                newPrograms,
-                                                newSizes,
-                                            )}
-                                        </p>
-
-                                        <p className="mt-1 text-xs leading-5 text-slate-500">
-                                            Quantity below is applied to each generated variant. Physical stock remains zero until the Specialist receives the delivery.
-                                        </p>
                                     </div>
 
                                     <QuantityCostInputs
@@ -1937,17 +1471,6 @@ const confirmCreatePurchaseOrder =
                                                       )
                                                     : undefined;
 
-                                            const category =
-                                                item.category_id
-                                                    ? categories.find(
-                                                          (
-                                                              candidate,
-                                                          ) =>
-                                                              candidate.id ===
-                                                              item.category_id,
-                                                      )
-                                                    : undefined;
-
                                             return (
                                                 <article
                                                     key={`${item.source_type}-${index}`}
@@ -1985,16 +1508,15 @@ const confirmCreatePurchaseOrder =
                                                             <p className="mt-1 text-sm text-slate-500">
                                                                 {item.source_type ===
                                                                 'existing_catalog'
-                                                                    ? variant
+                                                                    ? (variant
                                                                           ?.variant_name
-                                                                      ?? ''
-                                                                    : category
-                                                                          ?.name
-                                                                      ?? 'Category unavailable'}
+                                                                      ?? '')
+                                                                    : (item.product_description
+                                                                      ?? 'No description')}
                                                             </p>
 
                                                             {item.source_type ===
-                                                                'existing_catalog' ? (
+                                                                'existing_catalog' && (
                                                                 <p className="mt-1 text-xs text-slate-400">
                                                                     SKU:{' '}
                                                                     {
@@ -2003,30 +1525,6 @@ const confirmCreatePurchaseOrder =
                                                                         ?? 'N/A'
                                                                     }
                                                                 </p>
-                                                            ) : (
-                                                                <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                                                                    <span className="rounded-full bg-slate-100 px-2.5 py-1 font-bold text-slate-600">
-                                                                        {formatVariantMode(
-                                                                            item.variant_mode,
-                                                                        )}
-                                                                    </span>
-
-                                                                    <span className="rounded-full bg-slate-100 px-2.5 py-1 font-bold text-slate-600">
-                                                                        {getItemVariantCount(
-                                                                            item,
-                                                                        )}{' '}
-                                                                        variant(s)
-                                                                    </span>
-
-                                                                    <span className="rounded-full bg-slate-100 px-2.5 py-1 font-bold text-slate-600">
-                                                                        Selling:{' '}
-                                                                        {item.base_price
-                                                                            ? formatCurrency(
-                                                                                  item.base_price,
-                                                                              )
-                                                                            : 'N/A'}
-                                                                    </span>
-                                                                </div>
                                                             )}
                                                         </div>
 
@@ -2051,20 +1549,11 @@ const confirmCreatePurchaseOrder =
                                                         </div>
                                                     </div>
 
-                                                    <div className="mt-4 grid gap-3 sm:grid-cols-4">
+                                                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
                                                         <InfoBox
-                                                            label="Qty / Variant"
+                                                            label="Quantity"
                                                             value={String(
                                                                 item.quantity_ordered,
-                                                            )}
-                                                        />
-
-                                                        <InfoBox
-                                                            label="Variants"
-                                                            value={String(
-                                                                getItemVariantCount(
-                                                                    item,
-                                                                ),
                                                             )}
                                                         />
 
@@ -2088,10 +1577,7 @@ const confirmCreatePurchaseOrder =
                                                                               Number(
                                                                                   item.unit_cost,
                                                                               )
-                                                                              * item.quantity_ordered
-                                                                              * getItemVariantCount(
-                                                                                  item,
-                                                                              ),
+                                                                              * item.quantity_ordered,
                                                                           ),
                                                                       )
                                                                     : 'Not set'
@@ -2295,7 +1781,7 @@ const confirmCreatePurchaseOrder =
                                     <div className="grid gap-5 md:grid-cols-2">
                                         <div>
                                             <label className="mb-2 block text-sm font-bold text-slate-700">
-                                                Product Name *
+                                                Item Name *
                                             </label>
 
                                             <input
@@ -2314,142 +1800,6 @@ const confirmCreatePurchaseOrder =
                                                 }
                                                 className={inputClass}
                                             />
-                                        </div>
-
-                                        <div>
-                                            <label className="mb-2 block text-sm font-bold text-slate-700">
-                                                Category *
-                                            </label>
-
-                                            <select
-                                                value={
-                                                    editCategoryId
-                                                }
-                                                onChange={(
-                                                    event,
-                                                ) =>
-                                                    setEditCategoryId(
-                                                        event
-                                                            .target
-                                                            .value,
-                                                    )
-                                                }
-                                                className={inputClass}
-                                            >
-                                                <option value="">
-                                                    Select category
-                                                </option>
-
-                                                {categories.map(
-                                                    (
-                                                        category,
-                                                    ) => (
-                                                        <option
-                                                            key={
-                                                                category.id
-                                                            }
-                                                            value={
-                                                                category.id
-                                                            }
-                                                        >
-                                                            {
-                                                                category.name
-                                                            }
-                                                        </option>
-                                                    ),
-                                                )}
-                                            </select>
-                                        </div>
-
-                                        <div>
-                                            <label className="mb-2 block text-sm font-bold text-slate-700">
-                                                Selling Price *
-                                            </label>
-
-                                            <input
-                                                type="number"
-                                                min={0}
-                                                step="0.01"
-                                                value={
-                                                    editBasePrice
-                                                }
-                                                onChange={(
-                                                    event,
-                                                ) =>
-                                                    setEditBasePrice(
-                                                        event
-                                                            .target
-                                                            .value,
-                                                    )
-                                                }
-                                                className={inputClass}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="mb-2 block text-sm font-bold text-slate-700">
-                                                Variant Mode *
-                                            </label>
-
-                                            <select
-                                                value={
-                                                    editVariantMode
-                                                }
-                                                onChange={(
-                                                    event,
-                                                ) => {
-                                                    const mode =
-                                                        event
-                                                            .target
-                                                            .value as VariantMode;
-
-                                                    setEditVariantMode(
-                                                        mode,
-                                                    );
-
-                                                    if (
-                                                        mode ===
-                                                        'standard'
-                                                    ) {
-                                                        setEditPrograms(
-                                                            [],
-                                                        );
-
-                                                        setEditSizes(
-                                                            [],
-                                                        );
-                                                    }
-
-                                                    if (
-                                                        mode ===
-                                                        'size_only'
-                                                    ) {
-                                                        setEditPrograms(
-                                                            [],
-                                                        );
-                                                    }
-                                                }}
-                                                className={inputClass}
-                                            >
-                                                {productConfiguration.variant_modes.map(
-                                                    (
-                                                        mode,
-                                                    ) => (
-                                                        <option
-                                                            key={
-                                                                mode.value
-                                                            }
-                                                            value={
-                                                                mode.value
-                                                            }
-                                                        >
-                                                            {
-                                                                mode.label
-                                                            }
-                                                        </option>
-                                                    ),
-                                                )}
-                                            </select>
                                         </div>
 
                                         <div className="md:col-span-2">
@@ -2474,56 +1824,6 @@ const confirmCreatePurchaseOrder =
                                             />
                                         </div>
                                     </div>
-
-                                    {editVariantMode ===
-                                        'program_and_size' && (
-                                        <OptionChecklist
-                                            title="Programs *"
-                                            description="Select every program that needs this product."
-                                            options={
-                                                productConfiguration.programs
-                                            }
-                                            selected={
-                                                editPrograms
-                                            }
-                                            onToggle={(
-                                                value,
-                                            ) =>
-                                                setEditPrograms(
-                                                    toggleValue(
-                                                        editPrograms,
-                                                        value,
-                                                    ),
-                                                )
-                                            }
-                                        />
-                                    )}
-
-                                    {(editVariantMode ===
-                                        'size_only'
-                                        || editVariantMode ===
-                                            'program_and_size') && (
-                                        <OptionChecklist
-                                            title="Sizes *"
-                                            description="Select every size that will be ordered."
-                                            options={
-                                                productConfiguration.sizes
-                                            }
-                                            selected={
-                                                editSizes
-                                            }
-                                            onToggle={(
-                                                value,
-                                            ) =>
-                                                setEditSizes(
-                                                    toggleValue(
-                                                        editSizes,
-                                                        value,
-                                                    ),
-                                                )
-                                            }
-                                        />
-                                    )}
                                 </div>
                             )}
 
@@ -2652,72 +1952,18 @@ const confirmCreatePurchaseOrder =
 */
 
 function validateNewInventoryItem({
-    categoryId,
     productName,
-    basePrice,
-    variantMode,
-    programs,
-    sizes,
     quantity,
     unitCost,
 }: {
-    categoryId: string;
     productName: string;
-    basePrice: string;
-    variantMode: VariantMode;
-    programs: string[];
-    sizes: string[];
     quantity: string;
     unitCost: string;
 }): string | null {
     if (
-        !categoryId
-        || Number(categoryId) < 1
-    ) {
-        return 'Select a category for the new product.';
-    }
-
-    if (
         !productName.trim()
     ) {
-        return 'Product name is required.';
-    }
-
-    if (
-        !isValidMoney(
-            basePrice,
-            true,
-        )
-    ) {
-        return 'Selling price is required and must be a valid amount.';
-    }
-
-    if (
-        variantMode ===
-            'size_only'
-        && sizes.length ===
-            0
-    ) {
-        return 'Select at least one size.';
-    }
-
-    if (
-        variantMode ===
-        'program_and_size'
-    ) {
-        if (
-            programs.length ===
-            0
-        ) {
-            return 'Select at least one program.';
-        }
-
-        if (
-            sizes.length ===
-            0
-        ) {
-            return 'Select at least one size.';
-        }
+        return 'Item name is required.';
     }
 
     if (
@@ -2787,172 +2033,6 @@ function isValidMoney(
             parsed,
         )
         && parsed >= 0
-    );
-}
-
-function toggleValue(
-    values: string[],
-    value: string,
-): string[] {
-    return values.includes(
-        value,
-    )
-        ? values.filter(
-              (
-                  current,
-              ) =>
-                  current !==
-                  value,
-          )
-        : [
-              ...values,
-              value,
-          ];
-}
-
-function getVariantCount(
-    mode: VariantMode,
-    programs: string[],
-    sizes: string[],
-): number {
-    if (
-        mode ===
-        'standard'
-    ) {
-        return 1;
-    }
-
-    if (
-        mode ===
-        'size_only'
-    ) {
-        return sizes.length;
-    }
-
-    return (
-        programs.length
-        * sizes.length
-    );
-}
-
-function getItemVariantCount(
-    item:
-        PurchaseOrderItemForm,
-): number {
-    if (
-        item.source_type ===
-        'existing_catalog'
-    ) {
-        return 1;
-    }
-
-    return getVariantCount(
-        item.variant_mode
-        ?? 'standard',
-        item.programs,
-        item.sizes,
-    );
-}
-
-function formatVariantMode(
-    mode:
-        VariantMode | null,
-): string {
-    switch (
-        mode
-    ) {
-        case 'size_only':
-            return 'Size Only';
-
-        case 'program_and_size':
-            return 'Program and Size';
-
-        default:
-            return 'Standard';
-    }
-}
-
-/*
-|--------------------------------------------------------------------------
-| Option Checklist
-|--------------------------------------------------------------------------
-*/
-
-function OptionChecklist({
-    title,
-    description,
-    options,
-    selected,
-    onToggle,
-}: {
-    title: string;
-    description: string;
-    options: ConfigurationOption[];
-    selected: string[];
-    onToggle:
-        (
-            value: string,
-        ) => void;
-}) {
-    return (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-            <h3 className="font-black text-slate-900">
-                {title}
-            </h3>
-
-            <p className="mt-1 text-xs text-slate-500">
-                {description}
-            </p>
-
-            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {options.map(
-                    (
-                        option,
-                    ) => (
-                        <label
-                            key={
-                                option.value
-                            }
-                            className={`
-                                flex cursor-pointer
-                                items-center gap-3
-                                rounded-xl border
-                                px-4 py-3
-                                transition
-                                ${
-                                    selected.includes(
-                                        option.value,
-                                    )
-                                        ? 'border-blue-400 bg-blue-50'
-                                        : 'border-slate-200 bg-white hover:bg-slate-50'
-                                }
-                            `}
-                        >
-                            <input
-                                type="checkbox"
-                                checked={
-                                    selected.includes(
-                                        option.value,
-                                    )
-                                }
-                                onChange={() =>
-                                    onToggle(
-                                        option.value,
-                                    )
-                                }
-                                className="h-4 w-4 rounded border-slate-300 text-blue-600"
-                            />
-
-                            <span className="text-sm font-bold text-slate-700">
-                                {
-                                    option.label
-                                }
-                            </span>
-                        </label>
-                    ),
-                )}
-            </div>
-        </div>
     );
 }
 

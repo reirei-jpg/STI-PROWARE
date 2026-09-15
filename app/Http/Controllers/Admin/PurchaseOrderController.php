@@ -233,114 +233,20 @@ class PurchaseOrderController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Active Categories
-        |--------------------------------------------------------------------------
-        |
-        | Used when the Admin chooses "New Inventory Item".
-        |
-        | The Admin selects the correct existing category instead of manually
-        | typing a category name.
-        |
-        */
-
-        $categories =
-            Category::query()
-                ->where(
-                    'is_active',
-                    true,
-                )
-                ->orderBy(
-                    'name',
-                )
-                ->get([
-                    'id',
-                    'name',
-                ])
-                ->map(
-                    fn (
-                        Category $category,
-                    ): array => [
-                        'id' => $category->id,
-
-                        'name' => $category->name,
-                    ],
-                )
-                ->values();
-
-        /*
-        |--------------------------------------------------------------------------
-        | Product Configuration
-        |--------------------------------------------------------------------------
-        |
-        | Reuse config/proware.php instead of duplicating programs and sizes
-        | inside the React page.
-        |
-        */
-
-        $productConfiguration = [
-            /*
-            |--------------------------------------------------------------------------
-            | Variant Modes
-            |--------------------------------------------------------------------------
-            */
-
-            'variant_modes' => [
-                [
-                    'value' => Product::VARIANT_MODE_STANDARD,
-
-                    'label' => 'Standard',
-                ],
-
-                [
-                    'value' => Product::VARIANT_MODE_SIZE_ONLY,
-
-                    'label' => 'Size Only',
-                ],
-
-                [
-                    'value' => Product::VARIANT_MODE_PROGRAM_AND_SIZE,
-
-                    'label' => 'Program and Size',
-                ],
-            ],
-
-            /*
-            |--------------------------------------------------------------------------
-            | Programs
-            |--------------------------------------------------------------------------
-            */
-
-            'programs' => config(
-                'proware.programs',
-                [],
-            ),
-
-            /*
-        |--------------------------------------------------------------------------
-        | Sizes
-        |--------------------------------------------------------------------------
-        */
-
-            'sizes' => config(
-                'proware.sizes',
-                [],
-            ),
-        ];
-
-        /*
-        |--------------------------------------------------------------------------
         | Render Purchase Order Creation Page
         |--------------------------------------------------------------------------
+        |
+        | Purchase order creation only collects procurement information
+        | (item, quantity, unit cost). Category, selling price, and
+        | variant structure are catalog/merchandising decisions and are
+        | collected later, when the item is actually resolved into a
+        | PROWARE product during receiving.
         */
 
         return Inertia::render(
             'admin/PurchaseOrders/Create',
             [
                 'variants' => $variants,
-
-                'categories' => $categories,
-
-                'productConfiguration' => $productConfiguration,
             ],
         );
     }
@@ -910,13 +816,13 @@ class PurchaseOrderController extends Controller
                 |--------------------------------------------------------------------------
                 | New Inventory Product
                 |--------------------------------------------------------------------------
+                |
+                | Category, selling price, and variant structure are
+                | catalog/merchandising decisions, not procurement
+                | information, so the PO only collects a name and an
+                | optional description here. They are resolved into a
+                | real PROWARE product later, during receiving.
                 */
-
-                'items.*.category_id' => [
-                    'nullable',
-                    'integer',
-                    'exists:categories,id',
-                ],
 
                 'items.*.product_name' => [
                     'nullable',
@@ -928,57 +834,6 @@ class PurchaseOrderController extends Controller
                     'nullable',
                     'string',
                     'max:5000',
-                ],
-
-                'items.*.base_price' => [
-                    'nullable',
-                    'numeric',
-                    'min:0',
-                ],
-
-                'items.*.variant_mode' => [
-                    'nullable',
-                    Rule::in(
-                        Product::variantModes(),
-                    ),
-                ],
-
-                'items.*.programs' => [
-                    'nullable',
-                    'array',
-                ],
-
-                'items.*.programs.*' => [
-                    'string',
-                    Rule::in(
-                        collect(
-                            config(
-                                'proware.programs',
-                                [],
-                            ),
-                        )
-                            ->pluck('value')
-                            ->all(),
-                    ),
-                ],
-
-                'items.*.sizes' => [
-                    'nullable',
-                    'array',
-                ],
-
-                'items.*.sizes.*' => [
-                    'string',
-                    Rule::in(
-                        collect(
-                            config(
-                                'proware.sizes',
-                                [],
-                            ),
-                        )
-                            ->pluck('value')
-                            ->all(),
-                    ),
                 ],
 
                 /*
@@ -1064,99 +919,14 @@ class PurchaseOrderController extends Controller
             if (
                 $sourceType
                 === 'new_inventory'
+                && blank(
+                    $item['product_name']
+                    ?? null,
+                )
             ) {
-                if (
-                    empty(
-                        $item['category_id']
-                    )
-                ) {
-                    throw ValidationException::withMessages([
-                        "items.{$index}.category_id" => 'Please select a category for the new product.',
-                    ]);
-                }
-
-                if (
-                    blank(
-                        $item['product_name']
-                        ?? null,
-                    )
-                ) {
-                    throw ValidationException::withMessages([
-                        "items.{$index}.product_name" => 'Please enter the new product name.',
-                    ]);
-                }
-
-                if (
-                    ! isset(
-                        $item['base_price']
-                    )
-                ) {
-                    throw ValidationException::withMessages([
-                        "items.{$index}.base_price" => 'Please enter the selling price.',
-                    ]);
-                }
-
-                if (
-                    empty(
-                        $item['variant_mode']
-                    )
-                ) {
-                    throw ValidationException::withMessages([
-                        "items.{$index}.variant_mode" => 'Please select how this product is tracked.',
-                    ]);
-                }
-
-                /*
-                |--------------------------------------------------------------------------
-                | Size Only Requires At Least One Size
-                |--------------------------------------------------------------------------
-                */
-
-                if (
-                    $item['variant_mode']
-                        === Product::VARIANT_MODE_SIZE_ONLY
-                    && empty(
-                        $item['sizes']
-                        ?? []
-                    )
-                ) {
-                    throw ValidationException::withMessages([
-                        "items.{$index}.sizes" => 'Please select at least one size.',
-                    ]);
-                }
-
-                /*
-                |--------------------------------------------------------------------------
-                | Program + Size Requires Both
-                |--------------------------------------------------------------------------
-                */
-
-                if (
-                    $item['variant_mode']
-                        === Product::VARIANT_MODE_PROGRAM_AND_SIZE
-                ) {
-                    if (
-                        empty(
-                            $item['programs']
-                            ?? []
-                        )
-                    ) {
-                        throw ValidationException::withMessages([
-                            "items.{$index}.programs" => 'Please select at least one program.',
-                        ]);
-                    }
-
-                    if (
-                        empty(
-                            $item['sizes']
-                            ?? []
-                        )
-                    ) {
-                        throw ValidationException::withMessages([
-                            "items.{$index}.sizes" => 'Please select at least one size.',
-                        ]);
-                    }
-                }
+                throw ValidationException::withMessages([
+                    "items.{$index}.product_name" => 'Please enter the item name.',
+                ]);
             }
 
             /*
@@ -1380,9 +1150,12 @@ class PurchaseOrderController extends Controller
                                     )
                                     : null,
 
-                                'proposed_category_id' => $item['category_id'] ?? null,
+                                // Category and selling price are no
+                                // longer collected at PO creation —
+                                // resolved later during receiving.
+                                'proposed_category_id' => null,
 
-                                'proposed_selling_price' => $item['base_price'] ?? null,
+                                'proposed_selling_price' => null,
 
                                 'manual_sku' => null,
 
