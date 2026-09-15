@@ -49,6 +49,7 @@ import AdminLayout from '@/layouts/AdminLayout';
 */
 
 type Period =
+    | 'overall'
     | 'today'
     | 'week'
     | 'month'
@@ -293,6 +294,7 @@ export default function Index({
                     <div className="flex flex-wrap items-center gap-2">
                         {(
                             [
+                                ['overall', 'Overall'],
                                 ['today', 'Today'],
                                 ['week', 'This Week'],
                                 ['month', 'This Month'],

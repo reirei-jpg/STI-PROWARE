@@ -74,6 +74,37 @@ test('the merged reports page renders both former Reports and Analytics data', f
     );
 });
 
+test('the default period is Overall, not the current month, so old sales are still visible', function () {
+    $admin = reportsMergeAdmin();
+    $student = reportsMergeStudent();
+
+    // "Now" is October 2026. This order is from months earlier and
+    // would be excluded if the default period were still "This Month".
+    Carbon::setTestNow(
+        Carbon::parse('2026-10-05 04:00:00', 'UTC'),
+    );
+
+    reportsMergePaidOrder(
+        $student,
+        $admin,
+        Carbon::parse('2026-08-30 15:23:47', 'UTC'),
+        1200.00,
+    );
+
+    // No ?period query string at all — the page's own default.
+    $response = $this->actingAs($admin)->get('/admin/reports');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->component('admin/Reports/Index')
+        ->where('filters.period', 'overall')
+        ->where('periodLabel', 'All Time')
+        ->where('summary.paid_orders', 1)
+        ->where('summary.total_sales', 1200)
+        ->where('salesTrend.0.sales', 1200),
+    );
+});
+
 test('visiting the old analytics url redirects to the merged reports page', function () {
     $admin = reportsMergeAdmin();
 

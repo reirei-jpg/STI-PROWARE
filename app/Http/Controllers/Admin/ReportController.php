@@ -55,6 +55,7 @@ class ReportController extends Controller
             ! in_array(
                 $period,
                 [
+                    'overall',
                     'today',
                     'week',
                     'month',
@@ -64,7 +65,7 @@ class ReportController extends Controller
             )
         ) {
             $period =
-                'month';
+                'overall';
         }
 
         /*
@@ -593,15 +594,17 @@ class ReportController extends Controller
                         ->toDateString(),
                 ],
 
-                'periodLabel' => $startDate
-                    ->copy()
-                    ->timezone(self::DISPLAY_TIMEZONE)
-                    ->format('M d, Y')
-                    .' - '
-                    .$endDate
+                'periodLabel' => $period === 'overall'
+                    ? 'All Time'
+                    : $startDate
                         ->copy()
                         ->timezone(self::DISPLAY_TIMEZONE)
-                        ->format('M d, Y'),
+                        ->format('M d, Y')
+                        .' - '
+                        .$endDate
+                            ->copy()
+                            ->timezone(self::DISPLAY_TIMEZONE)
+                            ->format('M d, Y'),
 
                 'summary' => [
                     'total_sales' => $totalSales,
@@ -646,6 +649,15 @@ class ReportController extends Controller
         Request $request,
         string $period,
     ): array {
+        if ($period === 'overall') {
+            return [
+                Carbon::createFromTimestamp(0)
+                    ->utc(),
+
+                now()->utc(),
+            ];
+        }
+
         if ($period === 'today') {
             return [
                 now(self::DISPLAY_TIMEZONE)
