@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Inventory;
 use App\Models\Notification;
 use App\Models\OrderItem;
-use App\Services\PreorderAvailabilityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -631,107 +630,5 @@ class WaitingListController extends Controller
             'success',
             'Preorder processed successfully. It is now a normal order item.',
         );
-    }
-
-    public function readinessForVariant(
-        int $productVariantId,
-    ): array {
-        $inventory =
-            Inventory::query()
-                ->where(
-                    'product_variant_id',
-                    $productVariantId,
-                )
-                ->first();
-
-        $remainingAvailable =
-            $inventory
-                ? max(
-                    0,
-                    (int)
-                    $inventory
-                        ->quantity_on_hand
-                    -
-                    (int)
-                    $inventory
-                        ->quantity_reserved,
-                )
-                : 0;
-
-        $items =
-            OrderItem::query()
-                ->where(
-                    'product_variant_id',
-                    $productVariantId,
-                )
-                ->where(
-                    'item_type',
-                    OrderItem::TYPE_PREORDER,
-                )
-                ->whereHas(
-                    'order',
-                    function (
-                        $query,
-                    ): void {
-                        $query
-                            ->where(
-                                'fulfillment_status',
-                                '!=',
-                                'released',
-                            )
-                            ->where(
-                                'fulfillment_status',
-                                '!=',
-                                'cancelled',
-                            )
-                            ->where(
-                                'payment_status',
-                                '!=',
-                                'cancelled',
-                            );
-                    },
-                )
-                ->orderBy(
-                    'created_at',
-                )
-                ->orderBy(
-                    'id',
-                )
-                ->get();
-
-        $statuses =
-            [];
-
-        foreach (
-            $items as $item
-        ) {
-            $requested =
-                (int)
-                $item->quantity;
-
-            if (
-                $requested > 0
-                &&
-                $remainingAvailable >=
-                $requested
-            ) {
-                $statuses[
-                    $item->id
-                ] =
-                    'ready';
-
-                $remainingAvailable -=
-                    $requested;
-
-                continue;
-            }
-
-            $statuses[
-                $item->id
-            ] =
-                'waiting';
-        }
-
-        return $statuses;
     }
 }
