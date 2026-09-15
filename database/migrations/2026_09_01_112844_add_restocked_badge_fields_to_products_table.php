@@ -1,0 +1,34 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('products', function (Blueprint $table) {
+            $table
+                ->unsignedInteger('restocked_badge_duration_days')
+                ->default(7);
+
+            $table
+                ->timestamp('restocked_badge_started_at')
+                ->nullable();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('products', function (Blueprint $table) {
+            $table->dropColumn([
+                'restocked_badge_duration_days',
+                'restocked_badge_started_at',
+            ]);
+        });
+    }
+};

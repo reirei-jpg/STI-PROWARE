@@ -1,0 +1,217 @@
+import {
+    CircleUserRound,
+    Clock3,
+    Home,
+    ShoppingBag,
+    ShoppingCart,
+} from 'lucide-react';
+
+import type {
+    LucideIcon,
+} from 'lucide-react';
+
+import {
+    Link,
+    usePage,
+} from '@inertiajs/react';
+
+import SidebarBrand from '@/components/SidebarBrand';
+
+interface MenuItem {
+    name: string;
+    icon: LucideIcon;
+    link: string;
+    enabled: boolean;
+}
+
+export default function StudentSidebar() {
+    const { url } = usePage();
+
+    const menus: MenuItem[] = [
+    {
+        name: 'Home',
+        icon: Home,
+        link: '/student/dashboard',
+        enabled: true,
+    },
+    {
+        name: 'My Cart',
+        icon: ShoppingCart,
+        link: '/cart',
+        enabled: true,
+    },
+    {
+        name: 'My Preorders',
+        icon: Clock3,
+        link: '/student/preorders',
+        enabled: true,
+    },
+    {
+        name: 'My Orders',
+        icon: ShoppingBag,
+        link: '/student/orders',
+        enabled: true,
+    },
+    {
+        name: 'My Profile',
+        icon: CircleUserRound,
+        link: '/student/profile',
+        enabled: true,
+    },
+];
+
+    return (
+        <aside
+            className="
+                fixed
+                inset-y-0
+                left-0
+                z-30
+                hidden
+                w-72
+                flex-col
+                overflow-y-auto
+                bg-[#0D6EFD]
+                px-5
+                py-7
+                text-white
+                md:flex
+            "
+        >
+            <SidebarBrand
+                subtitle="Student Portal"
+            />
+
+            <div
+                className="
+                    mt-8
+                    border-t
+                    border-white/10
+                "
+            />
+
+            <nav className="mt-6 space-y-1.5">
+                {menus.map((item) => {
+                    const Icon =
+                        item.icon;
+
+                    const active =
+                        url === item.link
+                        || url.startsWith(
+                            `${item.link}/`,
+                        );
+
+                    if (!item.enabled) {
+                        return (
+                            <div
+                                key={item.name}
+                                title="This module will be available later."
+                                className="
+                                    flex
+                                    cursor-not-allowed
+                                    items-center
+                                    gap-4
+                                    rounded-xl
+                                    px-4
+                                    py-3
+                                    text-sm
+                                    font-medium
+                                    text-blue-100/50
+                                "
+                            >
+                                <Icon
+                                    size={19}
+                                />
+
+                                <span className="flex-1">
+                                    {item.name}
+                                </span>
+
+                                <span
+                                    className="
+                                        rounded-full
+                                        bg-white/10
+                                        px-2
+                                        py-1
+                                        text-[9px]
+                                        font-black
+                                        uppercase
+                                        tracking-wide
+                                        text-blue-100/70
+                                    "
+                                >
+                                    Soon
+                                </span>
+                            </div>
+                        );
+                    }
+
+                    return (
+                        <Link
+                            key={item.name}
+                            href={item.link}
+                            className={`
+                                group
+                                flex
+                                items-center
+                                gap-4
+                                rounded-xl
+                                px-4
+                                py-3
+                                text-sm
+                                font-semibold
+                                transition
+
+                                ${
+                                    active
+                                        ? 'bg-white text-[#0D6EFD] shadow-sm'
+                                        : 'text-blue-50 hover:bg-white/15 hover:text-white'
+                                }
+                            `}
+                        >
+                            <Icon
+                                size={19}
+                            />
+
+                            <span>
+                                {item.name}
+                            </span>
+                        </Link>
+                    );
+                })}
+            </nav>
+
+            <div className="mt-auto pt-10">
+                <div
+                    className="
+                        border-t
+                        border-white/10
+                        pt-5
+                    "
+                >
+                    <p
+                        className="
+                            px-3
+                            text-xs
+                            font-medium
+                            text-blue-100
+                        "
+                    >
+                        STI PROWARE
+                    </p>
+
+                    <p
+                        className="
+                            mt-1
+                            px-3
+                            text-[11px]
+                            text-blue-200/70
+                        "
+                    >
+                        Student Portal • Version 1.0
+                    </p>
+                </div>
+            </div>
+        </aside>
+    );
+}
