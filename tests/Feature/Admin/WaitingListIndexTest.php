@@ -100,11 +100,11 @@ test('expired preorders are hidden from the default view', function () {
     waitingListIndexPreorderItem($variant, OrderItem::PREORDER_STATUS_WAITING);
     waitingListIndexPreorderItem($variant, OrderItem::PREORDER_STATUS_EXPIRED);
 
-    $response = $this->actingAs($admin)->get('/admin/waiting-list');
+    $response = $this->actingAs($admin)->get('/staff/waiting-list');
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->component('admin/WaitingList/Index')
+        ->component('staff/WaitingList/Index')
         ->where('waitingItems.total', 1)
         ->where('waitingItems.data.0.waiting_status', 'waiting'),
     );
@@ -117,11 +117,11 @@ test('expired preorders are shown when explicitly filtered', function () {
     waitingListIndexPreorderItem($variant, OrderItem::PREORDER_STATUS_WAITING);
     waitingListIndexPreorderItem($variant, OrderItem::PREORDER_STATUS_EXPIRED);
 
-    $response = $this->actingAs($admin)->get('/admin/waiting-list?status=expired');
+    $response = $this->actingAs($admin)->get('/staff/waiting-list?status=expired');
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->component('admin/WaitingList/Index')
+        ->component('staff/WaitingList/Index')
         ->where('waitingItems.total', 1)
         ->where('waitingItems.data.0.waiting_status', 'expired'),
     );
@@ -136,7 +136,7 @@ test('the displayed status is the real preorder status, not a live recomputation
     // what a live stock check would independently conclude.
     $item = waitingListIndexPreorderItem($variant, OrderItem::PREORDER_STATUS_WAITING);
 
-    $response = $this->actingAs($admin)->get('/admin/waiting-list');
+    $response = $this->actingAs($admin)->get('/staff/waiting-list');
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
@@ -155,7 +155,7 @@ test('the summary reflects real status counts across waiting, ready, paid, and e
     waitingListIndexPreorderItem($variant, OrderItem::PREORDER_STATUS_PAID);
     waitingListIndexPreorderItem($variant, OrderItem::PREORDER_STATUS_EXPIRED);
 
-    $response = $this->actingAs($admin)->get('/admin/waiting-list');
+    $response = $this->actingAs($admin)->get('/staff/waiting-list');
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
@@ -175,7 +175,7 @@ test('filtering by paid only returns paid preorders', function () {
     waitingListIndexPreorderItem($variant, OrderItem::PREORDER_STATUS_READY);
     $paidItem = waitingListIndexPreorderItem($variant, OrderItem::PREORDER_STATUS_PAID);
 
-    $response = $this->actingAs($admin)->get('/admin/waiting-list?status=paid');
+    $response = $this->actingAs($admin)->get('/staff/waiting-list?status=paid');
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page

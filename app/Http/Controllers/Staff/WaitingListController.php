@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
 use App\Models\Inventory;
@@ -17,6 +17,11 @@ class WaitingListController extends Controller
 {
     /**
      * Display preorder / waiting-list entries.
+     *
+     * Shared by Admin and Specialist — Specialist is the one who
+     * actually receives stock (which triggers allocation) and
+     * releases orders (which requires this page's Process step),
+     * so this is a working tool for them, not just Admin oversight.
      */
     public function index(
         Request $request,
@@ -26,7 +31,14 @@ class WaitingListController extends Controller
 
         abort_unless(
             $user
-            && $user->isAdminLevel(),
+            && in_array(
+                $user->role,
+                [
+                    'admin',
+                    'specialist',
+                ],
+                true,
+            ),
             403,
         );
         /*
@@ -383,7 +395,7 @@ class WaitingListController extends Controller
         */
 
         return Inertia::render(
-            'admin/WaitingList/Index',
+            'staff/WaitingList/Index',
             [
                 'waitingItems' => $waitingItems,
 
@@ -414,8 +426,8 @@ class WaitingListController extends Controller
     }
 
     /**
-     * Convert a ready preorder item into a normal order item
-     * and reserve its inventory.
+     * Convert a ready or paid preorder item into a normal order
+     * item so it can be released.
      */
     public function process(
         Request $request,
@@ -426,13 +438,20 @@ class WaitingListController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Admin Only
+        | Admin Or Specialist
         |--------------------------------------------------------------------------
         */
 
         abort_unless(
             $user
-            && $user->isAdminLevel(),
+            && in_array(
+                $user->role,
+                [
+                    'admin',
+                    'specialist',
+                ],
+                true,
+            ),
             403,
         );
 

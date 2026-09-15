@@ -12,7 +12,6 @@ use App\Http\Controllers\Admin\SalesController;
 use App\Http\Controllers\Admin\StaffUserController;
 use App\Http\Controllers\Admin\StockReceiptController;
 use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\Admin\WaitingListController;
 use App\Http\Controllers\Auth\RequiredPasswordChangeController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CartPageController;
@@ -27,6 +26,7 @@ use App\Http\Controllers\Specialist\PreorderConfigurationController;
 use App\Http\Controllers\Staff\InventoryAdjustmentController;
 use App\Http\Controllers\Staff\InventoryController;
 use App\Http\Controllers\Staff\StockMovementController;
+use App\Http\Controllers\Staff\WaitingListController;
 use App\Http\Controllers\Student\OrderQrController;
 use App\Http\Controllers\Student\StudentDashboardController;
 use App\Http\Controllers\Student\StudentOrderController;
@@ -418,6 +418,37 @@ Route::middleware([
                     'inventory.adjustments.store',
                 );
 
+                /*
+                |--------------------------------------------------------------------------
+                | Waiting List
+                |--------------------------------------------------------------------------
+                |
+                | Shared by Admin and Specialist — Specialist receives
+                | stock (which triggers allocation) and releases orders
+                | (which requires this page's Process step).
+                |
+                */
+
+                Route::get(
+                    '/waiting-list',
+                    [
+                        WaitingListController::class,
+                        'index',
+                    ],
+                )->name(
+                    'waiting-list.index',
+                );
+
+                Route::patch(
+                    '/waiting-list/{orderItem}/process',
+                    [
+                        WaitingListController::class,
+                        'process',
+                    ],
+                )->name(
+                    'waiting-list.process',
+                );
+
             });
 
         /*
@@ -581,32 +612,6 @@ Route::middleware([
                     ],
                 )->name(
                     'purchase-orders.restore',
-                );
-
-                /*
-                |--------------------------------------------------------------------------
-                | Waiting List
-                |--------------------------------------------------------------------------
-                */
-
-                Route::get(
-                    '/waiting-list',
-                    [
-                        WaitingListController::class,
-                        'index',
-                    ],
-                )->name(
-                    'waiting-list.index',
-                );
-
-                Route::patch(
-                    '/waiting-list/{orderItem}/process',
-                    [
-                        WaitingListController::class,
-                        'process',
-                    ],
-                )->name(
-                    'waiting-list.process',
                 );
 
                 /*

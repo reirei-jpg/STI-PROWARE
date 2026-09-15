@@ -116,7 +116,7 @@ export default function Sidebar() {
         {
             name: 'Waiting List',
             icon: Clock,
-            link: '/admin/waiting-list',
+            link: '/staff/waiting-list',
             enabled: true,
         },
 

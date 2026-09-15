@@ -1,6 +1,11 @@
 import {
+    Link,
+    usePage,
+} from '@inertiajs/react';
+import {
     Boxes,
     ClipboardList,
+    Clock,
     LayoutDashboard,
     PackageCheck,
     PackageSearch,
@@ -9,10 +14,6 @@ import {
     History,
 } from 'lucide-react';
 
-import {
-    Link,
-    usePage,
-} from '@inertiajs/react';
 
 import type {
     LucideIcon,
@@ -49,6 +50,12 @@ export default function SpecialistSidebar() {
             name: 'Release History',
             icon: History,
             link: specialist.releases.index.url(),
+            enabled: true,
+        },
+        {
+            name: 'Waiting List',
+            icon: Clock,
+            link: '/staff/waiting-list',
             enabled: true,
         },
         {

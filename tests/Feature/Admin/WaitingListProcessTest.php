@@ -103,7 +103,7 @@ test('processing a ready preorder converts it without touching inventory reserva
     $item = waitingListPreorderItem($variant, OrderItem::PREORDER_STATUS_READY, quantity: 2);
 
     $this->actingAs($admin)
-        ->patch("/admin/waiting-list/{$item->id}/process")
+        ->patch("/staff/waiting-list/{$item->id}/process")
         ->assertSessionDoesntHaveErrors();
 
     $item->refresh();
@@ -121,7 +121,7 @@ test('processing a paid preorder converts it without touching inventory reservat
     $item = waitingListPreorderItem($variant, OrderItem::PREORDER_STATUS_PAID, quantity: 3);
 
     $this->actingAs($admin)
-        ->patch("/admin/waiting-list/{$item->id}/process")
+        ->patch("/staff/waiting-list/{$item->id}/process")
         ->assertSessionDoesntHaveErrors();
 
     $item->refresh();
@@ -137,7 +137,7 @@ test('a waiting preorder cannot be processed', function () {
     $item = waitingListPreorderItem($variant, OrderItem::PREORDER_STATUS_WAITING);
 
     $this->actingAs($admin)
-        ->patch("/admin/waiting-list/{$item->id}/process")
+        ->patch("/staff/waiting-list/{$item->id}/process")
         ->assertSessionHasErrors('preorder');
 
     $item->refresh();
@@ -153,7 +153,7 @@ test('an expired preorder cannot be processed', function () {
     $item = waitingListPreorderItem($variant, OrderItem::PREORDER_STATUS_EXPIRED);
 
     $this->actingAs($admin)
-        ->patch("/admin/waiting-list/{$item->id}/process")
+        ->patch("/staff/waiting-list/{$item->id}/process")
         ->assertSessionHasErrors('preorder');
 
     $item->refresh();
@@ -167,11 +167,11 @@ test('an already-processed item cannot be processed again', function () {
     $item = waitingListPreorderItem($variant, OrderItem::PREORDER_STATUS_READY, quantity: 2);
 
     $this->actingAs($admin)
-        ->patch("/admin/waiting-list/{$item->id}/process")
+        ->patch("/staff/waiting-list/{$item->id}/process")
         ->assertSessionDoesntHaveErrors();
 
     $this->actingAs($admin)
-        ->patch("/admin/waiting-list/{$item->id}/process")
+        ->patch("/staff/waiting-list/{$item->id}/process")
         ->assertSessionHasErrors('preorder');
 
     $inventory = Inventory::query()->where('product_variant_id', $variant->id)->first();
@@ -181,7 +181,7 @@ test('an already-processed item cannot be processed again', function () {
     expect((int) $inventory->quantity_reserved)->toBe(2);
 });
 
-test('a specialist cannot process a preorder', function () {
+test('a specialist can process a ready preorder', function () {
     $specialist = User::factory()->create([
         'role' => 'specialist',
         'is_active' => true,
@@ -191,6 +191,24 @@ test('a specialist cannot process a preorder', function () {
     $item = waitingListPreorderItem($variant, OrderItem::PREORDER_STATUS_READY, quantity: 2);
 
     $this->actingAs($specialist)
-        ->patch("/admin/waiting-list/{$item->id}/process")
+        ->patch("/staff/waiting-list/{$item->id}/process")
+        ->assertSessionDoesntHaveErrors();
+
+    $item->refresh();
+
+    expect($item->item_type)->toBe(OrderItem::TYPE_ORDER);
+});
+
+test('a cashier cannot process a preorder', function () {
+    $cashier = User::factory()->create([
+        'role' => 'cashier',
+        'is_active' => true,
+    ]);
+
+    $variant = waitingListVariant($cashier, quantityOnHand: 10, quantityReserved: 2);
+    $item = waitingListPreorderItem($variant, OrderItem::PREORDER_STATUS_READY, quantity: 2);
+
+    $this->actingAs($cashier)
+        ->patch("/staff/waiting-list/{$item->id}/process")
         ->assertForbidden();
 });

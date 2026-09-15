@@ -21,6 +21,7 @@ import {
 } from 'react';
 
 import AdminLayout from '@/layouts/AdminLayout';
+import SpecialistLayout from '@/layouts/SpecialistLayout';
 
 /*
 |--------------------------------------------------------------------------
@@ -195,12 +196,26 @@ export default function Index({
 }: WaitingListPageProps) {
 
 
-        const { flash } = usePage<{
+        const { flash, auth } = usePage<{
         flash?: {
             success?: string;
             error?: string;
         };
+        auth?: {
+            user?: {
+                role?: string;
+            };
+        };
     }>().props;
+
+    const currentRole =
+        auth?.user?.role
+        ?? null;
+
+    const Layout =
+        currentRole === 'specialist'
+            ? SpecialistLayout
+            : AdminLayout;
 
     const [notification, setNotification] =
         useState<string | null>(null);
@@ -257,7 +272,7 @@ export default function Index({
                     }
 
                     router.get(
-                        '/admin/waiting-list',
+                        '/staff/waiting-list',
                         {
                             search:
                                 cleaned
@@ -305,7 +320,7 @@ export default function Index({
                 string,
         ): void => {
             router.get(
-                '/admin/waiting-list',
+                '/staff/waiting-list',
                 {
                     search:
                         search
@@ -357,7 +372,7 @@ export default function Index({
         };
 
     return (
-        <AdminLayout>
+        <Layout>
 
                         {notification && (
                 <div className="fixed right-6 top-6 z-50">
@@ -1120,7 +1135,7 @@ export default function Index({
                     )}
                 </section>
             </div>
-        </AdminLayout>
+        </Layout>
     );
 }
 
@@ -1984,7 +1999,7 @@ function ProcessPreorderButton({
             );
 
             router.patch(
-                `/admin/waiting-list/${item.id}/process`,
+                `/staff/waiting-list/${item.id}/process`,
                 {},
                 {
                     preserveScroll:
