@@ -1,3 +1,10 @@
+
+import {
+    Head,
+    Link,
+    router,
+    usePage,
+} from '@inertiajs/react';
 import {
     Archive,
     ArrowRight,
@@ -11,21 +18,14 @@ import {
 } from 'lucide-react';
 
 import {
-    Head,
-    Link,
-    router,
-    usePage,
-} from '@inertiajs/react';
-
-import {
     useEffect,
     useState,
 } from 'react';
 
-import AdminLayout from '@/layouts/AdminLayout';
 
 import ActionNotification from '@/components/action-feedback/ActionNotification';
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
+import AdminLayout from '@/layouts/AdminLayout';
 
 /*
 |--------------------------------------------------------------------------
@@ -136,10 +136,16 @@ interface PaginatedPurchaseOrders {
         number;
 }
 
+interface Filters {
+    status: string;
+}
+
 interface Props {
     purchaseOrders:
         PaginatedPurchaseOrders
         | PurchaseOrder[];
+
+    filters?: Filters;
 }
 
 interface SharedPageProps {
@@ -163,9 +169,30 @@ interface SharedPageProps {
 
 export default function Index({
     purchaseOrders,
+    filters,
 }: Props) {
     const page =
         usePage<SharedPageProps>();
+
+    const statusFilter =
+        filters?.status
+        ?? 'all';
+
+    const changeStatusFilter = (
+        status: string,
+    ): void => {
+        router.get(
+            '/admin/purchase-orders',
+            status === 'all'
+                ? {}
+                : { status },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
 
     const flash =
         page.props.flash;
@@ -522,6 +549,54 @@ export default function Index({
 </div>
                 </div>
 
+                {/*
+                |--------------------------------------------------------------------------
+                | Status Filter
+                |--------------------------------------------------------------------------
+                */}
+
+                <div
+                    className="
+                        flex
+                        flex-wrap
+                        gap-2
+                    "
+                >
+                    <StatusFilterButton
+                        active={statusFilter === 'all'}
+                        onClick={() => changeStatusFilter('all')}
+                    >
+                        All
+                    </StatusFilterButton>
+
+                    <StatusFilterButton
+                        active={statusFilter === 'draft'}
+                        onClick={() => changeStatusFilter('draft')}
+                    >
+                        Draft
+                    </StatusFilterButton>
+
+                    <StatusFilterButton
+                        active={statusFilter === 'ordered'}
+                        onClick={() => changeStatusFilter('ordered')}
+                    >
+                        Awaiting Delivery
+                    </StatusFilterButton>
+
+                    <StatusFilterButton
+                        active={statusFilter === 'partially_received'}
+                        onClick={() => changeStatusFilter('partially_received')}
+                    >
+                        Partially Received
+                    </StatusFilterButton>
+
+                    <StatusFilterButton
+                        active={statusFilter === 'completed'}
+                        onClick={() => changeStatusFilter('completed')}
+                    >
+                        Completed
+                    </StatusFilterButton>
+                </div>
 
                 {/* Action Notification */}
                     {notification && (
@@ -1556,6 +1631,39 @@ function formatDateTime(
 | Summary Card
 |--------------------------------------------------------------------------
 */
+
+function StatusFilterButton({
+    active,
+    onClick,
+    children,
+}: {
+    active: boolean;
+    onClick: () => void;
+    children: React.ReactNode;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={`
+                rounded-xl
+                px-4
+                py-2.5
+                text-xs
+                font-bold
+                transition
+
+                ${
+                    active
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }
+            `}
+        >
+            {children}
+        </button>
+    );
+}
 
 function SummaryCard({
     label,

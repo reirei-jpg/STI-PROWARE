@@ -36,10 +36,50 @@ class PurchaseOrderController extends Controller
             403,
         );
 
+        /*
+        |--------------------------------------------------------------------------
+        | Status Filter
+        |--------------------------------------------------------------------------
+        |
+        | Lets the Admin dashboard deep-link into a specific
+        | procurement stage (e.g. only Draft, or only Completed).
+        */
+
+        $status =
+            (string) $request->query(
+                'status',
+                'all',
+            );
+
+        $allowedStatuses = [
+            'all',
+            PurchaseOrder::STATUS_DRAFT,
+            PurchaseOrder::STATUS_ORDERED,
+            PurchaseOrder::STATUS_PARTIALLY_RECEIVED,
+            PurchaseOrder::STATUS_COMPLETED,
+        ];
+
+        if (
+            ! in_array(
+                $status,
+                $allowedStatuses,
+                true,
+            )
+        ) {
+            $status = 'all';
+        }
+
         $purchaseOrders =
             PurchaseOrder::query()
                 ->whereNull(
                     'archived_at',
+                )
+                ->when(
+                    $status !== 'all',
+                    fn ($query) => $query->where(
+                        'status',
+                        $status,
+                    ),
                 )
                 ->with([
                     'creator:id,name',
@@ -68,6 +108,10 @@ class PurchaseOrderController extends Controller
             'admin/PurchaseOrders/Index',
             [
                 'purchaseOrders' => $purchaseOrders,
+
+                'filters' => [
+                    'status' => $status,
+                ],
             ],
         );
     }
@@ -607,34 +651,34 @@ class PurchaseOrderController extends Controller
                             ],
 
                             'inventory' => [
-                            'quantity_on_hand' => (int) (
-                                $variant
-                                    ->inventory
-                                    ?->quantity_on_hand
-                                ?? 0
-                            ),
+                                'quantity_on_hand' => (int) (
+                                    $variant
+                                        ->inventory
+                                        ?->quantity_on_hand
+                                    ?? 0
+                                ),
 
-                            'quantity_reserved' => (int) (
-                                $variant
-                                    ->inventory
-                                    ?->quantity_reserved
-                                ?? 0
-                            ),
+                                'quantity_reserved' => (int) (
+                                    $variant
+                                        ->inventory
+                                        ?->quantity_reserved
+                                    ?? 0
+                                ),
 
-                            'available_quantity' => (int) (
-                                $variant
-                                    ->inventory
-                                    ?->available_quantity
-                                ?? 0
-                            ),
+                                'available_quantity' => (int) (
+                                    $variant
+                                        ->inventory
+                                        ?->available_quantity
+                                    ?? 0
+                                ),
 
-                            'reorder_level' => (int) (
-                                $variant
-                                    ->inventory
-                                    ?->reorder_level
-                                ?? 0
-                            ),
-                        ],
+                                'reorder_level' => (int) (
+                                    $variant
+                                        ->inventory
+                                        ?->reorder_level
+                                    ?? 0
+                                ),
+                            ],
                         ];
                     },
                 )
@@ -902,7 +946,7 @@ class PurchaseOrderController extends Controller
                 'items.*.programs' => [
                     'nullable',
                     'array',
-            ],
+                ],
 
                 'items.*.programs.*' => [
                     'string',
@@ -916,12 +960,12 @@ class PurchaseOrderController extends Controller
                             ->pluck('value')
                             ->all(),
                     ),
-            ],
+                ],
 
                 'items.*.sizes' => [
                     'nullable',
                     'array',
-            ],
+                ],
 
                 'items.*.sizes.*' => [
                     'string',
@@ -935,7 +979,7 @@ class PurchaseOrderController extends Controller
                             ->pluck('value')
                             ->all(),
                     ),
-            ],
+                ],
 
                 /*
             |--------------------------------------------------------------------------
@@ -947,19 +991,19 @@ class PurchaseOrderController extends Controller
                     'nullable',
                     'string',
                     'max:255',
-            ],
+                ],
 
                 'items.*.manual_description' => [
                     'nullable',
                     'string',
                     'max:5000',
-            ],
+                ],
 
                 'items.*.manual_sku' => [
                     'nullable',
                     'string',
                     'max:255',
-            ],
+                ],
 
                 /*
             |--------------------------------------------------------------------------
@@ -972,13 +1016,13 @@ class PurchaseOrderController extends Controller
                     'integer',
                     'min:1',
                     'max:1000000',
-            ],
+                ],
 
                 'items.*.unit_cost' => [
                     'nullable',
                     'numeric',
                     'min:0',
-            ],
+                ],
             ]);
 
         /*
@@ -1506,37 +1550,37 @@ class PurchaseOrderController extends Controller
                     'nullable',
                     'integer',
                     'exists:product_variants,id',
-            ],
+                ],
 
                 'manual_name' => [
                     'nullable',
                     'string',
                     'max:255',
-            ],
+                ],
 
                 'manual_description' => [
                     'nullable',
                     'string',
                     'max:5000',
-            ],
+                ],
 
                 'manual_sku' => [
                     'nullable',
                     'string',
                     'max:255',
-            ],
+                ],
 
                 'quantity_ordered' => [
                     'required',
                     'integer',
                     'min:1',
-            ],
+                ],
 
                 'unit_cost' => [
                     'nullable',
                     'numeric',
                     'min:0',
-            ],
+                ],
             ]);
 
         $itemType =

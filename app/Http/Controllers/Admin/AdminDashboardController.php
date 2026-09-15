@@ -561,6 +561,19 @@ class AdminDashboardController extends Controller
             [
                 /*
                 |--------------------------------------------------------------------------
+                | Philippine "Today" Date
+                |--------------------------------------------------------------------------
+                |
+                | Used by the dashboard to deep-link "today" metrics
+                | (e.g. Sales Today) into date-filtered pages.
+                */
+
+                'todayDate' => now(
+                    self::DISPLAY_TIMEZONE,
+                )->toDateString(),
+
+                /*
+                |--------------------------------------------------------------------------
                 | Overall System Monitoring
                 |--------------------------------------------------------------------------
                 */

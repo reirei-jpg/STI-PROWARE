@@ -1,4 +1,8 @@
 import {
+    Head,
+    Link,
+} from '@inertiajs/react';
+import {
     AlertTriangle,
     ArrowRight,
     Boxes,
@@ -17,10 +21,6 @@ import type {
     LucideIcon,
 } from 'lucide-react';
 
-import {
-    Head,
-    Link,
-} from '@inertiajs/react';
 
 import AdminLayout from '@/layouts/AdminLayout';
 
@@ -82,6 +82,8 @@ interface InventoryAlert {
 }
 
 interface AdminDashboardProps {
+    todayDate: string;
+
     overview: AdminOverview;
 
     transactions: TransactionSummary;
@@ -110,6 +112,7 @@ type MetricTone =
 */
 
 export default function Dashboard({
+    todayDate,
     overview,
     transactions,
     specialistActivity,
@@ -280,6 +283,7 @@ export default function Dashboard({
                             }
                             icon={ShoppingBag}
                             tone="blue"
+                            href="/admin/orders"
                         />
 
                         <OverviewMetric
@@ -289,6 +293,7 @@ export default function Dashboard({
                             }
                             icon={Package}
                             tone="slate"
+                            href="/admin/products"
                         />
 
                         <OverviewMetric
@@ -299,6 +304,7 @@ export default function Dashboard({
                             }
                             icon={Boxes}
                             tone="green"
+                            href="/staff/inventory"
                         />
 
                         <OverviewMetric
@@ -310,6 +316,7 @@ export default function Dashboard({
                                     ? 'red'
                                     : 'green'
                             }
+                            href="/staff/inventory"
                         />
                     </div>
                 </section>
@@ -407,6 +414,7 @@ export default function Dashboard({
                                 )}
                                 icon={ShoppingCart}
                                 tone="blue"
+                                href={`/admin/sales?date_from=${todayDate}&date_to=${todayDate}`}
                             />
 
                             <DepartmentMetric
@@ -417,6 +425,7 @@ export default function Dashboard({
                                 )}
                                 icon={CheckCircle2}
                                 tone="green"
+                                href={`/admin/sales?date_from=${todayDate}&date_to=${todayDate}`}
                             />
 
                             <DepartmentMetric
@@ -433,6 +442,7 @@ export default function Dashboard({
                                         ? 'amber'
                                         : 'green'
                                 }
+                                href="/admin/orders?status=pending_payment"
                             />
                         </DepartmentCard>
 
@@ -503,6 +513,7 @@ export default function Dashboard({
                                 value={`${specialistActivity.stock_in_today} units`}
                                 icon={Truck}
                                 tone="green"
+                                href="/staff/inventory/movements?direction=in"
                             />
 
                             <DepartmentMetric
@@ -510,6 +521,7 @@ export default function Dashboard({
                                 value={`${specialistActivity.stock_out_today} units`}
                                 icon={Package}
                                 tone="amber"
+                                href="/staff/inventory/movements?direction=out"
                             />
 
                             <DepartmentMetric
@@ -520,6 +532,7 @@ export default function Dashboard({
                                 )}
                                 icon={PackageCheck}
                                 tone="blue"
+                                href="/admin/orders?status=released"
                             />
                         </DepartmentCard>
                     </div>
@@ -626,6 +639,7 @@ export default function Dashboard({
                             }
                             icon={ClipboardList}
                             tone="slate"
+                            href="/admin/purchase-orders?status=draft"
                         />
 
                         <OverviewMetric
@@ -636,6 +650,7 @@ export default function Dashboard({
                             }
                             icon={Truck}
                             tone="blue"
+                            href="/admin/purchase-orders?status=ordered"
                         />
 
                         <OverviewMetric
@@ -646,6 +661,7 @@ export default function Dashboard({
                             }
                             icon={Clock3}
                             tone="amber"
+                            href="/admin/purchase-orders?status=partially_received"
                         />
 
                         <OverviewMetric
@@ -656,6 +672,7 @@ export default function Dashboard({
                             }
                             icon={CheckCircle2}
                             tone="green"
+                            href="/admin/purchase-orders?status=completed"
                         />
                     </div>
 
@@ -1129,6 +1146,7 @@ function DepartmentMetric({
     value,
     icon: Icon,
     tone,
+    href,
 }: {
     label: string;
     value: string;
@@ -1137,6 +1155,7 @@ function DepartmentMetric({
         | 'blue'
         | 'green'
         | 'amber';
+    href?: string;
 }) {
     const styles = {
         blue:
@@ -1149,16 +1168,8 @@ function DepartmentMetric({
             'bg-amber-50 text-amber-700',
     };
 
-    return (
-        <div
-            className="
-                rounded-2xl
-                border
-                border-slate-100
-                bg-white
-                p-4
-            "
-        >
+    const content = (
+        <>
             <div
                 className={`
                     flex
@@ -1194,6 +1205,42 @@ function DepartmentMetric({
             >
                 {value}
             </p>
+        </>
+    );
+
+    if (href) {
+        return (
+            <Link
+                href={href}
+                className="
+                    block
+                    rounded-2xl
+                    border
+                    border-slate-100
+                    bg-white
+                    p-4
+                    transition
+                    hover:-translate-y-0.5
+                    hover:border-blue-200
+                    hover:shadow-md
+                "
+            >
+                {content}
+            </Link>
+        );
+    }
+
+    return (
+        <div
+            className="
+                rounded-2xl
+                border
+                border-slate-100
+                bg-white
+                p-4
+            "
+        >
+            {content}
         </div>
     );
 }
@@ -1209,11 +1256,13 @@ function OverviewMetric({
     value,
     icon: Icon,
     tone,
+    href,
 }: {
     label: string;
     value: number;
     icon: LucideIcon;
     tone: MetricTone;
+    href?: string;
 }) {
     const tones: Record<
         MetricTone,
@@ -1293,15 +1342,8 @@ function OverviewMetric({
     const style =
         tones[tone];
 
-    return (
-        <article
-            className={`
-                rounded-2xl
-                border
-                p-4
-                ${style.wrapper}
-            `}
-        >
+    const content = (
+        <>
             <div
                 className={`
                     flex
@@ -1339,6 +1381,39 @@ function OverviewMetric({
             >
                 {value}
             </p>
+        </>
+    );
+
+    if (href) {
+        return (
+            <Link
+                href={href}
+                className={`
+                    block
+                    rounded-2xl
+                    border
+                    p-4
+                    transition
+                    hover:-translate-y-0.5
+                    hover:shadow-md
+                    ${style.wrapper}
+                `}
+            >
+                {content}
+            </Link>
+        );
+    }
+
+    return (
+        <article
+            className={`
+                rounded-2xl
+                border
+                p-4
+                ${style.wrapper}
+            `}
+        >
+            {content}
         </article>
     );
 }
@@ -1359,7 +1434,10 @@ function InventoryAlertRow({
         'out_of_stock';
 
     return (
-        <div className="px-5 py-4">
+        <Link
+            href={`/staff/inventory?search=${encodeURIComponent(alert.product_code)}`}
+            className="block px-5 py-4 transition hover:bg-slate-50"
+        >
             <div
                 className="
                     flex
@@ -1479,7 +1557,7 @@ function InventoryAlertRow({
                     </p>
                 </div>
             </div>
-        </div>
+        </Link>
     );
 }
 
