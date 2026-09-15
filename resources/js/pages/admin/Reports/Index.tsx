@@ -1,24 +1,44 @@
 import {
-    AlertTriangle,
-    Banknote,
-    Boxes,
-    CheckCircle2,
-    Clock,
-    PackageCheck,
-    Printer,
-    ReceiptText,
-    ShoppingCart,
-} from 'lucide-react';
-
-import {
     Head,
     router,
 } from '@inertiajs/react';
-
 import {
-    type ReactNode,
+    AlertTriangle,
+    CalendarRange,
+    CheckCircle2,
+    ClipboardList,
+    Package,
+    PackageCheck,
+    Percent,
+    Printer,
+    ShoppingBag,
+    ShoppingCart,
+    Truck,
+    Wallet,
+} from 'lucide-react';
+
+
+import type {
+    LucideIcon,
+} from 'lucide-react';
+import {
     useState,
 } from 'react';
+
+import {
+    Area,
+    AreaChart,
+    CartesianGrid,
+    Cell,
+    Legend,
+    Pie,
+    PieChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
+
 
 import AdminLayout from '@/layouts/AdminLayout';
 
@@ -28,41 +48,56 @@ import AdminLayout from '@/layouts/AdminLayout';
 |--------------------------------------------------------------------------
 */
 
-interface SalesByVariantItem {
+type Period =
+    | 'today'
+    | 'week'
+    | 'month'
+    | 'custom';
+
+interface Filters {
+    period: Period;
+    start_date: string;
+    end_date: string;
+}
+
+interface Summary {
+    total_sales: number;
+    paid_orders: number;
+    average_order_value: number;
+    pending_payments: number;
+    released_orders: number;
+    fulfillment_rate: number;
+    units_sold: number;
+    total_stock_received: number;
+}
+
+interface InventoryHealth {
+    in_stock: number;
+    low_stock: number;
+    out_of_stock: number;
+}
+
+interface SalesTrendPoint {
+    date: string;
+    full_date: string;
+    sales: number;
+    orders: number;
+}
+
+interface TopProduct {
+    product_code: string;
+    product_name: string;
+    units_sold: number;
+    total_sales: number;
+}
+
+interface SalesByVariantRow {
     product_code: string;
     product_name: string;
     variant_name: string;
     sku: string;
     units_sold: number;
     total_sales: number;
-}
-
-interface TopSellingProduct {
-    product_code: string;
-    product_name: string;
-    units_sold: number;
-    total_sales: number;
-}
-
-interface ReportFilters {
-    period:
-        | 'today'
-        | 'week'
-        | 'month'
-        | 'custom';
-
-    start_date: string;
-    end_date: string;
-}
-
-interface ReportSummary {
-    total_sales: number;
-    paid_orders: number;
-    pending_payments: number;
-    released_orders: number;
-    total_stock_received: number;
-    low_stock: number;
-    out_of_stock: number;
 }
 
 interface RecentOrder {
@@ -86,1466 +121,594 @@ interface RecentReceipt {
     created_at: string | null;
 }
 
-interface ReportPageProps {
-    summary: ReportSummary;
+interface ReportsPageProps {
+    filters: Filters;
+    periodLabel: string;
+    summary: Summary;
+    inventoryHealth: InventoryHealth;
+    salesTrend: SalesTrendPoint[];
+    topSellingProducts: TopProduct[];
+    salesByVariant: SalesByVariantRow[];
     recentOrders: RecentOrder[];
     recentReceipts: RecentReceipt[];
-    filters: ReportFilters;
-    periodLabel: string;
-    topSellingProducts: TopSellingProduct[];
-    salesByVariant: SalesByVariantItem[];
 }
 
 /*
 |--------------------------------------------------------------------------
-| Reports Page
+| Page
 |--------------------------------------------------------------------------
 */
 
 export default function Index({
-    summary,
-    recentOrders,
-    recentReceipts,
     filters,
     periodLabel,
+    summary,
+    inventoryHealth,
+    salesTrend,
     topSellingProducts,
     salesByVariant,
-}: ReportPageProps) {
+    recentOrders,
+    recentReceipts,
+}: ReportsPageProps) {
     const [
         period,
         setPeriod,
-    ] =
-        useState<
-            ReportFilters['period']
-        >(
-            filters.period,
-        );
+    ] = useState<Period>(
+        filters.period,
+    );
 
     const [
         startDate,
         setStartDate,
-    ] =
-        useState(
-            filters.start_date,
-        );
+    ] = useState(
+        filters.start_date,
+    );
 
     const [
         endDate,
         setEndDate,
-    ] =
-        useState(
-            filters.end_date,
+    ] = useState(
+        filters.end_date,
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Apply Filter
+    |--------------------------------------------------------------------------
+    */
+
+    const applyFilter = (
+        nextPeriod: Period,
+    ): void => {
+        setPeriod(nextPeriod);
+
+        if (nextPeriod === 'custom') {
+            return;
+        }
+
+        router.get(
+            '/admin/reports',
+            { period: nextPeriod },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                replace: true,
+            },
         );
+    };
 
-    /*
-    |--------------------------------------------------------------------------
-    | Apply Report Filter
-    |--------------------------------------------------------------------------
-    */
+    const applyCustomRange = (): void => {
+        if (!startDate || !endDate) {
+            return;
+        }
 
-    const applyFilter =
-        (): void => {
-            router.get(
-                '/admin/reports',
-                {
-                    period,
+        router.get(
+            '/admin/reports',
+            {
+                period: 'custom',
+                start_date: startDate,
+                end_date: endDate,
+            },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                replace: true,
+            },
+        );
+    };
 
-                    start_date:
-                        period ===
-                        'custom'
-                            ? startDate
-                            : undefined,
+    const inventoryTotal =
+        inventoryHealth.in_stock
+        + inventoryHealth.low_stock
+        + inventoryHealth.out_of_stock;
 
-                    end_date:
-                        period ===
-                        'custom'
-                            ? endDate
-                            : undefined,
-                },
-                {
-                    preserveScroll:
-                        true,
-
-                    preserveState:
-                        true,
-
-                    replace:
-                        true,
-                },
-            );
-        };
-
-    /*
-    |--------------------------------------------------------------------------
-    | Print Report
-    |--------------------------------------------------------------------------
-    */
-
-    const printReport =
-        (): void => {
-            window.print();
-        };
+    const inventoryChartData = [
+        {
+            name: 'In Stock',
+            value: inventoryHealth.in_stock,
+            color: 'var(--chart-good)',
+        },
+        {
+            name: 'Low Stock',
+            value: inventoryHealth.low_stock,
+            color: 'var(--chart-warn)',
+        },
+        {
+            name: 'Out of Stock',
+            value: inventoryHealth.out_of_stock,
+            color: 'var(--chart-bad)',
+        },
+    ];
 
     return (
         <AdminLayout>
-            <Head
-                title="Reports"
-            />
+            <Head title="Reports & Analytics" />
 
             <div
-                className="
-                    report-page
-                    mx-auto
-                    max-w-7xl
-                    space-y-7
-                "
+                className="mx-auto max-w-7xl space-y-7"
+                style={{
+                    '--chart-good': '#10b981',
+                    '--chart-warn': '#f59e0b',
+                    '--chart-bad': '#ef4444',
+                } as React.CSSProperties}
             >
-                {/* SCREEN HEADER */}
-                <section
-                    className="
-                        report-screen-header
-                        flex
-                        flex-col
-                        gap-4
-                        md:flex-row
-                        md:items-start
-                        md:justify-between
-                    "
-                >
+                {/* Print-only heading */}
+                <div className="print-report-heading hidden">
+                    <h1 className="text-2xl font-black text-black">
+                        STI PROWARE — Reports &amp; Analytics
+                    </h1>
+                    <p className="text-sm text-black">
+                        {periodLabel}
+                    </p>
+                </div>
+
+                {/* Header */}
+                <section className="no-print flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                        <p
-                            className="
-                                text-sm
-                                font-black
-                                uppercase
-                                tracking-wide
-                                text-blue-600
-                            "
-                        >
+                        <p className="text-sm font-black uppercase tracking-wide text-blue-600">
                             STI PROWARE
                         </p>
 
-                        <h1
-                            className="
-                                mt-1
-                                text-3xl
-                                font-black
-                                text-slate-900
-                            "
-                        >
-                            Reports
+                        <h1 className="mt-1 text-3xl font-black text-slate-900">
+                            Reports &amp; Analytics
                         </h1>
 
-                        <p
-                            className="
-                                mt-2
-                                max-w-3xl
-                                text-sm
-                                leading-6
-                                text-slate-500
-                            "
-                        >
-                            Review sales,
-                            payments,
-                            merchandise releases,
-                            inventory receipts,
-                            and current stock
-                            conditions.
+                        <p className="mt-2 text-sm text-slate-500">
+                            {periodLabel}
                         </p>
                     </div>
 
                     <button
                         type="button"
-                        onClick={
-                            printReport
-                        }
-                        className="
-                            no-print
-                            inline-flex
-                            items-center
-                            justify-center
-                            gap-2
-                            rounded-xl
-                            bg-slate-900
-                            px-5
-                            py-3
-                            text-sm
-                            font-black
-                            text-white
-                            transition
-                            hover:bg-slate-800
-                        "
+                        onClick={() => window.print()}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
                     >
-                        <Printer
-                            size={18}
-                        />
-
+                        <Printer size={18} />
                         Print Report
                     </button>
                 </section>
 
-                {/* PRINT-ONLY HEADER */}
-                <section
-                    className="
-                        print-report-header
-                        hidden
-                    "
-                >
-                    <div
-                        className="
-                            border-b
-                            border-slate-300
-                            pb-4
-                            text-center
-                        "
-                    >
-                        <h1
-                            className="
-                                text-2xl
-                                font-black
-                                text-slate-900
-                            "
-                        >
-                            STI PROWARE
-                        </h1>
-
-                        <p
-                            className="
-                                mt-1
-                                text-sm
-                                font-bold
-                                text-slate-700
-                            "
-                        >
-                            Merchandise and
-                            Inventory Management
-                            Report
-                        </p>
-
-                        <p
-                            className="
-                                mt-2
-                                text-xs
-                                text-slate-500
-                            "
-                        >
-                            Reporting Period:{' '}
-                            {periodLabel}
-                        </p>
-                    </div>
-                </section>
-
-                {/* FILTERS */}
-                <section
-                    className="
-                        no-print
-                        rounded-3xl
-                        border
-                        border-slate-200
-                        bg-white
-                        p-5
-                        shadow-sm
-                    "
-                >
-                    <div
-                        className="
-                            flex
-                            flex-col
-                            gap-5
-                            xl:flex-row
-                            xl:items-end
-                            xl:justify-between
-                        "
-                    >
-                        <div>
-                            <p
-                                className="
-                                    text-xs
-                                    font-black
-                                    uppercase
-                                    tracking-wide
-                                    text-slate-400
-                                "
-                            >
-                                Reporting Period
-                            </p>
-
-                            <p
-                                className="
-                                    mt-2
-                                    text-lg
-                                    font-black
-                                    text-slate-900
-                                "
-                            >
-                                {periodLabel}
-                            </p>
-                        </div>
-
-                        <div
-                            className="
-                                flex
-                                flex-col
-                                gap-3
-                                md:flex-row
-                                md:items-end
-                            "
-                        >
-                            <div>
-                                <label
-                                    className="
-                                        mb-1.5
-                                        block
-                                        text-xs
-                                        font-black
-                                        text-slate-500
-                                    "
-                                >
-                                    Period
-                                </label>
-
-                                <select
-                                    value={
-                                        period
-                                    }
-                                    onChange={(
-                                        event,
-                                    ) =>
-                                        setPeriod(
-                                            event
-                                                .target
-                                                .value as ReportFilters['period'],
-                                        )
-                                    }
-                                    className="
-                                        min-w-44
-                                        rounded-xl
-                                        border
-                                        border-slate-200
-                                        bg-white
-                                        px-4
-                                        py-3
-                                        text-sm
-                                        font-bold
-                                        text-slate-700
-                                        outline-none
-                                        focus:border-blue-500
-                                        focus:ring-4
-                                        focus:ring-blue-100
-                                    "
-                                >
-                                    <option
-                                        value="today"
-                                    >
-                                        Today
-                                    </option>
-
-                                    <option
-                                        value="week"
-                                    >
-                                        This Week
-                                    </option>
-
-                                    <option
-                                        value="month"
-                                    >
-                                        This Month
-                                    </option>
-
-                                    <option
-                                        value="custom"
-                                    >
-                                        Custom Range
-                                    </option>
-                                </select>
-                            </div>
-
-                            {period ===
-                                'custom' && (
-                                <>
-                                    <div>
-                                        <label
-                                            className="
-                                                mb-1.5
-                                                block
-                                                text-xs
-                                                font-black
-                                                text-slate-500
-                                            "
-                                        >
-                                            Start Date
-                                        </label>
-
-                                        <input
-                                            type="date"
-                                            value={
-                                                startDate
-                                            }
-                                            onChange={(
-                                                event,
-                                            ) =>
-                                                setStartDate(
-                                                    event
-                                                        .target
-                                                        .value,
-                                                )
-                                            }
-                                            className="
-                                                rounded-xl
-                                                border
-                                                border-slate-200
-                                                bg-white
-                                                px-4
-                                                py-3
-                                                text-sm
-                                                font-bold
-                                                text-slate-700
-                                                outline-none
-                                                focus:border-blue-500
-                                                focus:ring-4
-                                                focus:ring-blue-100
-                                            "
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label
-                                            className="
-                                                mb-1.5
-                                                block
-                                                text-xs
-                                                font-black
-                                                text-slate-500
-                                            "
-                                        >
-                                            End Date
-                                        </label>
-
-                                        <input
-                                            type="date"
-                                            value={
-                                                endDate
-                                            }
-                                            onChange={(
-                                                event,
-                                            ) =>
-                                                setEndDate(
-                                                    event
-                                                        .target
-                                                        .value,
-                                                )
-                                            }
-                                            className="
-                                                rounded-xl
-                                                border
-                                                border-slate-200
-                                                bg-white
-                                                px-4
-                                                py-3
-                                                text-sm
-                                                font-bold
-                                                text-slate-700
-                                                outline-none
-                                                focus:border-blue-500
-                                                focus:ring-4
-                                                focus:ring-blue-100
-                                            "
-                                        />
-                                    </div>
-                                </>
-                            )}
-
+                {/* Period Filter */}
+                <section className="no-print rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="flex flex-wrap items-center gap-2">
+                        {(
+                            [
+                                ['today', 'Today'],
+                                ['week', 'This Week'],
+                                ['month', 'This Month'],
+                                ['custom', 'Custom Range'],
+                            ] as [Period, string][]
+                        ).map(([value, label]) => (
                             <button
+                                key={value}
                                 type="button"
-                                onClick={
-                                    applyFilter
-                                }
-                                disabled={
-                                    period ===
-                                        'custom'
-                                    &&
-                                    (
-                                        !startDate
-                                        ||
-                                        !endDate
-                                    )
-                                }
-                                className="
-                                    rounded-xl
-                                    bg-blue-600
-                                    px-5
-                                    py-3
-                                    text-sm
-                                    font-black
-                                    text-white
-                                    transition
-                                    hover:bg-blue-700
-                                    disabled:cursor-not-allowed
-                                    disabled:opacity-50
-                                "
+                                onClick={() => applyFilter(value)}
+                                className={`rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+                                    period === value
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                }`}
                             >
-                                Apply Filter
+                                {label}
                             </button>
-                        </div>
+                        ))}
+
+                        {period === 'custom' && (
+                            <div className="flex flex-wrap items-center gap-2">
+                                <input
+                                    type="date"
+                                    value={startDate}
+                                    onChange={(event) =>
+                                        setStartDate(event.target.value)
+                                    }
+                                    className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700"
+                                />
+
+                                <span className="text-xs text-slate-400">
+                                    to
+                                </span>
+
+                                <input
+                                    type="date"
+                                    value={endDate}
+                                    onChange={(event) =>
+                                        setEndDate(event.target.value)
+                                    }
+                                    className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700"
+                                />
+
+                                <button
+                                    type="button"
+                                    disabled={!startDate || !endDate}
+                                    onClick={applyCustomRange}
+                                    className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    <CalendarRange size={14} />
+                                    Apply
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </section>
 
-                {/* PRIMARY SUMMARY */}
-                <section
-                    className="
-                        report-summary-grid
-                        grid
-                        gap-4
-                        sm:grid-cols-2
-                        xl:grid-cols-4
-                    "
-                >
-                    <SummaryCard
+                {/* Summary Grid — consolidated, one grid instead of two */}
+                <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <Stat
                         label="Total Sales"
-                        value={
-                            formatCurrency(
-                                summary.total_sales,
-                            )
-                        }
-                        description="Revenue from confirmed paid orders"
-                        icon={
-                            Banknote
-                        }
+                        value={formatCurrency(summary.total_sales)}
+                        icon={Wallet}
                         tone="blue"
                     />
-
-                    <SummaryCard
+                    <Stat
                         label="Paid Orders"
-                        value={
-                            summary.paid_orders
-                        }
-                        description="Orders with confirmed payment"
-                        icon={
-                            CheckCircle2
-                        }
-                        tone="green"
+                        value={String(summary.paid_orders)}
+                        icon={ShoppingCart}
+                        tone="blue"
                     />
-
-                    <SummaryCard
-                        label="Pending Payments"
-                        value={
-                            summary
-                                .pending_payments
-                        }
-                        description="Orders still waiting for cashier confirmation"
-                        icon={
-                            Clock
-                        }
-                        tone="amber"
-                    />
-
-                    <SummaryCard
-                        label="Released Orders"
-                        value={
-                            summary
-                                .released_orders
-                        }
-                        description="Orders successfully handed over"
-                        icon={
-                            PackageCheck
-                        }
+                    <Stat
+                        label="Avg. Order Value"
+                        value={formatCurrency(summary.average_order_value)}
+                        icon={ShoppingBag}
                         tone="purple"
                     />
-                </section>
-
-                {/* INVENTORY SUMMARY */}
-                <section
-                    className="
-                        report-inventory-summary
-                        grid
-                        gap-4
-                        md:grid-cols-3
-                    "
-                >
-                    <SummaryCard
-                        label="Stock Received"
-                        value={
-                            summary
-                                .total_stock_received
+                    <Stat
+                        label="Fulfillment Rate"
+                        value={`${summary.fulfillment_rate}%`}
+                        icon={Percent}
+                        tone="green"
+                    />
+                    <Stat
+                        label="Pending Payments"
+                        value={String(summary.pending_payments)}
+                        icon={ClipboardList}
+                        tone={
+                            summary.pending_payments > 0
+                                ? 'amber'
+                                : 'green'
                         }
-                        description="Total units recorded through stock receiving"
-                        icon={
-                            Boxes
-                        }
+                    />
+                    <Stat
+                        label="Released Orders"
+                        value={String(summary.released_orders)}
+                        icon={PackageCheck}
                         tone="blue"
                     />
-
-                    <SummaryCard
-                        label="Low Stock"
-                        value={
-                            summary
-                                .low_stock
-                        }
-                        description="Variants currently at or below restock threshold"
-                        icon={
-                            AlertTriangle
-                        }
-                        tone="amber"
+                    <Stat
+                        label="Units Sold"
+                        value={String(summary.units_sold)}
+                        icon={Package}
+                        tone="slate"
                     />
-
-                    <SummaryCard
-                        label="Out of Stock"
-                        value={
-                            summary
-                                .out_of_stock
-                        }
-                        description="Variants with zero available stock"
-                        icon={
-                            AlertTriangle
-                        }
-                        tone="red"
+                    <Stat
+                        label="Stock Received"
+                        value={String(summary.total_stock_received)}
+                        icon={Truck}
+                        tone="green"
                     />
                 </section>
 
-                {/* TOP SELLING */}
-                <ReportSection
-                    eyebrow="Sales Performance"
-                    title="Top-Selling Merchandise"
-                    description={
-                        `Ranked by units sold during ${periodLabel}.`
-                    }
-                    icon={
-                        ShoppingCart
-                    }
-                    iconClass="bg-emerald-50 text-emerald-600"
-                >
-                    {topSellingProducts
-                        .length >
-                    0 ? (
-                        <div
-                            className="
-                                overflow-x-auto
-                            "
-                        >
-                            <table
-                                className="
-                                    min-w-full
-                                "
-                            >
-                                <thead
-                                    className="
-                                        bg-slate-50
-                                    "
-                                >
-                                    <tr>
-                                        <TableHeader>
-                                            Rank
-                                        </TableHeader>
+                {/* Charts */}
+                <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+                    {/* Sales Trend */}
+                    <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <p className="text-xs font-black uppercase tracking-wide text-blue-600">
+                            Sales Trend
+                        </p>
+                        <h2 className="mt-1 text-lg font-black text-slate-900">
+                            Daily Sales for the Selected Period
+                        </h2>
 
-                                        <TableHeader>
-                                            Product
-                                        </TableHeader>
+                        {salesTrend.length > 0 ? (
+                            <div className="mt-4 h-72 w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={salesTrend}>
+                                        <defs>
+                                            <linearGradient id="salesFill" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor="#2563eb" stopOpacity={0.35} />
+                                                <stop offset="100%" stopColor="#2563eb" stopOpacity={0.02} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#eef1f6" vertical={false} />
+                                        <XAxis
+                                            dataKey="date"
+                                            tick={{ fontSize: 11, fill: '#64748b' }}
+                                            axisLine={{ stroke: '#e2e8f0' }}
+                                            tickLine={false}
+                                        />
+                                        <YAxis
+                                            tick={{ fontSize: 11, fill: '#64748b' }}
+                                            axisLine={false}
+                                            tickLine={false}
+                                            width={56}
+                                            tickFormatter={(value: number) =>
+                                                value >= 1000
+                                                    ? `₱${Math.round(value / 1000)}k`
+                                                    : `₱${value}`
+                                            }
+                                        />
+                                        <Tooltip
+                                            formatter={(value, name) =>
+                                                name === 'sales'
+                                                    ? [formatCurrency(Number(value)), 'Sales']
+                                                    : [Number(value), 'Orders']
+                                            }
+                                            contentStyle={{
+                                                borderRadius: 12,
+                                                border: '1px solid #e2e8f0',
+                                                fontSize: 12,
+                                            }}
+                                        />
+                                        <Area
+                                            type="monotone"
+                                            dataKey="sales"
+                                            stroke="#2563eb"
+                                            strokeWidth={2.5}
+                                            fill="url(#salesFill)"
+                                        />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
+                        ) : (
+                            <EmptyState message="No paid orders recorded in this period." />
+                        )}
+                    </article>
 
-                                        <TableHeader
-                                            align="center"
-                                        >
-                                            Units Sold
-                                        </TableHeader>
+                    {/* Inventory Health */}
+                    <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <p className="text-xs font-black uppercase tracking-wide text-blue-600">
+                            Inventory Health
+                        </p>
+                        <h2 className="mt-1 text-lg font-black text-slate-900">
+                            Current Stock Status
+                        </h2>
 
-                                        <TableHeader
-                                            align="center"
-                                        >
-                                            Sales
-                                        </TableHeader>
-                                    </tr>
-                                </thead>
-
-                                <tbody
-                                    className="
-                                        divide-y
-                                        divide-slate-100
-                                    "
-                                >
-                                    {topSellingProducts.map(
-                                        (
-                                            product,
-                                            index,
-                                        ) => (
-                                            <tr
-                                                key={
-                                                    product
-                                                        .product_code
-                                                }
+                        {inventoryTotal > 0 ? (
+                            <>
+                                <div className="mt-2 h-52 w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={inventoryChartData}
+                                                dataKey="value"
+                                                nameKey="name"
+                                                innerRadius={54}
+                                                outerRadius={80}
+                                                paddingAngle={2}
                                             >
-                                                <td
-                                                    className="
-                                                        px-6
-                                                        py-5
-                                                    "
-                                                >
-                                                    <span
-                                                        className="
-                                                            inline-flex
-                                                            h-9
-                                                            w-9
-                                                            items-center
-                                                            justify-center
-                                                            rounded-xl
-                                                            bg-blue-50
-                                                            text-sm
-                                                            font-black
-                                                            text-blue-700
-                                                        "
-                                                    >
-                                                        {
-                                                            index
-                                                            + 1
-                                                        }
+                                                {inventoryChartData.map((entry) => (
+                                                    <Cell key={entry.name} fill={entry.color} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip
+                                                formatter={(value, name) => [
+                                                    `${value} variant${Number(value) === 1 ? '' : 's'}`,
+                                                    String(name),
+                                                ]}
+                                                contentStyle={{
+                                                    borderRadius: 12,
+                                                    border: '1px solid #e2e8f0',
+                                                    fontSize: 12,
+                                                }}
+                                            />
+                                            <Legend
+                                                verticalAlign="bottom"
+                                                iconType="circle"
+                                                iconSize={8}
+                                                formatter={(value: string) => (
+                                                    <span className="text-xs font-semibold text-slate-600">
+                                                        {value}
                                                     </span>
-                                                </td>
+                                                )}
+                                            />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
 
-                                                <td
-                                                    className="
-                                                        px-6
-                                                        py-5
-                                                    "
-                                                >
-                                                    <p
-                                                        className="
-                                                            font-black
-                                                            text-slate-900
-                                                        "
-                                                    >
-                                                        {
-                                                            product
-                                                                .product_name
-                                                        }
-                                                    </p>
+                                {inventoryHealth.out_of_stock > 0 && (
+                                    <div className="mt-3 flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2.5 text-xs font-bold text-red-700">
+                                        <AlertTriangle size={15} />
+                                        {inventoryHealth.out_of_stock} variant
+                                        {inventoryHealth.out_of_stock === 1 ? '' : 's'} out of stock
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <EmptyState message="No inventory records yet." />
+                        )}
+                    </article>
+                </section>
 
-                                                    <p
-                                                        className="
-                                                            mt-1
-                                                            font-mono
-                                                            text-xs
-                                                            text-slate-400
-                                                        "
-                                                    >
-                                                        {
-                                                            product
-                                                                .product_code
-                                                        }
-                                                    </p>
-                                                </td>
-
-                                                <td
-                                                    className="
-                                                        px-6
-                                                        py-5
-                                                        text-center
-                                                    "
-                                                >
-                                                    <span
-                                                        className="
-                                                            inline-flex
-                                                            min-w-14
-                                                            items-center
-                                                            justify-center
-                                                            rounded-xl
-                                                            bg-violet-50
-                                                            px-3
-                                                            py-2
-                                                            text-sm
-                                                            font-black
-                                                            text-violet-700
-                                                        "
-                                                    >
-                                                        {
-                                                            product
-                                                                .units_sold
-                                                        }
-                                                    </span>
-                                                </td>
-
-                                                <td
-                                                    className="
-                                                        whitespace-nowrap
-                                                        px-6
-                                                        py-5
-                                                        text-center
-                                                    "
-                                                >
-                                                    <span
-                                                        className="
-                                                            font-black
-                                                            text-emerald-700
-                                                        "
-                                                    >
-                                                        {
-                                                            formatCurrency(
-                                                                product
-                                                                    .total_sales,
-                                                            )
-                                                        }
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ),
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    ) : (
-                        <EmptyState
-                            message="No merchandise sales found for this reporting period."
-                        />
-                    )}
-                </ReportSection>
-
-                {/* SALES BY VARIANT */}
-                <ReportSection
-                    eyebrow="Variant Performance"
-                    title="Sales by Product Variant"
-                    description={
-                        `Exact variant sales for ${periodLabel}.`
-                    }
-                    icon={
-                        Boxes
-                    }
-                    iconClass="bg-violet-50 text-violet-600"
-                >
-                    {salesByVariant.length >
-                    0 ? (
-                        <div
-                            className="
-                                overflow-x-auto
-                            "
-                        >
-                            <table
-                                className="
-                                    min-w-full
-                                "
-                            >
-                                <thead
-                                    className="
-                                        bg-slate-50
-                                    "
-                                >
-                                    <tr>
-                                        <TableHeader>
-                                            Product
-                                        </TableHeader>
-
-                                        <TableHeader>
-                                            Variant
-                                        </TableHeader>
-
-                                        <TableHeader>
-                                            SKU
-                                        </TableHeader>
-
-                                        <TableHeader
-                                            align="center"
-                                        >
-                                            Units Sold
-                                        </TableHeader>
-
-                                        <TableHeader
-                                            align="center"
-                                        >
-                                            Sales
-                                        </TableHeader>
-                                    </tr>
-                                </thead>
-
-                                <tbody
-                                    className="
-                                        divide-y
-                                        divide-slate-100
-                                    "
-                                >
-                                    {salesByVariant.map(
-                                        (
-                                            item,
-                                        ) => (
-                                            <tr
-                                                key={
-                                                    `${item.product_code}-${item.sku}`
-                                                }
-                                            >
-                                                <td
-                                                    className="
-                                                        px-6
-                                                        py-5
-                                                    "
-                                                >
-                                                    <p
-                                                        className="
-                                                            font-black
-                                                            text-slate-900
-                                                        "
-                                                    >
-                                                        {
-                                                            item
-                                                                .product_name
-                                                        }
-                                                    </p>
-
-                                                    <p
-                                                        className="
-                                                            mt-1
-                                                            font-mono
-                                                            text-xs
-                                                            text-blue-600
-                                                        "
-                                                    >
-                                                        {
-                                                            item
-                                                                .product_code
-                                                        }
-                                                    </p>
-                                                </td>
-
-                                                <td
-                                                    className="
-                                                        px-6
-                                                        py-5
-                                                    "
-                                                >
-                                                    <span
-                                                        className="
-                                                            inline-flex
-                                                            rounded-xl
-                                                            bg-violet-50
-                                                            px-3
-                                                            py-2
-                                                            text-sm
-                                                            font-black
-                                                            text-violet-700
-                                                        "
-                                                    >
-                                                        {
-                                                            item
-                                                                .variant_name
-                                                        }
-                                                    </span>
-                                                </td>
-
-                                                <td
-                                                    className="
-                                                        whitespace-nowrap
-                                                        px-6
-                                                        py-5
-                                                        font-mono
-                                                        text-xs
-                                                        font-bold
-                                                        text-slate-500
-                                                    "
-                                                >
-                                                    {
-                                                        item.sku
-                                                    }
-                                                </td>
-
-                                                <td
-                                                    className="
-                                                        whitespace-nowrap
-                                                        px-6
-                                                        py-5
-                                                        text-center
-                                                    "
-                                                >
-                                                    <span
-                                                        className="
-                                                            inline-flex
-                                                            min-w-14
-                                                            items-center
-                                                            justify-center
-                                                            rounded-xl
-                                                            bg-blue-50
-                                                            px-3
-                                                            py-2
-                                                            text-sm
-                                                            font-black
-                                                            text-blue-700
-                                                        "
-                                                    >
-                                                        {
-                                                            item
-                                                                .units_sold
-                                                        }
-                                                    </span>
-                                                </td>
-
-                                                <td
-                                                    className="
-                                                        whitespace-nowrap
-                                                        px-6
-                                                        py-5
-                                                        text-center
-                                                    "
-                                                >
-                                                    <span
-                                                        className="
-                                                            font-black
-                                                            text-emerald-700
-                                                        "
-                                                    >
-                                                        {
-                                                            formatCurrency(
-                                                                item
-                                                                    .total_sales,
-                                                            )
-                                                        }
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ),
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    ) : (
-                        <EmptyState
-                            message="No variant sales found for this reporting period."
-                        />
-                    )}
-                </ReportSection>
-
-                {/* RECENT ORDERS */}
-                <ReportSection
-                    title="Recent Paid Orders"
-                    description="Latest cashier-confirmed payments."
-                    icon={
-                        ShoppingCart
-                    }
-                    iconClass="bg-blue-50 text-blue-600"
-                >
-                    {recentOrders.length >
-                    0 ? (
-                        <div
-                            className="
-                                overflow-x-auto
-                            "
-                        >
-                            <table
-                                className="
-                                    min-w-full
-                                "
-                            >
-                                <thead
-                                    className="
-                                        bg-slate-50
-                                    "
-                                >
-                                    <tr>
-                                        <TableHeader>
-                                            Order
-                                        </TableHeader>
-
-                                        <TableHeader>
-                                            Student
-                                        </TableHeader>
-
-                                        <TableHeader
-                                            align="center"
-                                        >
-                                            Amount
-                                        </TableHeader>
-
-                                        <TableHeader>
-                                            Payment
-                                        </TableHeader>
-
-                                        <TableHeader>
-                                            Fulfillment
-                                        </TableHeader>
-
-                                        <TableHeader>
-                                            Paid At
-                                        </TableHeader>
-                                    </tr>
-                                </thead>
-
-                                <tbody
-                                    className="
-                                        divide-y
-                                        divide-slate-100
-                                    "
-                                >
-                                    {recentOrders.map(
-                                        (
-                                            order,
-                                        ) => (
-                                            <tr
-                                                key={
-                                                    order.id
-                                                }
-                                            >
-                                                <td
-                                                    className="
-                                                        whitespace-nowrap
-                                                        px-6
-                                                        py-5
-                                                    "
-                                                >
-                                                    <p
-                                                        className="
-                                                            font-mono
-                                                            text-sm
-                                                            font-black
-                                                            text-blue-700
-                                                        "
-                                                    >
-                                                        {
-                                                            order
-                                                                .order_number
-                                                        }
-                                                    </p>
-                                                </td>
-
-                                                <td
-                                                    className="
-                                                        px-6
-                                                        py-5
-                                                    "
-                                                >
-                                                    <p
-                                                        className="
-                                                            text-sm
-                                                            font-bold
-                                                            text-slate-800
-                                                        "
-                                                    >
-                                                        {
-                                                            order
-                                                                .student_name
-                                                        }
-                                                    </p>
-                                                </td>
-
-                                                <td
-                                                    className="
-                                                        whitespace-nowrap
-                                                        px-6
-                                                        py-5
-                                                        text-center
-                                                    "
-                                                >
-                                                    <span
-                                                        className="
-                                                            inline-flex
-                                                            rounded-xl
-                                                            bg-emerald-50
-                                                            px-3
-                                                            py-2
-                                                            text-sm
-                                                            font-black
-                                                            text-emerald-700
-                                                        "
-                                                    >
-                                                        {
-                                                            formatCurrency(
-                                                                Number(
-                                                                    order
-                                                                        .total,
-                                                                ),
-                                                            )
-                                                        }
-                                                    </span>
-                                                </td>
-
-                                                <td
-                                                    className="
-                                                        px-6
-                                                        py-5
-                                                    "
-                                                >
-                                                    <StatusBadge
-                                                        value={
-                                                            order
-                                                                .payment_status
-                                                        }
-                                                    />
-                                                </td>
-
-                                                <td
-                                                    className="
-                                                        px-6
-                                                        py-5
-                                                    "
-                                                >
-                                                    <StatusBadge
-                                                        value={
-                                                            order
-                                                                .fulfillment_status
-                                                        }
-                                                    />
-                                                </td>
-
-                                                <td
-                                                    className="
-                                                        whitespace-nowrap
-                                                        px-6
-                                                        py-5
-                                                        text-sm
-                                                        text-slate-500
-                                                    "
-                                                >
-                                                    {
-                                                        order
-                                                            .paid_at
-                                                        ?? '—'
-                                                    }
-                                                </td>
-                                            </tr>
-                                        ),
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    ) : (
-                        <EmptyState
-                            message="No paid orders found for this reporting period."
-                        />
-                    )}
-                </ReportSection>
-
-                {/* RECENT RECEIPTS */}
-                <ReportSection
-                    title="Recent Stock Receipts"
-                    description="Latest merchandise received into inventory."
-                    icon={
-                        ReceiptText
-                    }
-                    iconClass="bg-violet-50 text-violet-600"
-                >
-                    {recentReceipts.length >
-                    0 ? (
-                        <div
-                            className="
-                                overflow-x-auto
-                            "
-                        >
-                            <table
-                                className="
-                                    min-w-full
-                                "
-                            >
-                                <thead
-                                    className="
-                                        bg-slate-50
-                                    "
-                                >
-                                    <tr>
-                                        <TableHeader>
-                                            Receipt
-                                        </TableHeader>
-
-                                        <TableHeader>
-                                            Product
-                                        </TableHeader>
-
-                                        <TableHeader>
-                                            Variant
-                                        </TableHeader>
-
-                                        <TableHeader
-                                            align="center"
-                                        >
-                                            Received
-                                        </TableHeader>
-
-                                        <TableHeader>
-                                            Staff
-                                        </TableHeader>
-
-                                        <TableHeader>
-                                            Date
-                                        </TableHeader>
-                                    </tr>
-                                </thead>
-
-                                <tbody
-                                    className="
-                                        divide-y
-                                        divide-slate-100
-                                    "
-                                >
-                                    {recentReceipts.map(
-                                        (
-                                            receipt,
-                                        ) => (
-                                            <tr
-                                                key={
-                                                    receipt.id
-                                                }
-                                            >
-                                                <td
-                                                    className="
-                                                        whitespace-nowrap
-                                                        px-6
-                                                        py-5
-                                                    "
-                                                >
-                                                    <p
-                                                        className="
-                                                            font-mono
-                                                            text-sm
-                                                            font-black
-                                                            text-blue-700
-                                                        "
-                                                    >
-                                                        {
-                                                            receipt
-                                                                .receipt_number
-                                                            ?? 'N/A'
-                                                        }
-                                                    </p>
-                                                </td>
-
-                                                <td
-                                                    className="
-                                                        px-6
-                                                        py-5
-                                                    "
-                                                >
-                                                    <p
-                                                        className="
-                                                            text-sm
-                                                            font-black
-                                                            text-slate-900
-                                                        "
-                                                    >
-                                                        {
-                                                            receipt
-                                                                .product_name
-                                                        }
-                                                    </p>
-
-                                                    <p
-                                                        className="
-                                                            mt-1
-                                                            font-mono
-                                                            text-xs
-                                                            text-slate-400
-                                                        "
-                                                    >
-                                                        {
-                                                            receipt
-                                                                .product_code
-                                                        }
-                                                    </p>
-                                                </td>
-
-                                                <td
-                                                    className="
-                                                        px-6
-                                                        py-5
-                                                        text-sm
-                                                        font-semibold
-                                                        text-slate-700
-                                                    "
-                                                >
-                                                    {
-                                                        receipt
-                                                            .variant_name
-                                                    }
-                                                </td>
-
-                                                <td
-                                                    className="
-                                                        whitespace-nowrap
-                                                        px-6
-                                                        py-5
-                                                        text-center
-                                                    "
-                                                >
-                                                    <span
-                                                        className="
-                                                            inline-flex
-                                                            rounded-xl
-                                                            bg-blue-50
-                                                            px-3
-                                                            py-2
-                                                            text-sm
-                                                            font-black
-                                                            text-blue-700
-                                                        "
-                                                    >
-                                                        +
-                                                        {
-                                                            receipt
-                                                                .quantity
-                                                        }
-                                                    </span>
-                                                </td>
-
-                                                <td
-                                                    className="
-                                                        px-6
-                                                        py-5
-                                                        text-sm
-                                                        font-bold
-                                                        text-slate-700
-                                                    "
-                                                >
-                                                    {
-                                                        receipt
-                                                            .received_by
-                                                    }
-                                                </td>
-
-                                                <td
-                                                    className="
-                                                        whitespace-nowrap
-                                                        px-6
-                                                        py-5
-                                                        text-sm
-                                                        text-slate-500
-                                                    "
-                                                >
-                                                    {
-                                                        receipt
-                                                            .created_at
-                                                        ?? '—'
-                                                    }
-                                                </td>
-                                            </tr>
-                                        ),
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    ) : (
-                        <EmptyState
-                            message="No stock receipts found for this reporting period."
-                        />
-                    )}
-                </ReportSection>
-
-                {/* PRINT FOOTER */}
-                <section
-                    className="
-                        print-report-footer
-                        hidden
-                    "
-                >
-                    <div
-                        className="
-                            mt-8
-                            border-t
-                            border-slate-300
-                            pt-4
-                        "
-                    >
-                        <p
-                            className="
-                                text-center
-                                text-xs
-                                text-slate-500
-                            "
-                        >
-                            STI PROWARE —
-                            Merchandise and
-                            Inventory Management
-                            System
+                {/* Top-Selling Merchandise */}
+                <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                    <div className="border-b border-slate-100 px-6 py-5">
+                        <h2 className="text-lg font-black text-slate-900">
+                            Top-Selling Merchandise
+                        </h2>
+                        <p className="mt-1 text-sm text-slate-500">
+                            Ranked by units sold in the selected period.
                         </p>
                     </div>
+
+                    {topSellingProducts.length > 0 ? (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                    <tr>
+                                        <th className="px-6 py-3">Product</th>
+                                        <th className="px-6 py-3 text-right">Units Sold</th>
+                                        <th className="px-6 py-3 text-right">Total Sales</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {topSellingProducts.map((product) => (
+                                        <tr key={product.product_code}>
+                                            <td className="px-6 py-3.5">
+                                                <p className="font-bold text-slate-900">
+                                                    {product.product_name}
+                                                </p>
+                                                <p className="font-mono text-xs text-slate-400">
+                                                    {product.product_code}
+                                                </p>
+                                            </td>
+                                            <td className="px-6 py-3.5 text-right font-black text-slate-900">
+                                                {product.units_sold}
+                                            </td>
+                                            <td className="px-6 py-3.5 text-right font-black text-emerald-700">
+                                                {formatCurrency(product.total_sales)}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : (
+                        <EmptyState message="No merchandise sold in this period." />
+                    )}
+                </section>
+
+                {/* Sales by Variant */}
+                <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                    <div className="border-b border-slate-100 px-6 py-5">
+                        <h2 className="text-lg font-black text-slate-900">
+                            Sales by Product Variant
+                        </h2>
+                        <p className="mt-1 text-sm text-slate-500">
+                            Every variant sold in the selected period.
+                        </p>
+                    </div>
+
+                    {salesByVariant.length > 0 ? (
+                        <div className="max-h-96 overflow-y-auto overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead className="sticky top-0 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                    <tr>
+                                        <th className="px-6 py-3">Product</th>
+                                        <th className="px-6 py-3">Variant</th>
+                                        <th className="px-6 py-3">SKU</th>
+                                        <th className="px-6 py-3 text-right">Units</th>
+                                        <th className="px-6 py-3 text-right">Sales</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {salesByVariant.map((row) => (
+                                        <tr key={`${row.product_code}-${row.sku}`}>
+                                            <td className="px-6 py-3">
+                                                <p className="font-bold text-slate-900">
+                                                    {row.product_name}
+                                                </p>
+                                                <p className="font-mono text-xs text-slate-400">
+                                                    {row.product_code}
+                                                </p>
+                                            </td>
+                                            <td className="px-6 py-3 text-slate-600">
+                                                {row.variant_name}
+                                            </td>
+                                            <td className="px-6 py-3 font-mono text-xs text-slate-500">
+                                                {row.sku}
+                                            </td>
+                                            <td className="px-6 py-3 text-right font-bold text-slate-900">
+                                                {row.units_sold}
+                                            </td>
+                                            <td className="px-6 py-3 text-right font-bold text-emerald-700">
+                                                {formatCurrency(row.total_sales)}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : (
+                        <EmptyState message="No variant sales in this period." />
+                    )}
+                </section>
+
+                {/* Recent Orders + Recent Receipts */}
+                <section className="grid gap-6 xl:grid-cols-2">
+                    <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                        <div className="border-b border-slate-100 px-6 py-5">
+                            <h2 className="text-lg font-black text-slate-900">
+                                Recent Paid Orders
+                            </h2>
+                        </div>
+
+                        {recentOrders.length > 0 ? (
+                            <div className="divide-y divide-slate-100">
+                                {recentOrders.map((order) => (
+                                    <div key={order.id} className="flex items-center justify-between gap-4 px-6 py-4">
+                                        <div className="min-w-0">
+                                            <p className="font-mono text-xs font-black text-blue-600">
+                                                {order.order_number}
+                                            </p>
+                                            <p className="mt-1 truncate font-bold text-slate-900">
+                                                {order.student_name}
+                                            </p>
+                                            <p className="mt-1 text-xs text-slate-400">
+                                                {order.paid_at ?? 'Date unavailable'}
+                                            </p>
+                                        </div>
+                                        <p className="shrink-0 font-black text-slate-900">
+                                            {formatCurrency(Number(order.total))}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <EmptyState message="No paid orders in this period." />
+                        )}
+                    </article>
+
+                    <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                        <div className="border-b border-slate-100 px-6 py-5">
+                            <h2 className="text-lg font-black text-slate-900">
+                                Recent Stock Receipts
+                            </h2>
+                        </div>
+
+                        {recentReceipts.length > 0 ? (
+                            <div className="divide-y divide-slate-100">
+                                {recentReceipts.map((receipt) => (
+                                    <div key={receipt.id} className="flex items-center justify-between gap-4 px-6 py-4">
+                                        <div className="min-w-0">
+                                            <p className="font-mono text-xs font-black text-emerald-600">
+                                                {receipt.receipt_number ?? 'No receipt #'}
+                                            </p>
+                                            <p className="mt-1 truncate font-bold text-slate-900">
+                                                {receipt.product_name} — {receipt.variant_name}
+                                            </p>
+                                            <p className="mt-1 text-xs text-slate-400">
+                                                {receipt.received_by} · {receipt.created_at ?? 'Date unavailable'}
+                                            </p>
+                                        </div>
+                                        <p className="shrink-0 font-black text-emerald-700">
+                                            +{receipt.quantity}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <EmptyState message="No stock received in this period." />
+                        )}
+                    </article>
                 </section>
             </div>
         </AdminLayout>
@@ -1554,453 +717,65 @@ export default function Index({
 
 /*
 |--------------------------------------------------------------------------
-| Report Section
+| Stat Tile
 |--------------------------------------------------------------------------
 */
 
-function ReportSection({
-    eyebrow,
-    title,
-    description,
-    icon: Icon,
-    iconClass,
-    children,
-}: {
-    eyebrow?: string;
-    title: string;
-    description: string;
-    icon: typeof Boxes;
-    iconClass: string;
-    children: ReactNode;
-}) {
-    return (
-        <section
-            className="
-                report-section
-                overflow-hidden
-                rounded-3xl
-                border
-                border-slate-200
-                bg-white
-                shadow-sm
-            "
-        >
-            <div
-                className="
-                    report-section-header
-                    flex
-                    items-center
-                    justify-between
-                    gap-4
-                    border-b
-                    border-slate-100
-                    px-6
-                    py-5
-                "
-            >
-                <div>
-                    {eyebrow && (
-                        <p
-                            className="
-                                text-xs
-                                font-black
-                                uppercase
-                                tracking-wide
-                                text-blue-600
-                            "
-                        >
-                            {eyebrow}
-                        </p>
-                    )}
-
-                    <h2
-                        className="
-                            mt-1
-                            text-xl
-                            font-black
-                            text-slate-900
-                        "
-                    >
-                        {title}
-                    </h2>
-
-                    <p
-                        className="
-                            mt-1
-                            text-sm
-                            text-slate-500
-                        "
-                    >
-                        {description}
-                    </p>
-                </div>
-
-                <div
-                    className={`
-                        report-section-icon
-                        flex
-                        h-11
-                        w-11
-                        items-center
-                        justify-center
-                        rounded-xl
-                        ${iconClass}
-                    `}
-                >
-                    <Icon
-                        size={20}
-                    />
-                </div>
-            </div>
-
-            {children}
-        </section>
-    );
-}
-
-/*
-|--------------------------------------------------------------------------
-| Summary Card
-|--------------------------------------------------------------------------
-*/
-
-type SummaryTone =
+type StatTone =
     | 'blue'
     | 'green'
     | 'amber'
     | 'purple'
-    | 'red';
+    | 'slate';
 
-function SummaryCard({
+function Stat({
     label,
     value,
-    description,
     icon: Icon,
     tone,
 }: {
     label: string;
-    value: string | number;
-    description: string;
-    icon: typeof Banknote;
-    tone: SummaryTone;
+    value: string;
+    icon: LucideIcon;
+    tone: StatTone;
 }) {
-    const styles:
-        Record<
-            SummaryTone,
-            {
-                card: string;
-                icon: string;
-                value: string;
-            }
-        > = {
+    const tones: Record<StatTone, { wrapper: string; icon: string }> = {
         blue: {
-            card:
-                'border-blue-100 bg-blue-50/40',
-
-            icon:
-                'bg-blue-100 text-blue-600',
-
-            value:
-                'text-blue-700',
+            wrapper: 'border-blue-100 bg-blue-50/60',
+            icon: 'bg-blue-100 text-blue-700',
         },
-
         green: {
-            card:
-                'border-emerald-100 bg-emerald-50/40',
-
-            icon:
-                'bg-emerald-100 text-emerald-600',
-
-            value:
-                'text-emerald-700',
+            wrapper: 'border-emerald-100 bg-emerald-50/60',
+            icon: 'bg-emerald-100 text-emerald-700',
         },
-
         amber: {
-            card:
-                'border-amber-100 bg-amber-50/40',
-
-            icon:
-                'bg-amber-100 text-amber-600',
-
-            value:
-                'text-amber-700',
+            wrapper: 'border-amber-100 bg-amber-50/60',
+            icon: 'bg-amber-100 text-amber-700',
         },
-
         purple: {
-            card:
-                'border-violet-100 bg-violet-50/40',
-
-            icon:
-                'bg-violet-100 text-violet-600',
-
-            value:
-                'text-violet-700',
+            wrapper: 'border-purple-100 bg-purple-50/60',
+            icon: 'bg-purple-100 text-purple-700',
         },
-
-        red: {
-            card:
-                'border-red-100 bg-red-50/40',
-
-            icon:
-                'bg-red-100 text-red-600',
-
-            value:
-                'text-red-700',
+        slate: {
+            wrapper: 'border-slate-200 bg-slate-50',
+            icon: 'bg-slate-200 text-slate-700',
         },
     };
 
-    const style =
-        styles[
-            tone
-        ];
+    const style = tones[tone];
 
     return (
-        <article
-            className={`
-                report-summary-card
-                rounded-3xl
-                border
-                p-5
-                shadow-sm
-                ${style.card}
-            `}
-        >
-            <div
-                className="
-                    flex
-                    items-start
-                    justify-between
-                    gap-4
-                "
-            >
-                <div>
-                    <p
-                        className="
-                            text-xs
-                            font-black
-                            uppercase
-                            tracking-wide
-                            text-slate-500
-                        "
-                    >
-                        {label}
-                    </p>
-
-                    <p
-                        className={`
-                            mt-3
-                            text-3xl
-                            font-black
-                            ${style.value}
-                        `}
-                    >
-                        {value}
-                    </p>
-                </div>
-
-                <div
-                    className={`
-                        report-summary-icon
-                        flex
-                        h-12
-                        w-12
-                        items-center
-                        justify-center
-                        rounded-2xl
-                        ${style.icon}
-                    `}
-                >
-                    <Icon
-                        size={21}
-                    />
-                </div>
+        <article className={`rounded-2xl border p-4 ${style.wrapper}`}>
+            <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${style.icon}`}>
+                <Icon size={17} />
             </div>
-
-            <p
-                className="
-                    mt-4
-                    text-xs
-                    leading-5
-                    text-slate-500
-                "
-            >
-                {description}
+            <p className="mt-3 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                {label}
+            </p>
+            <p className="mt-1 text-lg font-black text-slate-900">
+                {value}
             </p>
         </article>
-    );
-}
-
-/*
-|--------------------------------------------------------------------------
-| Table Header
-|--------------------------------------------------------------------------
-*/
-
-function TableHeader({
-    children,
-    align = 'left',
-}: {
-    children: ReactNode;
-
-    align?:
-        | 'left'
-        | 'center';
-}) {
-    return (
-        <th
-            className={`
-                px-6
-                py-4
-                text-xs
-                font-black
-                uppercase
-                tracking-wide
-                text-slate-400
-
-                ${
-                    align ===
-                    'center'
-                        ? 'text-center'
-                        : 'text-left'
-                }
-            `}
-        >
-            {children}
-        </th>
-    );
-}
-
-/*
-|--------------------------------------------------------------------------
-| Status Badge
-|--------------------------------------------------------------------------
-*/
-
-function StatusBadge({
-    value,
-}: {
-    value: string;
-}) {
-    const normalized =
-        value
-            .toLowerCase()
-            .replaceAll(
-                ' ',
-                '_',
-            );
-
-    if (
-        normalized ===
-        'paid'
-        ||
-        normalized ===
-        'released'
-        ||
-        normalized ===
-        'completed'
-    ) {
-        return (
-            <span
-                className="
-                    inline-flex
-                    rounded-full
-                    bg-emerald-100
-                    px-3
-                    py-1.5
-                    text-xs
-                    font-black
-                    text-emerald-700
-                "
-            >
-                {
-                    formatStatus(
-                        value,
-                    )
-                }
-            </span>
-        );
-    }
-
-    if (
-        normalized ===
-        'pending'
-        ||
-        normalized ===
-        'pending_payment'
-        ||
-        normalized ===
-        'waiting'
-    ) {
-        return (
-            <span
-                className="
-                    inline-flex
-                    rounded-full
-                    bg-amber-100
-                    px-3
-                    py-1.5
-                    text-xs
-                    font-black
-                    text-amber-700
-                "
-            >
-                {
-                    formatStatus(
-                        value,
-                    )
-                }
-            </span>
-        );
-    }
-
-    if (
-        normalized ===
-        'cancelled'
-        ||
-        normalized ===
-        'canceled'
-    ) {
-        return (
-            <span
-                className="
-                    inline-flex
-                    rounded-full
-                    bg-red-100
-                    px-3
-                    py-1.5
-                    text-xs
-                    font-black
-                    text-red-700
-                "
-            >
-                {
-                    formatStatus(
-                        value,
-                    )
-                }
-            </span>
-        );
-    }
-
-    return (
-        <span
-            className="
-                inline-flex
-                rounded-full
-                bg-slate-100
-                px-3
-                py-1.5
-                text-xs
-                font-black
-                text-slate-600
-            "
-        >
-            {
-                formatStatus(
-                    value,
-                )
-            }
-        </span>
     );
 }
 
@@ -2010,83 +785,24 @@ function StatusBadge({
 |--------------------------------------------------------------------------
 */
 
-function EmptyState({
-    message,
-}: {
-    message: string;
-}) {
+function EmptyState({ message }: { message: string }) {
     return (
-        <div
-            className="
-                px-6
-                py-14
-                text-center
-            "
-        >
-            <ReceiptText
-                size={38}
-                className="
-                    mx-auto
-                    text-slate-300
-                "
-            />
-
-            <p
-                className="
-                    mt-4
-                    font-black
-                    text-slate-700
-                "
-            >
-                {message}
-            </p>
+        <div className="flex flex-col items-center gap-2 px-6 py-14 text-center">
+            <CheckCircle2 size={30} className="text-slate-300" />
+            <p className="text-sm text-slate-500">{message}</p>
         </div>
     );
 }
 
 /*
 |--------------------------------------------------------------------------
-| Helpers
+| Currency
 |--------------------------------------------------------------------------
 */
 
-function formatCurrency(
-    value: number,
-): string {
-    return new Intl.NumberFormat(
-        'en-PH',
-        {
-            style:
-                'currency',
-
-            currency:
-                'PHP',
-
-            minimumFractionDigits:
-                2,
-
-            maximumFractionDigits:
-                2,
-        },
-    ).format(
-        value,
-    );
-}
-
-function formatStatus(
-    value: string,
-): string {
-    return value
-        .replaceAll(
-            '_',
-            ' ',
-        )
-        .replace(
-            /\b\w/g,
-            (
-                character,
-            ) =>
-                character
-                    .toUpperCase(),
-        );
+function formatCurrency(amount: number): string {
+    return new Intl.NumberFormat('en-PH', {
+        style: 'currency',
+        currency: 'PHP',
+    }).format(amount);
 }

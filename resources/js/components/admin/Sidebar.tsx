@@ -1,5 +1,8 @@
 import {
-    BarChart3,
+    Link,
+    usePage,
+} from '@inertiajs/react';
+import {
     ClipboardList,
     Clock,
     FileText,
@@ -13,10 +16,6 @@ import {
     Users,
 } from 'lucide-react';
 
-import {
-    Link,
-    usePage,
-} from '@inertiajs/react';
 
 import type {
     LucideIcon,
@@ -122,16 +121,9 @@ export default function Sidebar() {
         },
 
         {
-            name: 'Reports',
+            name: 'Reports & Analytics',
             icon: FileText,
             link: '/admin/reports',
-            enabled: true,
-        },
-
-        {
-            name: 'Analytics',
-            icon: BarChart3,
-            link: '/admin/analytics',
             enabled: true,
         },
 

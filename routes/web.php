@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminOrderController;
-use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\ProductController;
@@ -592,16 +591,17 @@ Route::middleware([
 
                 /*
                 |--------------------------------------------------------------------------
-                | Analytics
+                | Analytics (merged into Reports)
                 |--------------------------------------------------------------------------
+                |
+                | Analytics and Reports were merged into one page.
+                | This keeps old bookmarks/links working.
+                |
                 */
 
-                Route::get(
+                Route::redirect(
                     '/analytics',
-                    [
-                        AnalyticsController::class,
-                        'index',
-                    ],
+                    '/admin/reports',
                 )->name(
                     'analytics.index',
                 );
