@@ -26,11 +26,11 @@ import {
 } from 'react';
 
 import {
-    Area,
-    AreaChart,
     CartesianGrid,
     Cell,
     Legend,
+    Line,
+    LineChart,
     Pie,
     PieChart,
     ResponsiveContainer,
@@ -421,13 +421,7 @@ export default function Index({
                         {salesTrend.length > 0 ? (
                             <div className="mt-4 h-72 w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={salesTrend}>
-                                        <defs>
-                                            <linearGradient id="salesFill" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="0%" stopColor="#2563eb" stopOpacity={0.35} />
-                                                <stop offset="100%" stopColor="#2563eb" stopOpacity={0.02} />
-                                            </linearGradient>
-                                        </defs>
+                                    <LineChart data={salesTrend}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#eef1f6" vertical={false} />
                                         <XAxis
                                             dataKey="date"
@@ -458,14 +452,15 @@ export default function Index({
                                                 fontSize: 12,
                                             }}
                                         />
-                                        <Area
+                                        <Line
                                             type="monotone"
                                             dataKey="sales"
                                             stroke="#2563eb"
                                             strokeWidth={2.5}
-                                            fill="url(#salesFill)"
+                                            dot={{ r: 3, fill: '#2563eb', strokeWidth: 0 }}
+                                            activeDot={{ r: 5 }}
                                         />
-                                    </AreaChart>
+                                    </LineChart>
                                 </ResponsiveContainer>
                             </div>
                         ) : (
