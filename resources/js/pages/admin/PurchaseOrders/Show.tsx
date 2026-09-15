@@ -1,3 +1,10 @@
+
+import {
+    Head,
+    Link,
+    router,
+    usePage,
+} from '@inertiajs/react';
 import {
     Archive,
     ArrowLeft,
@@ -10,31 +17,26 @@ import {
     PackageCheck,
     Pencil,
     Plus,
+    RotateCcw,
     Search,
     Tag,
     Truck,
     X,
 } from 'lucide-react';
 
-import {
-    Head,
-    Link,
-    router,
-    usePage,
-} from '@inertiajs/react';
 
-
+import type {
+    FormEvent} from 'react';
 import {
-    FormEvent,
     useEffect,
     useMemo,
     useState,
 } from 'react';
 
-import AdminLayout from '@/layouts/AdminLayout';
-import ActionNotification from '@/components/action-feedback/ActionNotification';
 import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal';
+import ActionNotification from '@/components/action-feedback/ActionNotification';
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
+import AdminLayout from '@/layouts/AdminLayout';
 
 
 type ItemType =
@@ -315,6 +317,38 @@ export default function Show({
     const [
         archivingPo,
         setArchivingPo,
+    ] =
+        useState(
+            false,
+        );
+
+    const [
+        restorePoOpen,
+        setRestorePoOpen,
+    ] =
+        useState(
+            false,
+        );
+
+    const [
+        restoringPo,
+        setRestoringPo,
+    ] =
+        useState(
+            false,
+        );
+
+    const [
+        itemToRestore,
+        setItemToRestore,
+    ] =
+        useState<PurchaseOrderItem | null>(
+            null,
+        );
+
+    const [
+        restoringItem,
+        setRestoringItem,
     ] =
         useState(
             false,
@@ -1133,6 +1167,130 @@ return;
             );
         };
 
+    const openRestorePo =
+        (): void => {
+            if (
+                !purchaseOrder
+                    .is_archived
+            ) {
+                return;
+            }
+
+            setRestorePoOpen(
+                true,
+            );
+        };
+
+    const closeRestorePo =
+        (): void => {
+            if (
+                restoringPo
+            ) {
+                return;
+            }
+
+            setRestorePoOpen(
+                false,
+            );
+        };
+
+    const confirmRestorePo =
+        (): void => {
+            if (
+                restoringPo
+            ) {
+                return;
+            }
+
+            setRestoringPo(
+                true,
+            );
+
+            router.patch(
+                `/admin/purchase-orders/${purchaseOrder.id}/restore`,
+                {},
+                {
+                    preserveScroll: true,
+
+                    onSuccess:
+                        () => {
+                            setRestorePoOpen(
+                                false,
+                            );
+
+                            showSuccess(
+                                'Purchase order restored successfully.',
+                            );
+                        },
+
+                    onError:
+                        () => {
+                            setRestorePoOpen(
+                                false,
+                            );
+
+                            showError(
+                                'Purchase order could not be restored.',
+                            );
+                        },
+
+                    onFinish:
+                        () => {
+                            setRestoringPo(
+                                false,
+                            );
+                        },
+                },
+            );
+        };
+
+    const confirmRestoreItem =
+        (): void => {
+            if (
+                !itemToRestore
+                || restoringItem
+            ) {
+                return;
+            }
+
+            setRestoringItem(
+                true,
+            );
+
+            router.patch(
+                `/admin/purchase-orders/${purchaseOrder.id}/items/${itemToRestore.id}/restore`,
+                {},
+                {
+                    preserveScroll: true,
+
+                    onSuccess:
+                        () => {
+                            setItemToRestore(
+                                null,
+                            );
+
+                            showSuccess(
+                                'Purchase order item restored successfully.',
+                            );
+                        },
+
+                    onError:
+                        () => {
+                            showError(
+                                'Purchase order item could not be restored.',
+                            );
+                        },
+
+                    onFinish:
+                        () => {
+                            setRestoringItem(
+                                false,
+                            );
+                        },
+                },
+            );
+        };
+
     return (
         <AdminLayout>
             <Head
@@ -1266,6 +1424,39 @@ return;
                                 />
 
                                 Archive PO
+                            </button>
+                        )}
+
+                        {purchaseOrder
+                            .is_archived && (
+                            <button
+                                type="button"
+                                onClick={
+                                    openRestorePo
+                                }
+                                className="
+                                    inline-flex
+                                    items-center
+                                    justify-center
+                                    gap-2
+                                    rounded-xl
+                                    border
+                                    border-emerald-200
+                                    bg-emerald-50
+                                    px-5
+                                    py-3
+                                    text-sm
+                                    font-black
+                                    text-emerald-700
+                                    transition
+                                    hover:bg-emerald-100
+                                "
+                            >
+                                <RotateCcw
+                                    size={18}
+                                />
+
+                                Restore PO
                             </button>
                         )}
                     </div>
@@ -1708,7 +1899,7 @@ return;
                                             </h2>
 
                                             <p className="mt-1 text-sm text-slate-500">
-                                                Read-only history of PO items that were archived instead of deleted.
+                                                PO items that were archived instead of deleted. Each can be restored to the active list.
                                             </p>
                                         </div>
                                     </div>
@@ -1877,6 +2068,40 @@ return;
                                                         }
                                                     />
                                                 </div>
+
+                                                {!purchaseOrder
+                                                    .is_archived && (
+                                                    <div className="mt-4 flex justify-end">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setItemToRestore(
+                                                                    item,
+                                                                )
+                                                            }
+                                                            className="
+                                                                inline-flex
+                                                                items-center
+                                                                gap-2
+                                                                rounded-xl
+                                                                bg-emerald-50
+                                                                px-4
+                                                                py-2.5
+                                                                text-sm
+                                                                font-black
+                                                                text-emerald-700
+                                                                transition
+                                                                hover:bg-emerald-100
+                                                            "
+                                                        >
+                                                            <RotateCcw
+                                                                size={15}
+                                                            />
+
+                                                            Restore Item
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </article>
                                         ),
                                     )}
@@ -2903,6 +3128,32 @@ return;
                     }
                 />
             )}
+
+            {/* RESTORE PO MODAL */}
+            <ActionConfirmModal
+                open={restorePoOpen}
+                title="Restore Purchase Order?"
+                message={`Confirm restoring ${purchaseOrder.po_number}. It will become active again and appear in the main Purchase Orders list.`}
+                confirmText="Restore"
+                processingText="Restoring..."
+                processing={restoringPo}
+                tone="primary"
+                onCancel={closeRestorePo}
+                onConfirm={confirmRestorePo}
+            />
+
+            {/* RESTORE ITEM MODAL */}
+            <ActionConfirmModal
+                open={itemToRestore !== null}
+                title="Restore Purchase Order Item?"
+                message={`Confirm restoring ${itemToRestore ? getItemName(itemToRestore) : 'this item'} back to the active PO.`}
+                confirmText="Restore"
+                processingText="Restoring..."
+                processing={restoringItem}
+                tone="primary"
+                onCancel={() => setItemToRestore(null)}
+                onConfirm={confirmRestoreItem}
+            />
         </AdminLayout>
     );
 }

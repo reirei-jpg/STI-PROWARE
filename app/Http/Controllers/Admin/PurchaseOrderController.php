@@ -2114,6 +2114,87 @@ class PurchaseOrderController extends Controller
     }
 
     /**
+     * Restore a previously archived purchase order item.
+     */
+    public function restoreItem(
+        Request $request,
+        PurchaseOrder $purchaseOrder,
+        PurchaseOrderItem $purchaseOrderItem,
+    ): RedirectResponse {
+        $user =
+            $request->user();
+
+        abort_unless(
+            $user
+            && $user->isAdminLevel(),
+            403,
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Verify Item Belongs To This PO
+        |--------------------------------------------------------------------------
+        */
+
+        abort_unless(
+            $purchaseOrderItem->purchase_order_id
+                === $purchaseOrder->id,
+            404,
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Not Archived
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            ! $purchaseOrderItem->isArchived()
+        ) {
+            return back()->with(
+                'error',
+                'This purchase order item is not archived.',
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Parent Purchase Order Safeguard
+        |--------------------------------------------------------------------------
+        |
+        | An item cannot be restored to active status while its
+        | own purchase order is still archived.
+        |
+        */
+
+        if (
+            $purchaseOrder->isArchived()
+        ) {
+            return back()->with(
+                'error',
+                'Restore the purchase order before restoring its items.',
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Restore Item
+        |--------------------------------------------------------------------------
+        */
+
+        $purchaseOrderItem->update([
+            'archived_at' => null,
+
+            'archived_by' => null,
+        ]);
+
+        return back()->with(
+            'success',
+            'Purchase order item restored successfully.',
+        );
+    }
+
+    /**
      * Display archived purchase orders.
      */
     public function archiveIndex(
@@ -2738,5 +2819,59 @@ class PurchaseOrderController extends Controller
                 'success',
                 'Purchase order archived successfully.',
             );
+    }
+
+    /**
+     * Restore a previously archived purchase order.
+     *
+     * Only the purchase order itself is restored — any of its
+     * items that were individually archived before the whole PO
+     * was archived stay archived and must be restored separately.
+     */
+    public function restore(
+        Request $request,
+        PurchaseOrder $purchaseOrder,
+    ): RedirectResponse {
+        $user =
+            $request->user();
+
+        abort_unless(
+            $user
+            && $user->isAdminLevel(),
+            403,
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Not Archived
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            ! $purchaseOrder
+                ->isArchived()
+        ) {
+            return back()->with(
+                'error',
+                'This purchase order is not archived.',
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Restore
+        |--------------------------------------------------------------------------
+        */
+
+        $purchaseOrder->update([
+            'archived_at' => null,
+
+            'archived_by' => null,
+        ]);
+
+        return back()->with(
+            'success',
+            'Purchase order restored successfully.',
+        );
     }
 }

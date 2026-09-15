@@ -1,3 +1,9 @@
+
+import {
+    Head,
+    Link,
+    router,
+} from '@inertiajs/react';
 import {
     Archive,
     ArrowLeft,
@@ -8,21 +14,18 @@ import {
     PackageCheck,
     RotateCcw,
     Search,
-    Truck,
     UserRound,
 } from 'lucide-react';
 
+import type {
+    FormEvent} from 'react';
 import {
-    Head,
-    Link,
-    router,
-} from '@inertiajs/react';
-
-import {
-    FormEvent,
     useState,
 } from 'react';
 
+import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal';
+import ActionNotification from '@/components/action-feedback/ActionNotification';
+import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
 import AdminLayout from '@/layouts/AdminLayout';
 
 /*
@@ -133,6 +136,70 @@ export default function ArchiveIndex({
         useState(
             false,
         );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Restore Purchase Order
+    |--------------------------------------------------------------------------
+    */
+
+    const {
+        notification,
+        showSuccess,
+        showError,
+        clearNotification,
+    } = useActionFeedback();
+
+    const [
+        purchaseOrderToRestore,
+        setPurchaseOrderToRestore,
+    ] = useState<ArchivedPurchaseOrder | null>(
+        null,
+    );
+
+    const [
+        restoring,
+        setRestoring,
+    ] = useState(
+        false,
+    );
+
+    const confirmRestore = (): void => {
+        if (
+            !purchaseOrderToRestore
+            || restoring
+        ) {
+            return;
+        }
+
+        setRestoring(true);
+
+        router.patch(
+            `/admin/purchase-orders/${purchaseOrderToRestore.id}/restore`,
+            {},
+            {
+                preserveScroll: true,
+
+                onSuccess: () => {
+                    setPurchaseOrderToRestore(null);
+
+                    showSuccess(
+                        'Purchase order restored successfully.',
+                    );
+                },
+
+                onError: () => {
+                    showError(
+                        'Purchase order could not be restored. Please try again.',
+                    );
+                },
+
+                onFinish: () => {
+                    setRestoring(false);
+                },
+            },
+        );
+    };
 
     /*
     |--------------------------------------------------------------------------
@@ -322,6 +389,28 @@ export default function ArchiveIndex({
     return (
         <AdminLayout>
             <Head title="Archived Purchase Orders" />
+
+            {notification && (
+                <ActionNotification
+                    type={notification.type}
+                    message={notification.message}
+                    onClose={clearNotification}
+                />
+            )}
+
+            <ActionConfirmModal
+                open={purchaseOrderToRestore !== null}
+                title="Restore Purchase Order?"
+                message={`Confirm restoring ${purchaseOrderToRestore?.po_number ?? 'this purchase order'}. It will become active again and appear in the main Purchase Orders list.`}
+                confirmText="Restore"
+                processingText="Restoring..."
+                processing={restoring}
+                tone="primary"
+                onCancel={() =>
+                    setPurchaseOrderToRestore(null)
+                }
+                onConfirm={confirmRestore}
+            />
 
             <div className="space-y-7">
                 {/*
@@ -1131,29 +1220,60 @@ export default function ArchiveIndex({
                                                                 text-right
                                                             "
                                                         >
-                                                            <Link
-                                                                href={`/admin/purchase-orders/${purchaseOrder.id}`}
-                                                                className="
-                                                                    inline-flex
-                                                                    items-center
-                                                                    gap-2
-                                                                    rounded-xl
-                                                                    bg-blue-50
-                                                                    px-3
-                                                                    py-2
-                                                                    text-sm
-                                                                    font-black
-                                                                    text-blue-700
-                                                                    transition
-                                                                    hover:bg-blue-100
-                                                                "
-                                                            >
-                                                                View
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        setPurchaseOrderToRestore(
+                                                                            purchaseOrder,
+                                                                        )
+                                                                    }
+                                                                    className="
+                                                                        inline-flex
+                                                                        items-center
+                                                                        gap-2
+                                                                        rounded-xl
+                                                                        bg-emerald-50
+                                                                        px-3
+                                                                        py-2
+                                                                        text-sm
+                                                                        font-black
+                                                                        text-emerald-700
+                                                                        transition
+                                                                        hover:bg-emerald-100
+                                                                    "
+                                                                >
+                                                                    <RotateCcw
+                                                                        size={15}
+                                                                    />
 
-                                                                <ArrowRight
-                                                                    size={15}
-                                                                />
-                                                            </Link>
+                                                                    Restore
+                                                                </button>
+
+                                                                <Link
+                                                                    href={`/admin/purchase-orders/${purchaseOrder.id}`}
+                                                                    className="
+                                                                        inline-flex
+                                                                        items-center
+                                                                        gap-2
+                                                                        rounded-xl
+                                                                        bg-blue-50
+                                                                        px-3
+                                                                        py-2
+                                                                        text-sm
+                                                                        font-black
+                                                                        text-blue-700
+                                                                        transition
+                                                                        hover:bg-blue-100
+                                                                    "
+                                                                >
+                                                                    View
+
+                                                                    <ArrowRight
+                                                                        size={15}
+                                                                    />
+                                                                </Link>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 ),

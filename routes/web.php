@@ -543,6 +543,16 @@ Route::middleware([
                     'purchase-orders.items.archive',
                 );
 
+                Route::patch(
+                    '/purchase-orders/{purchaseOrder}/items/{purchaseOrderItem}/restore',
+                    [
+                        PurchaseOrderController::class,
+                        'restoreItem',
+                    ],
+                )->name(
+                    'purchase-orders.items.restore',
+                );
+
                 /*
                 |--------------------------------------------------------------------------
                 | Archive Purchase Order
@@ -561,6 +571,16 @@ Route::middleware([
                     ],
                 )->name(
                     'purchase-orders.archive',
+                );
+
+                Route::patch(
+                    '/purchase-orders/{purchaseOrder}/restore',
+                    [
+                        PurchaseOrderController::class,
+                        'restore',
+                    ],
+                )->name(
+                    'purchase-orders.restore',
                 );
 
                 /*

@@ -1,3 +1,9 @@
+
+import {
+    Head,
+    Link,
+    router,
+} from '@inertiajs/react';
 import {
     Archive,
     ArrowLeft,
@@ -11,17 +17,15 @@ import {
     UserRound,
 } from 'lucide-react';
 
+import type {
+    FormEvent} from 'react';
 import {
-    Head,
-    Link,
-    router,
-} from '@inertiajs/react';
-
-import {
-    FormEvent,
     useState,
 } from 'react';
 
+import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal';
+import ActionNotification from '@/components/action-feedback/ActionNotification';
+import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
 import AdminLayout from '@/layouts/AdminLayout';
 
 /*
@@ -144,6 +148,70 @@ export default function ArchivedItems({
         useState(
             false,
         );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Restore Archived Item
+    |--------------------------------------------------------------------------
+    */
+
+    const {
+        notification,
+        showSuccess,
+        showError,
+        clearNotification,
+    } = useActionFeedback();
+
+    const [
+        itemToRestore,
+        setItemToRestore,
+    ] = useState<ArchivedItem | null>(
+        null,
+    );
+
+    const [
+        restoring,
+        setRestoring,
+    ] = useState(
+        false,
+    );
+
+    const confirmRestore = (): void => {
+        if (
+            !itemToRestore
+            || restoring
+        ) {
+            return;
+        }
+
+        setRestoring(true);
+
+        router.patch(
+            `/admin/purchase-orders/${itemToRestore.purchase_order_id}/items/${itemToRestore.id}/restore`,
+            {},
+            {
+                preserveScroll: true,
+
+                onSuccess: () => {
+                    setItemToRestore(null);
+
+                    showSuccess(
+                        'Purchase order item restored successfully.',
+                    );
+                },
+
+                onError: () => {
+                    showError(
+                        'Purchase order item could not be restored. Please try again.',
+                    );
+                },
+
+                onFinish: () => {
+                    setRestoring(false);
+                },
+            },
+        );
+    };
 
     const applyFilters = (
         event?: FormEvent,
@@ -319,6 +387,28 @@ export default function ArchivedItems({
     return (
         <AdminLayout>
             <Head title="Archived PO Items" />
+
+            {notification && (
+                <ActionNotification
+                    type={notification.type}
+                    message={notification.message}
+                    onClose={clearNotification}
+                />
+            )}
+
+            <ActionConfirmModal
+                open={itemToRestore !== null}
+                title="Restore Purchase Order Item?"
+                message={`Confirm restoring this item back to ${itemToRestore?.po_number ?? 'its purchase order'}. It will become active again.`}
+                confirmText="Restore"
+                processingText="Restoring..."
+                processing={restoring}
+                tone="primary"
+                onCancel={() =>
+                    setItemToRestore(null)
+                }
+                onConfirm={confirmRestore}
+            />
 
             <div className="space-y-7">
                 {/* HEADER */}
@@ -886,6 +976,36 @@ export default function ArchivedItems({
                                                         </td>
 
                                                         <td className="px-5 py-4 text-right">
+                                                          <div className="flex items-center justify-end gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    setItemToRestore(
+                                                                        item,
+                                                                    )
+                                                                }
+                                                                className="
+                                                                    inline-flex
+                                                                    items-center
+                                                                    gap-2
+                                                                    rounded-xl
+                                                                    bg-emerald-50
+                                                                    px-3
+                                                                    py-2
+                                                                    text-sm
+                                                                    font-black
+                                                                    text-emerald-700
+                                                                    transition
+                                                                    hover:bg-emerald-100
+                                                                "
+                                                            >
+                                                                <RotateCcw
+                                                                    size={15}
+                                                                />
+
+                                                                Restore
+                                                            </button>
+
                                                             <Link
                                                                 href={`/admin/purchase-orders/${item.purchase_order_id}`}
                                                                 className="
@@ -909,6 +1029,7 @@ export default function ArchivedItems({
                                                                     size={15}
                                                                 />
                                                             </Link>
+                                                          </div>
                                                         </td>
                                                     </tr>
                                                 ),
