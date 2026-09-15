@@ -494,7 +494,6 @@ class WaitingListController extends Controller
     public function process(
         Request $request,
         OrderItem $orderItem,
-        PreorderAvailabilityService $preorderAvailabilityService,
     ): RedirectResponse {
         $user =
             $request->user();
@@ -529,30 +528,28 @@ class WaitingListController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Check FIFO Readiness Before Transaction
+        | Must Already Be Ready Or Paid
         |--------------------------------------------------------------------------
+        |
+        | Inventory is reserved exactly once, automatically, by
+        | PreorderAvailabilityService when the item first becomes
+        | "ready" (stock received). This action must never reserve
+        | inventory itself — only "waiting" or "expired" items have
+        | no reservation yet, and neither is eligible here.
         */
 
-        $readiness =
-            $preorderAvailabilityService
-                ->readinessForVariant(
-                    (int)
-                    $orderItem
-                        ->product_variant_id,
-                );
-
         if (
-            (
-                $readiness[
-                    $orderItem->id
-                ]
-                ?? 'waiting'
+            ! in_array(
+                $orderItem->preorder_status,
+                [
+                    OrderItem::PREORDER_STATUS_READY,
+                    OrderItem::PREORDER_STATUS_PAID,
+                ],
+                true,
             )
-            !==
-            'ready'
         ) {
             throw ValidationException::withMessages([
-                'preorder' => 'This preorder is not ready yet because there is not enough stock available for its FIFO position.',
+                'preorder' => 'This preorder is not ready yet. Stock must be reserved for it before it can be processed.',
             ]);
         }
 
@@ -590,67 +587,20 @@ class WaitingListController extends Controller
                     ]);
                 }
 
-                /*
-                |--------------------------------------------------------------------------
-                | Lock Inventory
-                |--------------------------------------------------------------------------
-                */
-
-                $inventory =
-                    Inventory::query()
-                        ->where(
-                            'product_variant_id',
-                            $lockedItem
-                                ->product_variant_id,
-                        )
-                        ->lockForUpdate()
-                        ->first();
-
-                if (! $inventory) {
-                    throw ValidationException::withMessages([
-                        'inventory' => 'No inventory record exists for this preorder variant.',
-                    ]);
-                }
-
-                $available =
-                    max(
-                        0,
-                        (int)
-                        $inventory
-                            ->quantity_on_hand
-                        -
-                        (int)
-                        $inventory
-                            ->quantity_reserved,
-                    );
-
-                $requested =
-                    (int)
-                    $lockedItem
-                        ->quantity;
-
                 if (
-                    $available <
-                    $requested
+                    ! in_array(
+                        $lockedItem->preorder_status,
+                        [
+                            OrderItem::PREORDER_STATUS_READY,
+                            OrderItem::PREORDER_STATUS_PAID,
+                        ],
+                        true,
+                    )
                 ) {
                     throw ValidationException::withMessages([
-                        'inventory' => "Only {$available} unit(s) are currently available. This preorder requires {$requested}.",
+                        'preorder' => 'This preorder is not ready yet. Stock must be reserved for it before it can be processed.',
                     ]);
                 }
-
-                /*
-                |--------------------------------------------------------------------------
-                | Reserve Inventory
-                |--------------------------------------------------------------------------
-                */
-
-                $inventory->update([
-                    'quantity_reserved' => (int)
-                        $inventory
-                            ->quantity_reserved
-                        +
-                        $requested,
-                ]);
 
                 /*
                 |--------------------------------------------------------------------------
@@ -658,7 +608,9 @@ class WaitingListController extends Controller
                 |--------------------------------------------------------------------------
                 |
                 | We keep the same Order record and OrderItem record.
-                | Only its processing type changes.
+                | Only its processing type changes. Inventory is NOT
+                | touched here — it was already reserved when this
+                | item became "ready".
                 |
                 */
 
@@ -717,18 +669,29 @@ class WaitingListController extends Controller
                     ->exists();
 
             if (! $alreadyNotified) {
+                $alreadyPaid =
+                    $orderItem->preorder_status
+                    === OrderItem::PREORDER_STATUS_PAID;
+
                 Notification::query()
                     ->create([
                         'user_id' => $studentUser->id,
 
                         'type' => 'preorder_processed',
 
-                        'title' => 'Preorder Ready for Payment',
+                        'title' => $alreadyPaid
+                            ? 'Preorder Ready for Claiming'
+                            : 'Preorder Ready for Payment',
 
-                        'message' => "{$orderItem->product_name} ({$orderItem->variant_name}) "
-                            ."from order {$order->order_number} has been reserved "
-                            .'for you. You may now proceed with the normal payment '
-                            .'and claiming process.',
+                        'message' => $alreadyPaid
+                            ? "{$orderItem->product_name} ({$orderItem->variant_name}) "
+                                ."from order {$order->order_number} is now ready "
+                                .'for release. You may proceed with the normal '
+                                .'claiming process.'
+                            : "{$orderItem->product_name} ({$orderItem->variant_name}) "
+                                ."from order {$order->order_number} has been reserved "
+                                .'for you. You may now proceed with the normal payment '
+                                .'and claiming process.',
 
                         'link' => "/student/orders/{$order->id}",
 
@@ -739,7 +702,7 @@ class WaitingListController extends Controller
 
         return back()->with(
             'success',
-            'Preorder processed successfully. Stock has been reserved for the student.',
+            'Preorder processed successfully. It is now a normal order item.',
         );
     }
 
