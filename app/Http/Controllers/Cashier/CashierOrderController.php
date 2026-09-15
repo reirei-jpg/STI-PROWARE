@@ -491,12 +491,12 @@ class CashierOrderController extends Controller
                             ->student
                             ?->student_id
                             ?? 'N/A',
-                ],
+                    ],
 
                     'confirmed_by' => [
                         'name' => $cashier?->name
                             ?? 'Unknown Cashier',
-                ],
+                    ],
                 ];
             },
         );
@@ -842,7 +842,7 @@ class CashierOrderController extends Controller
                             ->student
                             ?->year_level
                             ?? 'N/A',
-                ],
+                    ],
 
                     /*
                 |--------------------------------------------------------------------------
@@ -1150,8 +1150,15 @@ class CashierOrderController extends Controller
         |--------------------------------------------------------------------------
         |
         | A preorder reaches this point only after the Cashier
-        | successfully confirms payment.
-        |
+        | successfully confirms payment. Its stock was already
+        | reserved earlier, when it first became "ready", so paying
+        | for it is the only remaining gate before it should behave
+        | exactly like a normal order item — including at release,
+        | where only item_type = TYPE_ORDER is ever scanned out. This
+        | used to require a separate manual "Process" step on the
+        | admin Waiting List page; promoting item_type here removes
+        | that gap so a paid preorder is never left unreleasable
+        | just because nobody remembered to click a button.
         */
 
         $order->items()
@@ -1164,6 +1171,8 @@ class CashierOrderController extends Controller
                 OrderItem::PREORDER_STATUS_READY,
             )
             ->update([
+                'item_type' => OrderItem::TYPE_ORDER,
+
                 'preorder_status' => OrderItem::PREORDER_STATUS_PAID,
 
                 'preorder_paid_at' => $order->paid_at,

@@ -1,7 +1,10 @@
 <?php
 
+use App\Models\Category;
 use App\Models\Notification;
 use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\Product;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Support\Str;
@@ -185,6 +188,97 @@ test('confirming an online payment with a reference number succeeds', function (
 
     expect($order->payment_status)->toBe(Order::PAYMENT_PAID);
     expect($order->payment_reference)->toBe('GCASH-REF-000123');
+});
+
+function preorderVariantForOrder(User $admin)
+{
+    $category = Category::query()->create([
+        'name' => 'Category '.Str::random(8),
+        'is_active' => true,
+    ]);
+
+    $product = Product::query()->create([
+        'category_id' => $category->id,
+        'created_by' => $admin->id,
+        'code' => 'PRD-'.Str::random(8),
+        'name' => 'Test Product',
+        'base_price' => 500,
+        'is_active' => true,
+    ]);
+
+    return $product->variants()->create([
+        'sku' => 'SKU-'.Str::random(8),
+        'size' => 'STD',
+        'variant_name' => 'Standard',
+        'variant_key' => 'STD',
+        'is_active' => true,
+    ]);
+}
+
+test('confirming payment promotes a ready preorder item to a normal order item', function () {
+    $cashier = cashierUser();
+    $studentUser = studentUserWithProfile();
+    $variant = preorderVariantForOrder($cashier);
+
+    $order = orderAwaitingConfirmation($studentUser->student, $studentUser, [
+        'order_type' => Order::TYPE_PREORDER,
+    ]);
+
+    $item = $order->items()->create([
+        'product_variant_id' => $variant->id,
+        'product_code' => $variant->product->code,
+        'product_name' => $variant->product->name,
+        'variant_name' => $variant->variant_name,
+        'sku' => $variant->sku,
+        'item_type' => OrderItem::TYPE_PREORDER,
+        'preorder_status' => OrderItem::PREORDER_STATUS_READY,
+        'preorder_reserved_quantity' => 2,
+        'quantity' => 2,
+        'unit_price' => '500.00',
+        'line_total' => '1000.00',
+    ]);
+
+    $this->actingAs($cashier)
+        ->patch("/cashier/orders/{$order->id}/payment")
+        ->assertSessionHas('success');
+
+    $item->refresh();
+
+    expect($item->item_type)->toBe(OrderItem::TYPE_ORDER);
+    expect($item->preorder_status)->toBe(OrderItem::PREORDER_STATUS_PAID);
+    expect($item->preorder_paid_at)->not->toBeNull();
+});
+
+test('confirming payment does not touch a preorder item that is still waiting', function () {
+    $cashier = cashierUser();
+    $studentUser = studentUserWithProfile();
+    $variant = preorderVariantForOrder($cashier);
+
+    $order = orderAwaitingConfirmation($studentUser->student, $studentUser, [
+        'order_type' => Order::TYPE_PREORDER,
+    ]);
+
+    $item = $order->items()->create([
+        'product_variant_id' => $variant->id,
+        'product_code' => $variant->product->code,
+        'product_name' => $variant->product->name,
+        'variant_name' => $variant->variant_name,
+        'sku' => $variant->sku,
+        'item_type' => OrderItem::TYPE_PREORDER,
+        'preorder_status' => OrderItem::PREORDER_STATUS_WAITING,
+        'preorder_reserved_quantity' => 2,
+        'quantity' => 2,
+        'unit_price' => '500.00',
+        'line_total' => '1000.00',
+    ]);
+
+    $this->actingAs($cashier)
+        ->patch("/cashier/orders/{$order->id}/payment");
+
+    $item->refresh();
+
+    expect($item->item_type)->toBe(OrderItem::TYPE_PREORDER);
+    expect($item->preorder_status)->toBe(OrderItem::PREORDER_STATUS_WAITING);
 });
 
 test('a non-cashier cannot confirm payment', function () {
