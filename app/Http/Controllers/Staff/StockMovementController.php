@@ -26,6 +26,7 @@ class StockMovementController extends Controller
             && in_array(
                 $user->role,
                 [
+                    'super_admin',
                     'admin',
                     'specialist',
                 ],
