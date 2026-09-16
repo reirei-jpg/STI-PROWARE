@@ -240,18 +240,37 @@ class InventoryController extends Controller
         | Sorting
         |--------------------------------------------------------------------------
         |
-        | Sort using the related product name.
+        | Sort using the related product name, then variant name.
         |
         | This keeps variants of the same product grouped together.
-        |
+        | Ordering by product_variant_id alone does not do this — that
+        | ID has no relationship to product identity, so it was
+        | previously scattering a product's variants across the list.
+        | The join is needed because "product name" is not a column on
+        | the inventories table itself.
         */
 
         $inventoryQuery
-            ->orderBy(
-                'product_variant_id',
+            ->join(
+                'product_variants',
+                'inventories.product_variant_id',
+                '=',
+                'product_variants.id',
+            )
+            ->join(
+                'products',
+                'product_variants.product_id',
+                '=',
+                'products.id',
             )
             ->orderBy(
-                'id',
+                'products.name',
+            )
+            ->orderBy(
+                'product_variants.variant_name',
+            )
+            ->select(
+                'inventories.*',
             );
 
         /*
