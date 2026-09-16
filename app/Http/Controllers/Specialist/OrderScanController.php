@@ -98,7 +98,7 @@ class OrderScanController extends Controller
                                 ->student
                                 ?->course
                                 ?? 'N/A',
-                    ],
+                        ],
 
                         'items' => $order
                             ->items
@@ -335,7 +335,7 @@ class OrderScanController extends Controller
                 'released_at',
             )
             ->paginate(
-                20,
+                12,
             )
             ->withQueryString();
 
@@ -414,7 +414,7 @@ class OrderScanController extends Controller
                             ->student
                             ?->student_id
                             ?? 'N/A',
-                ],
+                    ],
 
                     'released_by' => [
                         'name' => $releaseLog
@@ -430,7 +430,7 @@ class OrderScanController extends Controller
                         'role' => $releaseLog
                             ?->actor_role
                             ?? 'specialist',
-                ],
+                    ],
 
                     'items' => $order
                         ->items
@@ -487,6 +487,50 @@ class OrderScanController extends Controller
             },
         );
 
+        /*
+        |--------------------------------------------------------------------------
+        | Summary Counts
+        |--------------------------------------------------------------------------
+        |
+        | Independent of the current search/date/type filters, so the
+        | summary cards always describe the full release history and
+        | can act as filter shortcuts into it.
+        */
+
+        $releasedBaseQuery = fn () => Order::query()
+            ->where(
+                'fulfillment_status',
+                Order::FULFILLMENT_RELEASED,
+            )
+            ->whereNotNull(
+                'released_at',
+            );
+
+        $totalReleased =
+            $releasedBaseQuery()
+                ->count();
+
+        $releasedToday =
+            $releasedBaseQuery()
+                ->whereDate(
+                    'released_at',
+                    today(),
+                )
+                ->count();
+
+        $releasedThisWeek =
+            $releasedBaseQuery()
+                ->whereBetween(
+                    'released_at',
+                    [
+                        now()
+                            ->startOfWeek(),
+                        now()
+                            ->endOfWeek(),
+                    ],
+                )
+                ->count();
+
         return Inertia::render(
             'specialist/Releases/Index',
             [
@@ -498,6 +542,14 @@ class OrderScanController extends Controller
                     'date' => $date,
 
                     'type' => $type,
+                ],
+
+                'summary' => [
+                    'total' => $totalReleased,
+
+                    'today' => $releasedToday,
+
+                    'week' => $releasedThisWeek,
                 ],
             ],
         );
@@ -639,7 +691,7 @@ class OrderScanController extends Controller
                             ->student
                             ?->student_id
                             ?? 'N/A',
-                ],
+                    ],
 
                     'released_by' => [
                         'name' => $releaseLog
@@ -652,7 +704,7 @@ class OrderScanController extends Controller
                         'role' => $releaseLog
                             ?->actor_role
                             ?? 'specialist',
-                ],
+                    ],
 
                     'items' => $items,
                 ],
@@ -946,7 +998,7 @@ class OrderScanController extends Controller
                             ->student
                             ?->year_level
                             ?? 'N/A',
-                ],
+                    ],
 
                     'items' => $order
                         ->items
@@ -1173,7 +1225,7 @@ class OrderScanController extends Controller
                             ->student
                             ?->year_level
                             ?? 'N/A',
-                ],
+                    ],
 
                     'items' => $order
                         ->items
