@@ -41,6 +41,7 @@ class StockReceiptController extends Controller
             && in_array(
                 $user->role,
                 [
+                    'super_admin',
                     'admin',
                     'specialist',
                 ],
@@ -57,6 +58,28 @@ class StockReceiptController extends Controller
                     '',
                 ),
             );
+
+        $date =
+            trim(
+                (string)
+                $request->query(
+                    'date',
+                    'all',
+                ),
+            );
+
+        if (
+            ! in_array(
+                $date,
+                [
+                    'all',
+                    'today',
+                ],
+                true,
+            )
+        ) {
+            $date = 'all';
+        }
 
         /*
         |--------------------------------------------------------------------------
@@ -150,6 +173,19 @@ class StockReceiptController extends Controller
                             },
                         );
                 },
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Date Filter
+        |--------------------------------------------------------------------------
+        */
+
+        if ($date === 'today') {
+            $query->whereDate(
+                'created_at',
+                today(),
             );
         }
 
@@ -301,6 +337,8 @@ class StockReceiptController extends Controller
 
                 'filters' => [
                     'search' => $search,
+
+                    'date' => $date,
                 ],
             ],
         );
@@ -324,6 +362,7 @@ class StockReceiptController extends Controller
             && in_array(
                 $user->role,
                 [
+                    'super_admin',
                     'admin',
                     'specialist',
                 ],
@@ -2188,15 +2227,45 @@ class StockReceiptController extends Controller
         | Do NOT modify inventory here.
         | Physical stock changes only when Receive Stock is submitted.
         |
+        | Locked and rechecked inside a transaction, matching
+        | registerPurchaseOrderItemProduct() below — otherwise two
+        | concurrent "link" requests for the same item could both pass
+        | the "not already linked" check above and race on which
+        | variant ends up linked.
+        |
         */
 
-        $purchaseOrderItem->update([
-            'merchandise_origin' => PurchaseOrderItem::ORIGIN_EXISTING,
+        DB::transaction(
+            function () use (
+                $purchaseOrderItem,
+                $variant,
+            ): void {
+                $lockedItem =
+                    PurchaseOrderItem::query()
+                        ->lockForUpdate()
+                        ->findOrFail(
+                            $purchaseOrderItem->id,
+                        );
 
-            'product_variant_id' => $variant->id,
+                if (
+                    $lockedItem->product_variant_id
+                    !== null
+                ) {
+                    throw ValidationException::withMessages([
+                        'product_variant_id' => 'This purchase order item is already linked to a PROWARE product variant.',
+                    ]);
+                }
 
-            'track_inventory' => true,
-        ]);
+                $lockedItem->update([
+                    'merchandise_origin' => PurchaseOrderItem::ORIGIN_EXISTING,
+
+                    'product_variant_id' => $variant->id,
+
+                    'track_inventory' => true,
+                ]);
+            },
+            3,
+        );
 
         /*
         |--------------------------------------------------------------------------

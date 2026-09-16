@@ -1,24 +1,19 @@
 import {
     ArrowDownToLine,
+    ArrowLeft,
     CalendarDays,
+    LoaderCircle,
+    Package,
     PackageCheck,
     ReceiptText,
     Search,
     Truck,
+    X,
 } from 'lucide-react';
 
-import {
-    Head,
-    Link,
-    router,
-    usePage,
-} from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 
-import {
-    type FormEvent,
-    type ReactNode,
-    useState,
-} from 'react';
+import { type FormEvent, type ReactNode, useState } from 'react';
 
 import AdminLayout from '@/layouts/AdminLayout';
 import SpecialistLayout from '@/layouts/SpecialistLayout';
@@ -47,8 +42,7 @@ interface ReceiptItem {
 
     receipt_number: string | null;
 
-    supplier_reference_number:
-        string | null;
+    supplier_reference_number: string | null;
 
     movement_type: string;
 
@@ -117,6 +111,8 @@ interface SummaryData {
 
 interface FilterData {
     search: string;
+
+    date: string;
 }
 
 interface PageProps {
@@ -133,26 +129,14 @@ interface PageProps {
 |--------------------------------------------------------------------------
 */
 
-export default function Index({
-    receipts,
-    summary,
-    filters,
-}: PageProps) {
-    const [
-        search,
-        setSearch,
-    ] = useState(
-        filters.search,
-    );
+export default function Index({ receipts, summary, filters }: PageProps) {
+    const [search, setSearch] = useState(filters.search);
 
-    const page =
-        usePage<SharedPageProps>();
+    const page = usePage<SharedPageProps>();
 
-    const userRole =
-        page.props.auth.user?.role;
+    const userRole = page.props.auth.user?.role;
 
-    const isSpecialist =
-        userRole === 'specialist';
+    const isSpecialist = userRole === 'specialist';
 
     /*
     |--------------------------------------------------------------------------
@@ -160,10 +144,7 @@ export default function Index({
     |--------------------------------------------------------------------------
     */
 
-    const Layout =
-        isSpecialist
-            ? SpecialistLayout
-            : AdminLayout;
+    const Layout = isSpecialist ? SpecialistLayout : AdminLayout;
 
     /*
     |--------------------------------------------------------------------------
@@ -182,15 +163,13 @@ export default function Index({
     |
     */
 
-    const pageTitle =
-        isSpecialist
-            ? 'Stock Receipt History'
-            : 'Receiving Monitoring';
+    const pageTitle = isSpecialist
+        ? 'Stock Receipt History'
+        : 'Receiving Monitoring';
 
-    const pageDescription =
-        isSpecialist
-            ? 'Review previously received merchandise, supplier references, quantity changes, and receiving activity.'
-            : 'Monitor merchandise receiving activity, supplier references, stock changes, and the employee responsible for each receipt.';
+    const pageDescription = isSpecialist
+        ? 'Review previously received merchandise, supplier references, quantity changes, and receiving activity.'
+        : 'Monitor merchandise receiving activity, supplier references, stock changes, and the employee responsible for each receipt.';
 
     /*
     |--------------------------------------------------------------------------
@@ -198,125 +177,128 @@ export default function Index({
     |--------------------------------------------------------------------------
     */
 
-    const submitSearch = (
-        event:
-            FormEvent<HTMLFormElement>,
+    const [date, setDate] = useState(filters.date);
+
+    const applyFilters = (
+        nextSearch: string,
+        nextDate: string,
+        onSuccess?: () => void,
+        onFinish?: () => void,
     ): void => {
-        event.preventDefault();
-
-        const cleaned =
-            search.trim();
-
         router.get(
             '/staff/stock-receipts',
-            cleaned !== ''
-                ? {
-                      search:
-                          cleaned,
-                  }
-                : {},
             {
-                preserveScroll:
-                    true,
+                search: nextSearch.trim() || undefined,
 
-                preserveState:
-                    true,
+                date: nextDate !== 'all' ? nextDate : undefined,
+            },
+            {
+                preserveScroll: true,
 
-                replace:
-                    true,
+                preserveState: true,
+
+                replace: true,
+
+                onSuccess,
+
+                onFinish,
             },
         );
     };
 
-    const clearSearch =
-        (): void => {
-            setSearch('');
+    const submitSearch = (event: FormEvent<HTMLFormElement>): void => {
+        event.preventDefault();
 
-            router.get(
-                '/staff/stock-receipts',
-                {},
-                {
-                    preserveScroll:
-                        true,
+        applyFilters(search, date);
+    };
 
-                    preserveState:
-                        true,
+    const clearSearch = (): void => {
+        setSearch('');
+        setDate('all');
 
-                    replace:
-                        true,
-                },
-            );
-        };
+        router.get(
+            '/staff/stock-receipts',
+            {},
+            {
+                preserveScroll: true,
+
+                preserveState: true,
+
+                replace: true,
+            },
+        );
+    };
+
+    /*
+    |--------------------------------------------------------------------------
+    | Summary Card Shortcut
+    |--------------------------------------------------------------------------
+    |
+    | Clicking a summary card is a shortcut for the date filter — it
+    | applies immediately and opens a popup with the matching receipts
+    | once they've actually loaded, so it never flashes the previous
+    | selection's data first.
+    */
+
+    const [pendingCard, setPendingCard] = useState<string | null>(null);
+
+    const [receiptModalView, setReceiptModalView] = useState<
+        | { type: 'list'; label: string }
+        | { type: 'details'; receipt: ReceiptItem; backLabel: string | null }
+        | null
+    >(null);
+
+    const openCardPreview = (value: string, label: string): void => {
+        setPendingCard(value);
+        setDate(value);
+
+        applyFilters(
+            search,
+            value,
+            () => setReceiptModalView({ type: 'list', label }),
+            () => setPendingCard(null),
+        );
+    };
+
+    const openReceiptDetails = (receipt: ReceiptItem): void => {
+        setReceiptModalView((previous) =>
+            previous?.type === 'list'
+                ? { type: 'details', receipt, backLabel: previous.label }
+                : { type: 'details', receipt, backLabel: null },
+        );
+    };
+
+    const backToReceiptList = (): void => {
+        setReceiptModalView((previous) =>
+            previous?.type === 'details' && previous.backLabel
+                ? { type: 'list', label: previous.backLabel }
+                : null,
+        );
+    };
 
     return (
         <Layout>
-            <Head
-                title={
-                    pageTitle
-                }
-            />
+            <Head title={pageTitle} />
 
-            <div
-                className="
-                    mx-auto
-                    max-w-7xl
-                    space-y-7
-                "
-            >
+            <div className="mx-auto max-w-7xl space-y-7">
                 {/*
                 |--------------------------------------------------------------------------
                 | Header
                 |--------------------------------------------------------------------------
                 */}
 
-                <section
-                    className="
-                        flex
-                        flex-col
-                        gap-4
-                        lg:flex-row
-                        lg:items-center
-                        lg:justify-between
-                    "
-                >
+                <section className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                        <p
-                            className="
-                                text-xs
-                                font-black
-                                uppercase
-                                tracking-wide
-                                text-blue-600
-                            "
-                        >
+                        <p className="text-xs font-black tracking-wide text-blue-600 uppercase">
                             STI PROWARE
                         </p>
 
-                        <h1
-                            className="
-                                mt-1
-                                text-3xl
-                                font-black
-                                text-slate-900
-                            "
-                        >
-                            {
-                                pageTitle
-                            }
+                        <h1 className="mt-1 text-3xl font-black text-slate-900">
+                            {pageTitle}
                         </h1>
 
-                        <p
-                            className="
-                                mt-2
-                                max-w-3xl
-                                text-sm
-                                leading-6
-                                text-slate-500
-                            "
-                        >
-                            {
-                                pageDescription
-                            }
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+                            {pageDescription}
                         </p>
                     </div>
 
@@ -330,54 +312,22 @@ export default function Index({
                     */}
 
                     {isSpecialist ? (
-    <Link
-        href="/staff/stock-receipts/create"
-        className="
-            inline-flex
-            shrink-0
-            items-center
-            justify-center
-            gap-2
-            rounded-xl
-            bg-[#0D6EFD]
-            px-5
-            py-3
-            text-sm
-            font-black
-            text-white
-            transition
-            hover:bg-blue-700
-        "
-    >
-        <Truck size={18} />
-
-        Receive Stock
-    </Link>
-) : (
-    <Link
-        href="/staff/inventory/movements"
-        className="
-            inline-flex
-            shrink-0
-            items-center
-            justify-center
-            gap-2
-            rounded-xl
-            bg-[#0D6EFD]
-            px-5
-            py-3
-            text-sm
-            font-black
-            text-white
-            transition
-            hover:bg-blue-700
-        "
-    >
-        <ArrowDownToLine size={18} />
-
-        View Stock Movements
-    </Link>
-)}
+                        <Link
+                            href="/staff/stock-receipts/create"
+                            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white transition hover:bg-blue-700"
+                        >
+                            <Truck size={18} />
+                            Receive Stock
+                        </Link>
+                    ) : (
+                        <Link
+                            href="/staff/inventory/movements"
+                            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white transition hover:bg-blue-700"
+                        >
+                            <ArrowDownToLine size={18} />
+                            View Stock Movements
+                        </Link>
+                    )}
                 </section>
 
                 {/*
@@ -387,69 +337,22 @@ export default function Index({
                 */}
 
                 {!isSpecialist && (
-                    <section
-                        className="
-                            rounded-2xl
-                            border
-                            border-blue-100
-                            bg-blue-50
-                            px-5
-                            py-4
-                        "
-                    >
-                        <div
-                            className="
-                                flex
-                                items-start
-                                gap-3
-                            "
-                        >
-                            <div
-                                className="
-                                    flex
-                                    h-10
-                                    w-10
-                                    shrink-0
-                                    items-center
-                                    justify-center
-                                    rounded-xl
-                                    bg-blue-100
-                                    text-blue-700
-                                "
-                            >
-                                <ReceiptText
-                                    size={19}
-                                />
+                    <section className="rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4">
+                        <div className="flex items-start gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+                                <ReceiptText size={19} />
                             </div>
 
                             <div>
-                                <p
-                                    className="
-                                        text-sm
-                                        font-black
-                                        text-blue-900
-                                    "
-                                >
-                                    Receiving
-                                    Monitoring
+                                <p className="text-sm font-black text-blue-900">
+                                    Receiving Monitoring
                                 </p>
 
-                                <p
-                                    className="
-                                        mt-1
-                                        text-xs
-                                        leading-5
-                                        text-blue-700
-                                    "
-                                >
-                                    Admin can review
-                                    receiving records,
-                                    stock changes, and
-                                    employee activity.
-                                    Physical merchandise
-                                    receiving is handled
-                                    by the Specialist
-                                    department.
+                                <p className="mt-1 text-xs leading-5 text-blue-700">
+                                    Admin can review receiving records, stock
+                                    changes, and employee activity. Physical
+                                    merchandise receiving is handled by the
+                                    Specialist department.
                                 </p>
                             </div>
                         </div>
@@ -462,60 +365,41 @@ export default function Index({
                 |--------------------------------------------------------------------------
                 */}
 
-                <section
-                    className="
-                        grid
-                        gap-4
-                        sm:grid-cols-2
-                        xl:grid-cols-4
-                    "
-                >
+                <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     <SummaryCard
                         title="Total Receipts"
-                        value={
-                            summary
-                                .total_receipts
-                        }
+                        value={summary.total_receipts}
                         description="Recorded stock receipt entries"
-                        icon={
-                            ReceiptText
-                        }
+                        icon={ReceiptText}
+                        active={date === 'all'}
+                        loading={pendingCard === 'all'}
+                        onClick={() => openCardPreview('all', 'All Receipts')}
                     />
 
                     <SummaryCard
                         title="Units Received"
-                        value={
-                            summary
-                                .total_units_received
-                        }
+                        value={summary.total_units_received}
                         description="Total merchandise units received"
-                        icon={
-                            PackageCheck
-                        }
+                        icon={PackageCheck}
                     />
 
                     <SummaryCard
                         title="Receipts Today"
-                        value={
-                            summary
-                                .received_today
-                        }
+                        value={summary.received_today}
                         description="Stock receipt entries created today"
-                        icon={
-                            CalendarDays
+                        icon={CalendarDays}
+                        active={date === 'today'}
+                        loading={pendingCard === 'today'}
+                        onClick={() =>
+                            openCardPreview('today', 'Receipts Today')
                         }
                     />
 
                     <SummaryCard
                         title="Units Today"
-                        value={
-                            summary
-                                .units_received_today
-                        }
+                        value={summary.units_received_today}
                         description="Merchandise units received today"
-                        icon={
-                            ArrowDownToLine
-                        }
+                        icon={ArrowDownToLine}
                     />
                 </section>
 
@@ -525,159 +409,52 @@ export default function Index({
                 |--------------------------------------------------------------------------
                 */}
 
-                <section
-                    className="
-                        rounded-3xl
-                        border
-                        border-slate-100
-                        bg-white
-                        p-5
-                        shadow-sm
-                    "
-                >
-                    <div
-                        className="
-                            flex
-                            flex-col
-                            gap-4
-                            lg:flex-row
-                            lg:items-center
-                            lg:justify-between
-                        "
-                    >
+                <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div>
-                            <h2
-                                className="
-                                    font-black
-                                    text-slate-900
-                                "
-                            >
+                            <h2 className="font-black text-slate-900">
                                 Receipt Records
                             </h2>
 
-                            <p
-                                className="
-                                    mt-1
-                                    text-sm
-                                    text-slate-500
-                                "
-                            >
-                                {
-                                    receipts.total
-                                }{' '}
-                                receipt record
-                                {receipts.total ===
-                                1
-                                    ? ''
-                                    : 's'}
+                            <p className="mt-1 text-sm text-slate-500">
+                                {receipts.total} receipt record
+                                {receipts.total === 1 ? '' : 's'}
                             </p>
                         </div>
 
                         <form
-                            onSubmit={
-                                submitSearch
-                            }
-                            className="
-                                flex
-                                w-full
-                                flex-col
-                                gap-3
-                                sm:flex-row
-                                lg:w-auto
-                            "
+                            onSubmit={submitSearch}
+                            className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto"
                         >
-                            <div
-                                className="
-                                    relative
-                                    w-full
-                                    sm:w-96
-                                "
-                            >
+                            <div className="relative w-full sm:w-96">
                                 <Search
                                     size={18}
-                                    className="
-                                        pointer-events-none
-                                        absolute
-                                        left-4
-                                        top-1/2
-                                        -translate-y-1/2
-                                        text-slate-400
-                                    "
+                                    className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-slate-400"
                                 />
 
                                 <input
                                     type="search"
-                                    value={
-                                        search
-                                    }
-                                    onChange={(
-                                        event,
-                                    ) =>
-                                        setSearch(
-                                            event
-                                                .target
-                                                .value,
-                                        )
+                                    value={search}
+                                    onChange={(event) =>
+                                        setSearch(event.target.value)
                                     }
                                     placeholder="Search receipt, product, variant, supplier, staff..."
-                                    className="
-                                        w-full
-                                        rounded-xl
-                                        border
-                                        border-slate-200
-                                        bg-white
-                                        py-3
-                                        pl-11
-                                        pr-4
-                                        text-sm
-                                        text-slate-900
-                                        outline-none
-                                        transition
-                                        placeholder:text-slate-400
-                                        focus:border-blue-500
-                                        focus:ring-4
-                                        focus:ring-blue-100
-                                    "
+                                    className="w-full rounded-xl border border-slate-200 bg-white py-3 pr-4 pl-11 text-sm text-slate-900 transition outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                                 />
                             </div>
 
                             <button
                                 type="submit"
-                                className="
-                                    rounded-xl
-                                    bg-[#0D6EFD]
-                                    px-5
-                                    py-3
-                                    text-sm
-                                    font-black
-                                    text-white
-                                    transition
-                                    hover:bg-blue-700
-                                "
+                                className="rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white transition hover:bg-blue-700"
                             >
                                 Search
                             </button>
 
-                            {filters.search !==
-                                '' && (
+                            {filters.search !== '' && (
                                 <button
                                     type="button"
-                                    onClick={
-                                        clearSearch
-                                    }
-                                    className="
-                                        rounded-xl
-                                        border
-                                        border-slate-200
-                                        bg-white
-                                        px-5
-                                        py-3
-                                        text-sm
-                                        font-black
-                                        text-slate-600
-                                        transition
-                                        hover:bg-slate-50
-                                    "
+                                    onClick={clearSearch}
+                                    className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-600 transition hover:bg-slate-50"
                                 >
                                     Clear
                                 </button>
@@ -692,42 +469,14 @@ export default function Index({
                 |--------------------------------------------------------------------------
                 */}
 
-                {receipts.data.length >
-                0 ? (
+                {receipts.data.length > 0 ? (
                     <>
-                        <section
-                            className="
-                                overflow-hidden
-                                rounded-3xl
-                                border
-                                border-slate-100
-                                bg-white
-                                shadow-sm
-                            "
-                        >
-                            <div
-                                className="
-                                    overflow-x-auto
-                                "
-                            >
-                                <table
-                                    className="
-                                        w-full
-                                        min-w-[1200px]
-                                    "
-                                >
-                                    <thead
-                                        className="
-                                            border-b
-                                            border-slate-100
-                                            bg-slate-50
-                                            text-left
-                                        "
-                                    >
+                        <section className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead className="border-b border-slate-100 bg-slate-50 text-left">
                                         <tr>
-                                            <TableHeading>
-                                                Receipt
-                                            </TableHeading>
+                                            <TableHeading>Receipt</TableHeading>
 
                                             <TableHeading>
                                                 Merchandise
@@ -737,75 +486,44 @@ export default function Index({
                                                 Quantity
                                             </TableHeading>
 
-                                            <TableHeading>
-                                                Stock Change
-                                            </TableHeading>
+                                            <TableHeading>Date</TableHeading>
 
-                                            <TableHeading>
-                                                Supplier Ref.
-                                            </TableHeading>
-
-                                            <TableHeading>
-                                                Received By
-                                            </TableHeading>
-
-                                            <TableHeading>
-                                                Date
-                                            </TableHeading>
-
-                                            <TableHeading>
-                                                Notes
-                                            </TableHeading>
-
-                                            <TableHeading>
-                                                Action
-                                            </TableHeading>
+                                            <TableHeading>Action</TableHeading>
                                         </tr>
                                     </thead>
 
-                                    <tbody
-                                        className="
-                                            divide-y
-                                            divide-slate-100
-                                        "
-                                    >
-                                        {receipts.data.map(
-                                            (
-                                                receipt,
-                                            ) => (
-                                                <ReceiptRow
-                                                    key={
-                                                        receipt.id
-                                                    }
-                                                    receipt={
-                                                        receipt
-                                                    }
-                                                />
-                                            ),
-                                        )}
+                                    <tbody className="divide-y divide-slate-100">
+                                        {receipts.data.map((receipt) => (
+                                            <ReceiptRow
+                                                key={receipt.id}
+                                                receipt={receipt}
+                                                onDetails={() =>
+                                                    openReceiptDetails(receipt)
+                                                }
+                                            />
+                                        ))}
                                     </tbody>
                                 </table>
                             </div>
                         </section>
 
-                        <Pagination
-                            links={
-                                receipts.links
-                            }
-                        />
+                        <Pagination links={receipts.links} />
                     </>
                 ) : (
                     <EmptyState
-                        hasSearch={
-                            filters.search !==
-                            ''
-                        }
-                        canReceiveStock={
-                            isSpecialist
-                        }
+                        hasSearch={filters.search !== ''}
+                        canReceiveStock={isSpecialist}
                     />
                 )}
             </div>
+
+            <ReceiptPreviewModal
+                view={receiptModalView}
+                receipts={receipts}
+                onClose={() => setReceiptModalView(null)}
+                onBack={backToReceiptList}
+                onOpenDetails={openReceiptDetails}
+            />
         </Layout>
     );
 }
@@ -823,8 +541,13 @@ interface SummaryCardProps {
 
     description: string;
 
-    icon:
-        typeof ReceiptText;
+    icon: typeof ReceiptText;
+
+    active?: boolean;
+
+    loading?: boolean;
+
+    onClick?: () => void;
 }
 
 function SummaryCard({
@@ -832,80 +555,52 @@ function SummaryCard({
     value,
     description,
     icon: Icon,
+    active = false,
+    loading = false,
+    onClick,
 }: SummaryCardProps) {
-    return (
-        <article
-            className="
-                rounded-3xl
-                border
-                border-slate-100
-                bg-white
-                p-5
-                shadow-sm
-            "
-        >
-            <div
-                className="
-                    flex
-                    items-start
-                    justify-between
-                    gap-4
-                "
-            >
-                <div>
-                    <p
-                        className="
-                            text-xs
-                            font-black
-                            uppercase
-                            tracking-wide
-                            text-slate-400
-                        "
-                    >
-                        {title}
-                    </p>
+    const content = (
+        <div className="flex items-start justify-between gap-4">
+            <div>
+                <p className="text-xs font-black tracking-wide text-slate-400 uppercase">
+                    {title}
+                </p>
 
-                    <p
-                        className="
-                            mt-3
-                            text-3xl
-                            font-black
-                            text-slate-900
-                        "
-                    >
-                        {value}
-                    </p>
+                <p className="mt-3 text-3xl font-black text-slate-900">
+                    {value}
+                </p>
 
-                    <p
-                        className="
-                            mt-2
-                            text-xs
-                            leading-5
-                            text-slate-500
-                        "
-                    >
-                        {description}
-                    </p>
-                </div>
-
-                <div
-                    className="
-                        flex
-                        h-11
-                        w-11
-                        shrink-0
-                        items-center
-                        justify-center
-                        rounded-xl
-                        bg-blue-100
-                        text-blue-600
-                    "
-                >
-                    <Icon
-                        size={20}
-                    />
-                </div>
+                <p className="mt-2 text-xs leading-5 text-slate-500">
+                    {description}
+                </p>
             </div>
+
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+                {loading ? (
+                    <LoaderCircle size={20} className="animate-spin" />
+                ) : (
+                    <Icon size={20} />
+                )}
+            </div>
+        </div>
+    );
+
+    if (onClick) {
+        return (
+            <button
+                type="button"
+                onClick={onClick}
+                disabled={loading}
+                className={`rounded-3xl border border-slate-100 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:cursor-wait ${active ? 'ring-2 ring-blue-500' : ''} `}
+            >
+                {content}
+            </button>
+        );
+    }
+
+    return (
+        <article className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+            {content}
         </article>
     );
 }
@@ -918,338 +613,63 @@ function SummaryCard({
 
 function ReceiptRow({
     receipt,
+    onDetails,
 }: {
-    receipt:
-        ReceiptItem;
+    receipt: ReceiptItem;
+
+    onDetails: () => void;
 }) {
     return (
-        <tr
-            className="
-                align-top
-                transition
-                hover:bg-slate-50/70
-            "
-        >
+        <tr className="align-top transition hover:bg-slate-50/70">
             {/* Receipt */}
-            <td
-                className="
-                    px-5
-                    py-5
-                "
-            >
-                <p
-                    className="
-                        font-mono
-                        text-sm
-                        font-black
-                        text-blue-700
-                    "
-                >
-                    {
-                        receipt.receipt_number
-                        ?? 'N/A'
-                    }
+            <td className="px-5 py-5">
+                <p className="font-mono text-sm font-black text-blue-700">
+                    {receipt.receipt_number ?? 'N/A'}
                 </p>
 
-                <p
-                    className="
-                        mt-1
-                        text-xs
-                        text-slate-400
-                    "
-                >
-                    Movement #
-                    {
-                        receipt.id
-                    }
+                <p className="mt-1 text-xs text-slate-400">
+                    Movement #{receipt.id}
                 </p>
             </td>
 
             {/* Product */}
-            <td
-                className="
-                    px-5
-                    py-5
-                "
-            >
-                <p
-                    className="
-                        text-sm
-                        font-black
-                        text-slate-900
-                    "
-                >
-                    {
-                        receipt.product
-                            .name
-                    }
+            <td className="px-5 py-5">
+                <p className="text-sm font-black text-slate-900">
+                    {receipt.product.name}
                 </p>
 
-                <p
-                    className="
-                        mt-1
-                        font-mono
-                        text-xs
-                        text-slate-500
-                    "
-                >
-                    {
-                        receipt.product
-                            .code
-                    }
+                <p className="mt-2 text-xs font-semibold text-blue-600">
+                    {receipt.variant.variant_name}
                 </p>
 
-                <p
-                    className="
-                        mt-2
-                        text-xs
-                        font-semibold
-                        text-blue-600
-                    "
-                >
-                    {
-                        receipt.variant
-                            .variant_name
-                    }
-                </p>
-
-                <p
-                    className="
-                        mt-1
-                        font-mono
-                        text-[11px]
-                        text-slate-400
-                    "
-                >
-                    {
-                        receipt.variant
-                            .sku
-                    }
+                <p className="mt-1 font-mono text-[11px] text-slate-400">
+                    {receipt.variant.sku}
                 </p>
             </td>
 
             {/* Quantity */}
-            <td
-                className="
-                    px-5
-                    py-5
-                "
-            >
-                <span
-                    className="
-                        inline-flex
-                        rounded-full
-                        bg-emerald-100
-                        px-3
-                        py-1.5
-                        text-sm
-                        font-black
-                        text-emerald-700
-                    "
-                >
-                    +
-                    {
-                        receipt
-                            .quantity_received
-                    }
+            <td className="px-5 py-5">
+                <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1.5 text-sm font-black text-emerald-700">
+                    +{receipt.quantity_received}
                 </span>
             </td>
 
-            {/* Stock Change */}
-            <td
-                className="
-                    px-5
-                    py-5
-                "
-            >
-                <div
-                    className="
-                        flex
-                        items-center
-                        gap-2
-                        text-sm
-                    "
-                >
-                    <span
-                        className="
-                            rounded-lg
-                            bg-slate-100
-                            px-2.5
-                            py-1
-                            font-black
-                            text-slate-600
-                        "
-                    >
-                        {
-                            receipt
-                                .quantity_before
-                        }
-                    </span>
-
-                    <span
-                        className="
-                            text-slate-400
-                        "
-                    >
-                        →
-                    </span>
-
-                    <span
-                        className="
-                            rounded-lg
-                            bg-blue-100
-                            px-2.5
-                            py-1
-                            font-black
-                            text-blue-700
-                        "
-                    >
-                        {
-                            receipt
-                                .quantity_after
-                        }
-                    </span>
-                </div>
-            </td>
-
-            {/* Supplier */}
-            <td
-                className="
-                    px-5
-                    py-5
-                "
-            >
-                <p
-                    className="
-                        max-w-48
-                        break-words
-                        text-sm
-                        font-semibold
-                        text-slate-700
-                    "
-                >
-                    {
-                        receipt
-                            .supplier_reference_number
-                        ?? '—'
-                    }
-                </p>
-            </td>
-
-            {/* Staff */}
-            <td
-                className="
-                    px-5
-                    py-5
-                "
-            >
-                <p
-                    className="
-                        text-sm
-                        font-black
-                        text-slate-800
-                    "
-                >
-                    {
-                        receipt
-                            .performed_by
-                            .name
-                    }
-                </p>
-
-                {receipt
-                    .performed_by
-                    .email && (
-                    <p
-                        className="
-                            mt-1
-                            text-xs
-                            text-slate-400
-                        "
-                    >
-                        {
-                            receipt
-                                .performed_by
-                                .email
-                        }
-                    </p>
-                )}
-            </td>
-
             {/* Date */}
-            <td
-                className="
-                    px-5
-                    py-5
-                "
-            >
-                <p
-                    className="
-                        whitespace-nowrap
-                        text-sm
-                        text-slate-600
-                    "
-                >
-                    {
-                        receipt.created_at
-                        ?? '—'
-                    }
+            <td className="px-5 py-5">
+                <p className="text-sm whitespace-nowrap text-slate-600">
+                    {receipt.created_at ?? '—'}
                 </p>
             </td>
 
-            {/* Notes */}
-            <td
-                className="
-                    px-5
-                    py-5
-                "
-            >
-                <p
-                    className="
-                        max-w-64
-                        whitespace-pre-wrap
-                        break-words
-                        text-sm
-                        leading-6
-                        text-slate-500
-                    "
+            {/* Details */}
+            <td className="px-5 py-5">
+                <button
+                    type="button"
+                    onClick={onDetails}
+                    className="inline-flex items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 transition hover:border-blue-300 hover:bg-blue-100"
                 >
-                    {
-                        receipt.notes
-                        ?? '—'
-                    }
-                </p>
-            </td>
-
-            {/* View */}
-            <td
-                className="
-                    px-5
-                    py-5
-                "
-            >
-                <Link
-                    href={`/staff/stock-receipts/${receipt.id}`}
-                    className="
-                        inline-flex
-                        items-center
-                        justify-center
-                        rounded-xl
-                        border
-                        border-blue-200
-                        bg-blue-50
-                        px-3
-                        py-2
-                        text-xs
-                        font-black
-                        text-blue-700
-                        transition
-                        hover:border-blue-300
-                        hover:bg-blue-100
-                    "
-                >
-                    View
-                </Link>
+                    Details
+                </button>
             </td>
         </tr>
     );
@@ -1261,24 +681,9 @@ function ReceiptRow({
 |--------------------------------------------------------------------------
 */
 
-function TableHeading({
-    children,
-}: {
-    children:
-        ReactNode;
-}) {
+function TableHeading({ children }: { children: ReactNode }) {
     return (
-        <th
-            className="
-                px-5
-                py-4
-                text-xs
-                font-black
-                uppercase
-                tracking-wide
-                text-slate-500
-            "
-        >
+        <th className="px-5 py-4 text-xs font-black tracking-wide text-slate-500 uppercase">
             {children}
         </th>
     );
@@ -1296,53 +701,17 @@ function EmptyState({
 }: {
     hasSearch: boolean;
 
-    canReceiveStock:
-        boolean;
+    canReceiveStock: boolean;
 }) {
     return (
-        <section
-            className="
-                rounded-3xl
-                border
-                border-slate-100
-                bg-white
-                px-6
-                py-16
-                text-center
-                shadow-sm
-            "
-        >
-            <ReceiptText
-                size={42}
-                className="
-                    mx-auto
-                    text-slate-300
-                "
-            />
+        <section className="rounded-3xl border border-slate-100 bg-white px-6 py-16 text-center shadow-sm">
+            <ReceiptText size={42} className="mx-auto text-slate-300" />
 
-            <h2
-                className="
-                    mt-5
-                    text-xl
-                    font-black
-                    text-slate-800
-                "
-            >
-                {hasSearch
-                    ? 'No matching receipts'
-                    : 'No stock receipts yet'}
+            <h2 className="mt-5 text-xl font-black text-slate-800">
+                {hasSearch ? 'No matching receipts' : 'No stock receipts yet'}
             </h2>
 
-            <p
-                className="
-                    mx-auto
-                    mt-2
-                    max-w-md
-                    text-sm
-                    leading-6
-                    text-slate-500
-                "
-            >
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
                 {hasSearch
                     ? 'Try another receipt number, product, variant, supplier reference, or staff name.'
                     : canReceiveStock
@@ -1356,30 +725,12 @@ function EmptyState({
             |--------------------------------------------------------------------------
             */}
 
-            {!hasSearch
-                && canReceiveStock && (
+            {!hasSearch && canReceiveStock && (
                 <Link
                     href="/staff/stock-receipts/create"
-                    className="
-                        mt-6
-                        inline-flex
-                        items-center
-                        gap-2
-                        rounded-xl
-                        bg-[#0D6EFD]
-                        px-5
-                        py-3
-                        text-sm
-                        font-black
-                        text-white
-                        transition
-                        hover:bg-blue-700
-                    "
+                    className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white transition hover:bg-blue-700"
                 >
-                    <Truck
-                        size={18}
-                    />
-
+                    <Truck size={18} />
                     Receive Stock
                 </Link>
             )}
@@ -1393,106 +744,402 @@ function EmptyState({
 |--------------------------------------------------------------------------
 */
 
-function Pagination({
-    links,
-}: {
-    links:
-        PaginationLink[];
-}) {
-    if (
-        links.length <= 3
-    ) {
+function Pagination({ links }: { links: PaginationLink[] }) {
+    if (links.length <= 3) {
         return null;
     }
 
     return (
-        <div
-            className="
-                flex
-                flex-wrap
-                justify-center
-                gap-2
-                rounded-3xl
-                border
-                border-slate-100
-                bg-white
-                px-6
-                py-5
-                shadow-sm
-            "
-        >
-            {links.map(
-                (
-                    link,
-                    index,
-                ) => {
-                    const label =
-                        link.label
-                            .replace(
-                                '&laquo;',
-                                '«',
-                            )
-                            .replace(
-                                '&raquo;',
-                                '»',
-                            );
+        <div className="flex flex-wrap justify-center gap-2 rounded-3xl border border-slate-100 bg-white px-6 py-5 shadow-sm">
+            {links.map((link, index) => {
+                const label = link.label
+                    .replace('&laquo;', '«')
+                    .replace('&raquo;', '»');
 
-                    if (
-                        !link.url
-                    ) {
-                        return (
-                            <span
-                                key={
-                                    index
-                                }
-                                className="
-                                    rounded-lg
-                                    border
-                                    border-slate-200
-                                    px-3
-                                    py-2
-                                    text-sm
-                                    text-slate-300
-                                "
-                            >
-                                {
-                                    label
-                                }
-                            </span>
-                        );
-                    }
-
+                if (!link.url) {
                     return (
-                        <Link
-                            key={
-                                index
-                            }
-                            href={
-                                link.url
-                            }
-                            preserveScroll
-                            className={`
-                                rounded-lg
-                                border
-                                px-3
-                                py-2
-                                text-sm
-                                transition
-
-                                ${
-                                    link.active
-                                        ? 'border-blue-600 bg-blue-600 text-white'
-                                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                                }
-                            `}
+                        <span
+                            key={index}
+                            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-300"
                         >
-                            {
-                                label
-                            }
-                        </Link>
+                            {label}
+                        </span>
                     );
-                },
-            )}
+                }
+
+                return (
+                    <Link
+                        key={index}
+                        href={link.url}
+                        preserveScroll
+                        className={`rounded-lg border px-3 py-2 text-sm transition ${
+                            link.active
+                                ? 'border-blue-600 bg-blue-600 text-white'
+                                : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                        } `}
+                    >
+                        {label}
+                    </Link>
+                );
+            })}
         </div>
     );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Receipt Preview Modal
+|--------------------------------------------------------------------------
+|
+| One popup shell for both the Quick View (opened from a summary
+| card) and a single receipt's Details — going from the list to a
+| details view (and back) swaps the content in place instead of
+| closing one popup and opening another. List rows are grouped by
+| product, so it is always clear which product/variant a receipt
+| belongs to.
+*/
+
+function ReceiptPreviewModal({
+    view,
+    receipts,
+    onClose,
+    onBack,
+    onOpenDetails,
+}: {
+    view:
+        | { type: 'list'; label: string }
+        | {
+              type: 'details';
+              receipt: ReceiptItem;
+              backLabel: string | null;
+          }
+        | null;
+    receipts: ReceiptPagination;
+    onClose: () => void;
+    onBack: () => void;
+    onOpenDetails: (receipt: ReceiptItem) => void;
+}) {
+    if (!view) {
+        return null;
+    }
+
+    const receipt = view.type === 'details' ? view.receipt : null;
+
+    const listLabel = view.type === 'list' ? view.label : null;
+
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+            onClick={onClose}
+        >
+            <div
+                className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-white shadow-xl"
+                onClick={(event) => event.stopPropagation()}
+            >
+                {/* HEADER */}
+                <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-6 py-5">
+                    <div className="flex items-center gap-3">
+                        {receipt &&
+                            view.type === 'details' &&
+                            view.backLabel && (
+                                <button
+                                    type="button"
+                                    onClick={onBack}
+                                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                                >
+                                    <ArrowLeft size={20} />
+                                </button>
+                            )}
+
+                        <div>
+                            <p className="text-xs font-black tracking-wide text-blue-600 uppercase">
+                                {receipt ? 'Receipt Details' : 'Quick View'}
+                            </p>
+
+                            <h2 className="mt-1 text-xl font-black text-slate-900">
+                                {receipt
+                                    ? (receipt.receipt_number ??
+                                      `Movement #${receipt.id}`)
+                                    : listLabel}
+                            </h2>
+
+                            <p className="mt-1 text-sm text-slate-500">
+                                {receipt
+                                    ? (receipt.created_at ?? 'Date unavailable')
+                                    : `${receipts.total} record${receipts.total === 1 ? '' : 's'}`}
+                            </p>
+                        </div>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
+
+                {/* BODY */}
+                <div className="flex-1 space-y-3 overflow-y-auto px-6 py-5">
+                    {receipt ? (
+                        <>
+                            <div className="grid grid-cols-3 gap-3">
+                                <ReceiptStatBlock
+                                    label="Before"
+                                    value={receipt.quantity_before}
+                                />
+
+                                <ReceiptStatBlock
+                                    label="Received"
+                                    value={receipt.quantity_received}
+                                />
+
+                                <ReceiptStatBlock
+                                    label="After"
+                                    value={receipt.quantity_after}
+                                />
+                            </div>
+
+                            <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+                                <p className="text-xs font-black tracking-wide text-slate-400 uppercase">
+                                    Merchandise
+                                </p>
+
+                                <div className="mt-2 space-y-1.5 text-sm">
+                                    <div className="flex items-center justify-between gap-4">
+                                        <span className="text-slate-500">
+                                            Product
+                                        </span>
+                                        <span className="font-bold text-slate-800">
+                                            {receipt.product.name}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex items-center justify-between gap-4">
+                                        <span className="text-slate-500">
+                                            Product code
+                                        </span>
+                                        <span className="font-mono font-bold text-slate-800">
+                                            {receipt.product.code}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex items-center justify-between gap-4">
+                                        <span className="text-slate-500">
+                                            Variant
+                                        </span>
+                                        <span className="font-bold text-slate-800">
+                                            {receipt.variant.variant_name}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex items-center justify-between gap-4">
+                                        <span className="text-slate-500">
+                                            SKU
+                                        </span>
+                                        <span className="font-mono font-bold text-slate-800">
+                                            {receipt.variant.sku}
+                                        </span>
+                                    </div>
+
+                                    {(receipt.variant.program ||
+                                        receipt.variant.size) && (
+                                        <div className="flex items-center justify-between gap-4">
+                                            <span className="text-slate-500">
+                                                Program / Size
+                                            </span>
+                                            <span className="font-bold text-slate-800">
+                                                {[
+                                                    receipt.variant.program,
+                                                    receipt.variant.size,
+                                                ]
+                                                    .filter(Boolean)
+                                                    .join(' • ')}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+                                <p className="text-xs font-black tracking-wide text-slate-400 uppercase">
+                                    Receiving Information
+                                </p>
+
+                                <div className="mt-2 space-y-1.5 text-sm">
+                                    <div className="flex items-center justify-between gap-4">
+                                        <span className="text-slate-500">
+                                            Supplier Reference
+                                        </span>
+                                        <span className="font-bold text-slate-800">
+                                            {receipt.supplier_reference_number ??
+                                                '—'}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex items-center justify-between gap-4">
+                                        <span className="text-slate-500">
+                                            Received By
+                                        </span>
+                                        <span className="font-bold text-slate-800">
+                                            {receipt.performed_by.name}
+                                        </span>
+                                    </div>
+
+                                    {receipt.performed_by.email && (
+                                        <div className="flex items-center justify-between gap-4">
+                                            <span className="text-slate-500">
+                                                Staff Email
+                                            </span>
+                                            <span className="font-bold text-slate-800">
+                                                {receipt.performed_by.email}
+                                            </span>
+                                        </div>
+                                    )}
+
+                                    <div className="flex items-start justify-between gap-4">
+                                        <span className="shrink-0 text-slate-500">
+                                            Notes
+                                        </span>
+                                        <span className="text-right font-bold text-slate-800">
+                                            {receipt.notes ?? '—'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    ) : receipts.data.length > 0 ? (
+                        groupReceiptsByProduct(receipts.data).map((group) => (
+                            <div key={group.product.code} className="space-y-2">
+                                <div className="flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2.5">
+                                    <Package
+                                        size={16}
+                                        className="shrink-0 text-blue-600"
+                                    />
+
+                                    <p className="text-lg font-black text-blue-900">
+                                        {group.product.name}
+                                    </p>
+
+                                    <p className="font-mono text-xs text-blue-500">
+                                        {group.product.code}
+                                    </p>
+                                </div>
+
+                                <div className="space-y-2 pl-2">
+                                    {group.rows.map((item) => (
+                                        <ReceiptPreviewRow
+                                            key={item.id}
+                                            receipt={item}
+                                            onDetails={() =>
+                                                onOpenDetails(item)
+                                            }
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="py-10 text-center text-sm text-slate-500">
+                            No receipts in this category.
+                        </p>
+                    )}
+                </div>
+
+                {/* FOOTER */}
+                <div className="flex items-center justify-end border-t border-slate-100 px-6 py-4">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function ReceiptPreviewRow({
+    receipt,
+    onDetails,
+}: {
+    receipt: ReceiptItem;
+    onDetails: () => void;
+}) {
+    return (
+        <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 p-4 sm:flex-row sm:items-center sm:gap-4">
+            <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold text-slate-800">
+                    {receipt.variant.variant_name}
+                    {receipt.variant.size ? ` • ${receipt.variant.size}` : ''}
+                </p>
+
+                <p className="mt-0.5 font-mono text-xs text-blue-600">
+                    {receipt.variant.sku}
+                </p>
+            </div>
+
+            <span className="inline-flex shrink-0 items-center justify-center rounded-xl bg-emerald-100 px-3 py-2 text-sm font-black text-emerald-700 sm:w-24">
+                +{receipt.quantity_received}
+            </span>
+
+            <span className="shrink-0 text-xs text-slate-500 sm:w-32 sm:text-right">
+                {receipt.created_at ?? '—'}
+            </span>
+
+            <button
+                type="button"
+                onClick={onDetails}
+                className="shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black text-slate-700 transition hover:bg-slate-50 sm:w-24"
+            >
+                Details
+            </button>
+        </div>
+    );
+}
+
+function ReceiptStatBlock({ label, value }: { label: string; value: number }) {
+    return (
+        <div className="rounded-2xl bg-slate-50 px-4 py-3 text-center">
+            <p className="text-xs font-bold tracking-wide text-slate-400 uppercase">
+                {label}
+            </p>
+
+            <p className="mt-1 text-xl font-black text-slate-900">{value}</p>
+        </div>
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Group By Product
+|--------------------------------------------------------------------------
+|
+| The receipt list is sorted newest-first (not by product), so this
+| groups by folding matching products together regardless of their
+| position in the list.
+*/
+
+function groupReceiptsByProduct(
+    rows: ReceiptItem[],
+): { product: ReceiptItem['product']; rows: ReceiptItem[] }[] {
+    const groups: { product: ReceiptItem['product']; rows: ReceiptItem[] }[] =
+        [];
+
+    for (const row of rows) {
+        const existingGroup = groups.find(
+            (group) => group.product.code === row.product.code,
+        );
+
+        if (existingGroup) {
+            existingGroup.rows.push(row);
+        } else {
+            groups.push({ product: row.product, rows: [row] });
+        }
+    }
+
+    return groups;
 }
