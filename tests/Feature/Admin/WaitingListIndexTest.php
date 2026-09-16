@@ -183,3 +183,22 @@ test('filtering by paid only returns paid preorders', function () {
         ->where('waitingItems.data.0.id', $paidItem->id),
     );
 });
+
+test('the oldest preorder is listed first, since it has waited longest', function () {
+    $admin = waitingListIndexAdmin();
+    $variant = waitingListIndexVariant($admin);
+
+    $newestItem = waitingListIndexPreorderItem($variant, OrderItem::PREORDER_STATUS_WAITING);
+    $newestItem->forceFill(['created_at' => now()->subDay()])->save();
+
+    $oldestItem = waitingListIndexPreorderItem($variant, OrderItem::PREORDER_STATUS_WAITING);
+    $oldestItem->forceFill(['created_at' => now()->subDays(3)])->save();
+
+    $response = $this->actingAs($admin)->get('/staff/waiting-list');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->where('waitingItems.data.0.id', $oldestItem->id)
+        ->where('waitingItems.data.1.id', $newestItem->id),
+    );
+});

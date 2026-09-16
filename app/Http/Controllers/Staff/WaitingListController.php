@@ -189,11 +189,15 @@ class WaitingListController extends Controller
         |--------------------------------------------------------------------------
         | Fetch Waiting List
         |--------------------------------------------------------------------------
+        |
+        | Oldest entries first — they have been waiting the longest,
+        | so they take priority for processing (matches the FIFO
+        | order PreorderAvailabilityService already allocates in).
         */
 
         $waitingItems =
             $query
-                ->latest()
+                ->oldest()
                 ->paginate(
                     15,
                 )
