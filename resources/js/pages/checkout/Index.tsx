@@ -72,16 +72,33 @@ interface CheckoutCart {
     items: CheckoutItem[];
 }
 
+interface PreorderPayment {
+    order_id: number;
+    order_number: string;
+}
+
 interface CheckoutIndexProps {
     student: CheckoutStudent;
     cart: CheckoutCart;
+    preorderPayment?: PreorderPayment;
 }
 
 export default function Index({
     student,
     cart,
+    preorderPayment,
 }: CheckoutIndexProps) {
 
+    /*
+     * When a ready preorder is being paid for
+     * (as opposed to a fresh cart checkout), the
+     * payment method section must always show —
+     * a preorder-only cart would otherwise hide
+     * it, since a fresh preorder has nothing to
+     * pay for yet.
+     */
+    const isPayingForReadyPreorder =
+        preorderPayment !== undefined;
 
     const {
     notification,
@@ -94,8 +111,8 @@ const [
     confirmOrderOpen,
     setConfirmOrderOpen,
 ] = useState(false);
-    
-    
+
+
     interface CheckoutFormData {
         confirmed: boolean;
         payment_method:
@@ -109,7 +126,8 @@ const [
     }
 
 const isPreorderOnly =
-    cart.items.length > 0
+    !isPayingForReadyPreorder
+    && cart.items.length > 0
     && cart.items.every(
         (item) =>
             item.item_type ===
@@ -153,6 +171,18 @@ const isPreorderOnly =
 
             form.transform(
                 (data) => {
+                    if (isPayingForReadyPreorder) {
+                        return {
+                            payment_method:
+                                data.payment_method,
+
+                            payment_reference:
+                                data.payment_method === 'cash'
+                                    ? ''
+                                    : data.payment_reference.trim(),
+                        };
+                    }
+
                     if (isPreorderOnly) {
                         return {
                             confirmed:
@@ -182,13 +212,17 @@ const isPreorderOnly =
             );
 
             form.post(
-                '/checkout',
+                preorderPayment
+                    ? `/student/orders/${preorderPayment.order_id}/pay`
+                    : '/checkout',
                 {
                     preserveScroll: true,
 
                     onSuccess: () => {
                         showSuccess(
-                            isPreorderOnly
+                            isPayingForReadyPreorder
+                                ? 'Your payment method was submitted successfully.'
+                                : isPreorderOnly
                                 ? 'Your preorder was submitted successfully.'
                                 : 'Your order was placed successfully.',
                         );
@@ -196,7 +230,9 @@ const isPreorderOnly =
 
                     onError: () => {
                         showError(
-                            isPreorderOnly
+                            isPayingForReadyPreorder
+                                ? 'Your payment method could not be submitted. Please review the information and try again.'
+                                : isPreorderOnly
                                 ? 'Your preorder could not be submitted. Please review the information and try again.'
                                 : 'Your order could not be placed. Please review the checkout information and try again.',
                         );
@@ -209,7 +245,13 @@ const isPreorderOnly =
 
     return (
         <StudentLayout>
-            <Head title="Checkout" />
+            <Head
+                title={
+                    isPayingForReadyPreorder
+                        ? 'Complete Payment'
+                        : 'Checkout'
+                }
+            />
 
             {notification && (
         <ActionNotification
@@ -222,22 +264,30 @@ const isPreorderOnly =
                 <ActionConfirmModal
                     open={confirmOrderOpen}
                     title={
-                        isPreorderOnly
+                        isPayingForReadyPreorder
+                            ? 'Submit Payment?'
+                            : isPreorderOnly
                             ? 'Submit Preorder?'
                             : 'Place Order?'
                     }
                     message={
-                        isPreorderOnly
+                        isPayingForReadyPreorder
+                            ? `Confirm submitting ${formatPaymentMethod(form.data.payment_method)} as your payment method for this preorder. The cashier will verify it before it's marked as paid.`
+                            : isPreorderOnly
                             ? 'Submit this preorder request? Your final preorder price, including any eligible early-bird discount, will be confirmed when the preorder is submitted. No payment is required yet.'
                             : `Confirm placing this order for ${formatCurrency(cart.subtotal)} using ${formatPaymentMethod(form.data.payment_method)}.`
                     }
                     confirmText={
-                        isPreorderOnly
+                        isPayingForReadyPreorder
+                            ? 'Submit Payment'
+                            : isPreorderOnly
                             ? 'Submit Preorder'
                             : 'Place Order'
                     }
                     processingText={
-                        isPreorderOnly
+                        isPayingForReadyPreorder
+                            ? 'Submitting Payment...'
+                            : isPreorderOnly
                             ? 'Submitting Preorder...'
                             : 'Placing Order...'
                     }
@@ -253,8 +303,16 @@ const isPreorderOnly =
             <div className="space-y-8">
                 <div className="flex items-center gap-4">
                     <Link
-                        href="/cart"
-                        aria-label="Back to cart"
+                        href={
+                            preorderPayment
+                                ? `/student/orders/${preorderPayment.order_id}`
+                                : '/cart'
+                        }
+                        aria-label={
+                            preorderPayment
+                                ? 'Back to order'
+                                : 'Back to cart'
+                        }
                         className="
                             flex h-12 w-12 shrink-0
                             items-center justify-center
@@ -276,13 +334,17 @@ const isPreorderOnly =
                         </p>
 
                         <h1 className="mt-1 text-3xl font-black text-slate-900">
-                            {isPreorderOnly
+                            {isPayingForReadyPreorder
+                                ? 'Complete Payment'
+                                : isPreorderOnly
                                 ? 'Review Preorder'
                                 : 'Checkout'}
                         </h1>
 
                         <p className="mt-1 text-sm text-slate-500">
-                            {isPreorderOnly
+                            {isPayingForReadyPreorder
+                                ? `Submit your payment method for preorder ${preorderPayment?.order_number}.`
+                                : isPreorderOnly
                                 ? 'Review your preorder request before submitting it.'
                                 : 'Review your order before placing it.'}
                         </p>
@@ -339,11 +401,15 @@ const isPreorderOnly =
                             <div className="flex items-start justify-between gap-4">
                                 <div>
                                     <h2 className="text-xl font-black text-slate-900">
-                                        Order Items
+                                        {isPayingForReadyPreorder
+                                            ? 'Preorder Items'
+                                            : 'Order Items'}
                                     </h2>
 
                                     <p className="mt-1 text-sm text-slate-500">
-                                        Final merchandise selection before checkout.
+                                        {isPayingForReadyPreorder
+                                            ? 'Reserved preorder merchandise awaiting your payment.'
+                                            : 'Final merchandise selection before checkout.'}
                                     </p>
                                 </div>
 
@@ -452,7 +518,7 @@ const isPreorderOnly =
                                     }}
                                 />
                             </div>
-                                    
+
 
 {form.data.payment_method !== 'cash' && (
                                 <div className="mt-6">
@@ -543,7 +609,7 @@ const isPreorderOnly =
                                             </ol>
                                         </div>
                                     </div>
-        
+
 
                                     {/* PAYMENT REFERENCE */}
                                     <label
@@ -660,13 +726,15 @@ const isPreorderOnly =
 
                                 <div>
                                     <h2 className="font-black text-slate-900">
-                                        Final validation happens at checkout
+                                        {isPayingForReadyPreorder
+                                            ? 'The cashier verifies this payment'
+                                            : 'Final validation happens at checkout'}
                                     </h2>
 
                                     <p className="mt-2 text-sm leading-6 text-slate-600">
-                                        PROWARE will recheck product availability,
-                                        selected variants, stock, preorder rules,
-                                        and current prices before creating the order.
+                                        {isPayingForReadyPreorder
+                                            ? 'Show your Payment QR to the cashier after submitting. They will verify your payment method and reference number before confirming it.'
+                                            : 'PROWARE will recheck product availability, selected variants, stock, preorder rules, and current prices before creating the order.'}
                                     </p>
                                 </div>
                             </div>
@@ -681,11 +749,15 @@ const isPreorderOnly =
 
                             <div>
                                 <h2 className="text-xl font-black text-slate-900">
-                                    Order Summary
+                                    {isPayingForReadyPreorder
+                                        ? 'Payment Summary'
+                                        : 'Order Summary'}
                                 </h2>
 
                                 <p className="mt-1 text-xs text-slate-500">
-                                    Confirm before placing order
+                                    {isPayingForReadyPreorder
+                                        ? 'Confirm before submitting payment'
+                                        : 'Confirm before placing order'}
                                 </p>
                             </div>
                         </div>
@@ -733,9 +805,9 @@ const isPreorderOnly =
                                 />
 
                                 <span className="text-sm leading-6 text-slate-600">
-                                    I confirm that I reviewed the
-                                    selected products, variants,
-                                    quantities, and total amount.
+                                    {isPayingForReadyPreorder
+                                        ? 'I confirm that I reviewed the preorder items, total amount, and selected payment method.'
+                                        : 'I confirm that I reviewed the selected products, variants, quantities, and total amount.'}
                                 </span>
                             </label>
 
@@ -776,12 +848,16 @@ const isPreorderOnly =
                     setConfirmOrderOpen(true)
                 }
                 idleText={
-                    isPreorderOnly
+                    isPayingForReadyPreorder
+                        ? 'Submit Payment'
+                        : isPreorderOnly
                         ? 'Submit Preorder'
                         : 'Place Order'
                 }
                 processingText={
-                    isPreorderOnly
+                    isPayingForReadyPreorder
+                        ? 'Submitting Payment...'
+                        : isPreorderOnly
                         ? 'Submitting Preorder...'
                         : 'Placing Order...'
                 }
@@ -795,7 +871,11 @@ const isPreorderOnly =
             />
 
                         <Link
-                            href="/cart"
+                            href={
+                                preorderPayment
+                                    ? `/student/orders/${preorderPayment.order_id}`
+                                    : '/cart'
+                            }
                             className="
                                 mt-3 flex w-full
                                 items-center justify-center
@@ -811,11 +891,15 @@ const isPreorderOnly =
                         >
                             <ArrowLeft size={18} />
 
-                            Back to Cart
+                            {preorderPayment
+                                ? 'Back to Order'
+                                : 'Back to Cart'}
                         </Link>
 
                         <p className="mt-4 text-center text-xs leading-5 text-slate-400">
-                            Your stock will only be reserved after the order is successfully created.
+                            {isPayingForReadyPreorder
+                                ? 'Your reserved merchandise is waiting — the cashier will verify this payment method before it is confirmed.'
+                                : 'Your stock will only be reserved after the order is successfully created.'}
                         </p>
                     </aside>
                 </div>

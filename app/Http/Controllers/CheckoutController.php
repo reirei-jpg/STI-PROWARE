@@ -7,9 +7,9 @@ use App\Models\CartItem;
 use App\Models\Notification;
 use App\Services\CheckoutService;
 use App\Services\NotificationService;
+use App\Services\PaymentMethodValidator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -17,6 +17,7 @@ class CheckoutController extends Controller
 {
     public function __construct(
         private readonly CheckoutService $checkoutService,
+        private readonly PaymentMethodValidator $paymentMethodValidator,
     ) {}
 
     /**
@@ -166,73 +167,73 @@ class CheckoutController extends Controller
 
         $items =
                 $selectedItems
-        ->map(
-            function (
-                CartItem $item,
-            ): array {
-                $variant =
-                    $item->productVariant;
+                    ->map(
+                        function (
+                            CartItem $item,
+                        ): array {
+                            $variant =
+                                $item->productVariant;
 
-                $product =
-                    $variant->product;
+                            $product =
+                                $variant->product;
 
-                return [
-                    'id' => $item->id,
+                            return [
+                                'id' => $item->id,
 
-                    'item_type' => $item->item_type,
+                                'item_type' => $item->item_type,
 
-                    'quantity' => $item->quantity,
+                                'quantity' => $item->quantity,
 
-                    'unit_price' => $item->unit_price,
+                                'unit_price' => $item->unit_price,
 
-                    'line_total' => $item->lineTotal(),
+                                'line_total' => $item->lineTotal(),
 
-                    'variant' => [
-                        'id' => $variant->id,
+                                'variant' => [
+                                    'id' => $variant->id,
 
-                        'sku' => $variant->sku,
+                                    'sku' => $variant->sku,
 
-                        'program' => $variant->program,
+                                    'program' => $variant->program,
 
-                        'size' => $variant->size,
+                                    'size' => $variant->size,
 
-                        'variant_name' => $variant
-                            ->variant_name,
-                    ],
-
-                    'product' => [
-                        'id' => $product->id,
-
-                        'code' => $product->code,
-
-                        'name' => $product->name,
-
-                        'preorder_early_bird_slots' => $product->preorder_early_bird_slots,
-
-                        'preorder_early_bird_discount_percent' => $product->preorder_early_bird_discount_percent,
-
-                        'image_url' => $product->image_path
-                                ? asset(
-                                    'storage/'
-                                    .$product
-                                        ->image_path,
-                                )
-                                : null,
-
-                        'category' => [
-                                    'id' => $product
-                                ->category
-                                ->id,
-
-                                    'name' => $product
-                                ->category
-                                ->name,
+                                    'variant_name' => $variant
+                                        ->variant_name,
                                 ],
-                    ],
-                ];
-            },
-        )
-        ->values();
+
+                                'product' => [
+                                    'id' => $product->id,
+
+                                    'code' => $product->code,
+
+                                    'name' => $product->name,
+
+                                    'preorder_early_bird_slots' => $product->preorder_early_bird_slots,
+
+                                    'preorder_early_bird_discount_percent' => $product->preorder_early_bird_discount_percent,
+
+                                    'image_url' => $product->image_path
+                                            ? asset(
+                                                'storage/'
+                                                .$product
+                                                    ->image_path,
+                                            )
+                                            : null,
+
+                                    'category' => [
+                                        'id' => $product
+                                            ->category
+                                            ->id,
+
+                                        'name' => $product
+                                            ->category
+                                            ->name,
+                                    ],
+                                ],
+                            ];
+                        },
+                    )
+                    ->values();
 
         return Inertia::render(
             'checkout/Index',
@@ -376,75 +377,22 @@ class CheckoutController extends Controller
         $paymentReference = null;
 
         if (! $isPreorderOnly) {
-            $paymentValidated =
-                $request->validate(
-                    [
-                        'payment_method' => [
-                            'required',
-                            'string',
-
-                            Rule::in([
-                                'cash',
-                                'gcash',
-                                'maya',
-                            ]),
-                        ],
-
-                        'payment_reference' => [
-                            Rule::requiredIf(
-                                fn (): bool => in_array(
-                                    $request->input(
-                                        'payment_method',
-                                    ),
-                                    [
-                                        'gcash',
-                                        'maya',
-                                    ],
-                                    true,
-                                ),
-                            ),
-
-                            'nullable',
-                            'string',
-                            'min:6',
-                            'max:100',
-
-                            Rule::unique(
-                                'orders',
-                                'payment_reference',
-                            ),
-                        ],
-                    ],
-                    [
-                        'payment_method.required' => 'Please select a payment method.',
-
-                        'payment_method.in' => 'The selected payment method is invalid.',
-
-                        'payment_reference.required' => 'The transaction/reference number is required for GCash or Maya.',
-
-                        'payment_reference.min' => 'The transaction/reference number is too short.',
-
-                        'payment_reference.max' => 'The transaction/reference number is too long.',
-
-                        'payment_reference.unique' => 'This transaction/reference number has already been used for another order.',
-                    ],
-                );
+            $payment =
+                $this
+                    ->paymentMethodValidator
+                    ->validate(
+                        $request,
+                    );
 
             $paymentMethod =
-                $paymentValidated[
+                $payment[
                     'payment_method'
                 ];
 
             $paymentReference =
-                $paymentMethod === 'cash'
-                    ? null
-                    : strtoupper(
-                        trim(
-                            $paymentValidated[
-                                'payment_reference'
-                            ],
-                        ),
-                    );
+                $payment[
+                    'payment_reference'
+                ];
         }
 
         /*

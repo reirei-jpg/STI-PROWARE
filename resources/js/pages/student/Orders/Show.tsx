@@ -96,6 +96,8 @@ interface StudentOrder {
 
     fulfillment_status: string;
 
+    payment_method: string | null;
+
     subtotal: string;
 
     total: string;
@@ -207,7 +209,7 @@ export default function Show({
             };
         }, [flashNotification]);
 
-            
+
 
             const status =
                 getOverallStatus(
@@ -247,11 +249,16 @@ export default function Show({
             const hasReadyPreorder =
                 readyPreorder !== undefined;
 
+            const needsPaymentMethod =
+                hasReadyPreorder
+                && order.payment_method === null;
+
         const activeQrToken =
             order.payment_status ===
             'paid'
                 ? order.release_qr_token
                 : hasWaitingPreorder
+                || needsPaymentMethod
                 ? null
                 : order.qr_token;
 
@@ -545,6 +552,8 @@ export default function Show({
                                     >
                                             {hasWaitingPreorder
                                                 ? 'Preorder Status'
+                                                : needsPaymentMethod
+                                                ? 'Preorder Ready'
                                                 : isReleaseQr
                                                 ? 'Release QR'
                                                 : 'Payment QR'}
@@ -560,6 +569,8 @@ export default function Show({
                                     >
                                                     {hasWaitingPreorder
                                                         ? 'Waiting for Stock'
+                                                        : needsPaymentMethod
+                                                        ? 'Submit Your Payment Method'
                                                         : isReleaseQr
                                                         ? 'Show QR to PROWARE Specialist'
                                                         : 'Show QR to Cashier'}
@@ -575,6 +586,8 @@ export default function Show({
                                     >
                                         {hasWaitingPreorder
                                             ? 'Your preorder has been submitted successfully. No payment is required yet. You will be notified once stock is available and your preorder becomes ready for payment.'
+                                            : needsPaymentMethod
+                                            ? 'Your preorder merchandise is now available. Choose how you will pay to continue.'
                                             : isReleaseQr
                                             ? 'Present this Release QR to the PROWARE Specialist for preparation and merchandise claiming.'
                                             : 'Present this Payment QR to the Cashier when confirming your payment.'}
@@ -601,7 +614,56 @@ export default function Show({
                                 </div>
                             </div>
 
-                            {!hasWaitingPreorder && (
+                            {needsPaymentMethod && (
+                                <div
+                                    className="
+                                        mt-5
+                                        rounded-2xl
+                                        bg-white
+                                        p-6
+                                        text-center
+                                    "
+                                >
+                                    <p
+                                        className="
+                                            text-sm
+                                            leading-6
+                                            text-slate-500
+                                        "
+                                    >
+                                        Select cash, GCash,
+                                        or Maya and, for
+                                        online payments,
+                                        provide your
+                                        transaction reference
+                                        number.
+                                    </p>
+
+                                    <Link
+                                        href={`/student/orders/${order.id}/pay`}
+                                        className="
+                                            mt-5
+                                            inline-flex
+                                            items-center
+                                            justify-center
+                                            gap-2
+                                            rounded-xl
+                                            bg-blue-600
+                                            px-6
+                                            py-3
+                                            text-sm
+                                            font-bold
+                                            text-white
+                                            transition
+                                            hover:bg-blue-700
+                                        "
+                                    >
+                                        Submit Payment Method
+                                    </Link>
+                                </div>
+                            )}
+
+                            {!hasWaitingPreorder && !needsPaymentMethod && (
                                 <div
                                     className="
                                         mt-5
@@ -1574,7 +1636,7 @@ function OrderItemCard({
                     bg-slate-100
                 "
             >
-            
+
 
                 {item.image_url ? (
                     <img

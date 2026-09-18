@@ -186,6 +186,38 @@ class OrderReceiptController extends Controller
 
         /*
         |--------------------------------------------------------------------------
+        | Back Button Destination
+        |--------------------------------------------------------------------------
+        |
+        | A cashier normally reaches a receipt via
+        | scan -> confirm -> receipt, so Back should
+        | return to the order-verification page. But
+        | Payment History's "View Receipt" popup sends
+        | ?from=payments, since that cashier came from
+        | a completely different page and Back should
+        | return there instead.
+        */
+
+        $backUrl =
+            match (true) {
+                $user->role === 'cashier'
+                    && $request->query('from') === 'payments' => route(
+                        'cashier.payments.index',
+                    ),
+
+                $user->role === 'cashier' => route(
+                    'cashier.orders.show',
+                    $order,
+                ),
+
+                default => route(
+                    'student.orders.show',
+                    $order,
+                ),
+            };
+
+        /*
+        |--------------------------------------------------------------------------
         | Render Receipt
         |--------------------------------------------------------------------------
         */
@@ -195,9 +227,11 @@ class OrderReceiptController extends Controller
             [
                 /*
                  * Used by the frontend to decide
-                 * where the Back button should go.
+                 * which viewer-specific copy to show.
                  */
                 'viewer' => $user->role,
+
+                'backUrl' => $backUrl,
 
                 /*
                  * Receipt information.

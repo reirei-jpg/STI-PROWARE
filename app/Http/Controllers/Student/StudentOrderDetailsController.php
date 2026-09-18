@@ -106,6 +106,8 @@ class StudentOrderDetailsController extends Controller
 
                     'fulfillment_status' => $order->fulfillment_status,
 
+                    'payment_method' => $order->payment_method,
+
                     /*
                     |--------------------------------------------------------------------------
                     | Amounts
@@ -204,24 +206,24 @@ class StudentOrderDetailsController extends Controller
                     */
 
                     'student' => [
-                    'name' => $order
-                        ->student
-                        ?->user
-                        ?->name
-                        ?? 'Unknown Student',
+                        'name' => $order
+                            ->student
+                            ?->user
+                            ?->name
+                            ?? 'Unknown Student',
 
-                    'student_id' => $order
-                        ->student
-                        ?->student_id
-                        ?? 'N/A',
+                        'student_id' => $order
+                            ->student
+                            ?->student_id
+                            ?? 'N/A',
 
-                    'course' => $order
-                        ->student
-                        ?->course,
+                        'course' => $order
+                            ->student
+                            ?->course,
 
-                    'year_level' => $order
-                        ->student
-                        ?->year_level,
+                        'year_level' => $order
+                            ->student
+                            ?->year_level,
                     ],
 
                     /*

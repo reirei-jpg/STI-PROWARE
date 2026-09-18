@@ -1,7 +1,6 @@
 import {
     ArrowRight,
     Banknote,
-    CheckCircle2,
     Clock3,
     QrCode,
     ReceiptText,
@@ -12,42 +11,57 @@ import {
     Link,
 } from '@inertiajs/react';
 
+import { useState } from 'react';
+
+import DetailPopup from '@/components/action-feedback/DetailPopup';
+import TrendBadge from '@/components/cashier/TrendBadge';
+
 import CashierLayout from '@/layouts/CashierLayout';
 
 import cashier from '@/routes/cashier';
 
-interface CashierDashboardProps {
-    pendingPayments: number;
-    paidToday: number;
-    totalCollectedToday: string;
-    recentOrders: RecentOrder[];
+interface TodaySales {
+    total: string;
+    transactions: number;
+    trend: number | null;
 }
 
-interface RecentOrder {
+interface PendingOrder {
     id: number;
     order_number: string;
     student_name: string;
     total: string;
-    payment_status: string;
     created_at: string | null;
 }
 
+interface ConfirmedOrder {
+    id: number;
+    order_number: string;
+    student_name: string;
+    total: string;
+    paid_at: string | null;
+}
+
+interface CashierDashboardProps {
+    pendingPayments: number;
+    todaySales: TodaySales;
+    pendingOrders: PendingOrder[];
+    recentlyConfirmed: ConfirmedOrder[];
+}
+
+type ActivePopup =
+    | 'pending'
+    | 'sales'
+    | null;
+
 export default function Dashboard({
     pendingPayments = 0,
-    paidToday = 0,
-    totalCollectedToday = '0.00',
-    recentOrders = [],
+    todaySales,
+    pendingOrders = [],
+    recentlyConfirmed = [],
 }: CashierDashboardProps) {
-    /*
-     * The cashier dashboard should primarily
-     * show orders that still need payment work.
-     */
-    const pendingOrders =
-        recentOrders.filter(
-            (order) =>
-                order.payment_status !==
-                'paid',
-        );
+    const [activePopup, setActivePopup] =
+        useState<ActivePopup>(null);
 
     return (
         <CashierLayout>
@@ -217,8 +231,7 @@ export default function Dashboard({
                         </h2>
 
                         <p className="mt-1 text-sm text-slate-500">
-                            Only the information needed
-                            for cashier operations.
+                            Click a card for more detail.
                         </p>
                     </div>
 
@@ -227,7 +240,7 @@ export default function Dashboard({
                             mt-4
                             grid
                             gap-4
-                            sm:grid-cols-3
+                            sm:grid-cols-2
                         "
                     >
                         <CashierStatCard
@@ -238,33 +251,27 @@ export default function Dashboard({
                             description="Orders still requiring cashier confirmation"
                             icon={Clock3}
                             tone="amber"
-                        />
-
-                        <CashierStatCard
-                            title="Paid Today"
-                            value={String(
-                                paidToday,
-                            )}
-                            description="Payments confirmed during today's shift"
-                            icon={
-                                CheckCircle2
+                            onClick={() =>
+                                setActivePopup('pending')
                             }
-                            tone="green"
                         />
 
                         <CashierStatCard
-                            title="Collected Today"
+                            title="Today's Sales"
                             value={formatCurrency(
-                                totalCollectedToday,
+                                todaySales.total,
                             )}
-                            description="Total value of payments confirmed today"
+                            description={`${todaySales.transactions} transaction${todaySales.transactions === 1 ? '' : 's'} confirmed today`}
                             icon={ReceiptText}
                             tone="blue"
+                            onClick={() =>
+                                setActivePopup('sales')
+                            }
                         />
                     </div>
                 </section>
 
-                {/* WHAT NEEDS ATTENTION */}
+                {/* RECENTLY CONFIRMED PAYMENTS */}
                 <section
                     className="
                         overflow-hidden
@@ -290,17 +297,17 @@ export default function Dashboard({
                     >
                         <div>
                             <h2 className="text-lg font-black text-slate-900">
-                                Waiting for Payment
+                                Recently Confirmed Payments
                             </h2>
 
                             <p className="mt-1 text-sm text-slate-500">
-                                Student orders that may
-                                require cashier action.
+                                The last payments you
+                                confirmed.
                             </p>
                         </div>
 
                         <Link
-                            href={cashier.orders.index.url()}
+                            href={cashier.payments.index.url()}
                             className="
                                 hidden
                                 items-center
@@ -320,77 +327,98 @@ export default function Dashboard({
                         </Link>
                     </div>
 
-                    {pendingOrders.length > 0 ? (
+                    {recentlyConfirmed.length > 0 ? (
                         <div className="divide-y divide-slate-100">
-                            {pendingOrders
-                                .slice(0, 5)
-                                .map(
-                                    (
-                                        order,
-                                    ) => (
-                                        <CashierOrderRow
-                                            key={
-                                                order.id
-                                            }
-                                            order={
-                                                order
-                                            }
-                                        />
-                                    ),
-                                )}
+                            {recentlyConfirmed.map(
+                                (order) => (
+                                    <ConfirmedOrderRow
+                                        key={
+                                            order.id
+                                        }
+                                        order={
+                                            order
+                                        }
+                                    />
+                                ),
+                            )}
                         </div>
                     ) : (
                         <div className="px-6 py-14 text-center">
-                            <CheckCircle2
+                            <ReceiptText
                                 size={38}
-                                className="mx-auto text-emerald-400"
+                                className="mx-auto text-slate-300"
                             />
 
                             <h3 className="mt-4 font-black text-slate-800">
-                                No pending payments
+                                No confirmed payments yet
                             </h3>
 
                             <p className="mt-1 text-sm text-slate-500">
-                                There are currently no
-                                student orders waiting
-                                for cashier confirmation.
+                                Payments you confirm will
+                                appear here.
                             </p>
                         </div>
                     )}
                 </section>
-
-                <Link
-                    href={cashier.orders.index.url()}
-                    className="
-                        flex
-                        w-full
-                        items-center
-                        justify-center
-                        gap-2
-                        rounded-xl
-                        border
-                        border-slate-200
-                        bg-white
-                        px-5
-                        py-3
-                        text-sm
-                        font-bold
-                        text-slate-700
-                        sm:hidden
-                    "
-                >
-                    View Pending Payments
-
-                    <ArrowRight size={16} />
-                </Link>
             </div>
+
+            {/* WAITING FOR PAYMENT POPUP */}
+            <DetailPopup
+                open={activePopup === 'pending'}
+                title="Waiting for Payment"
+                icon={Clock3}
+                onClose={() => setActivePopup(null)}
+                actionHref={cashier.orders.index.url()}
+                actionLabel="View All Pending"
+            >
+                {pendingOrders.length > 0 ? (
+                    <div className="-mx-2 divide-y divide-slate-100">
+                        {pendingOrders.map(
+                            (order) => (
+                                <PendingOrderRow
+                                    key={order.id}
+                                    order={order}
+                                />
+                            ),
+                        )}
+                    </div>
+                ) : (
+                    <p className="py-6 text-center text-sm text-slate-500">
+                        No pending payments right now.
+                    </p>
+                )}
+            </DetailPopup>
+
+            {/* TODAY'S SALES POPUP */}
+            <DetailPopup
+                open={activePopup === 'sales'}
+                title="Today's Sales"
+                icon={ReceiptText}
+                onClose={() => setActivePopup(null)}
+                actionHref={cashier.sales.index.url()}
+                actionLabel="View Full Sales Report"
+            >
+                <p className="text-3xl font-black text-slate-900">
+                    {formatCurrency(todaySales.total)}
+                </p>
+
+                <p className="mt-1 text-sm text-slate-500">
+                    {todaySales.transactions} transaction{todaySales.transactions === 1 ? '' : 's'} confirmed today
+                </p>
+
+                <div className="mt-4">
+                    <TrendBadge
+                        trend={todaySales.trend}
+                        compareLabel="yesterday"
+                    />
+                </div>
+            </DetailPopup>
         </CashierLayout>
     );
 }
 
 type CashierTone =
     | 'amber'
-    | 'green'
     | 'blue';
 
 function CashierStatCard({
@@ -399,12 +427,14 @@ function CashierStatCard({
     description,
     icon: Icon,
     tone,
+    onClick,
 }: {
     title: string;
     value: string;
     description: string;
     icon: typeof Clock3;
     tone: CashierTone;
+    onClick: () => void;
 }) {
     const tones = {
         amber: {
@@ -416,17 +446,6 @@ function CashierStatCard({
 
             value:
                 'text-amber-700',
-        },
-
-        green: {
-            card:
-                'border-emerald-200 bg-emerald-50/60',
-
-            icon:
-                'bg-emerald-100 text-emerald-700',
-
-            value:
-                'text-emerald-700',
         },
 
         blue: {
@@ -445,12 +464,20 @@ function CashierStatCard({
         tones[tone];
 
     return (
-        <article
+        <button
+            type="button"
+            onClick={onClick}
             className={`
+                block
+                w-full
                 rounded-2xl
                 border
                 p-5
+                text-left
                 shadow-sm
+                transition
+                hover:-translate-y-0.5
+                hover:shadow-md
                 ${style.card}
             `}
         >
@@ -491,14 +518,79 @@ function CashierStatCard({
             <p className="mt-3 text-xs leading-5 text-slate-500">
                 {description}
             </p>
-        </article>
+        </button>
     );
 }
 
-function CashierOrderRow({
+function PendingOrderRow({
     order,
 }: {
-    order: RecentOrder;
+    order: PendingOrder;
+}) {
+    return (
+        <Link
+            href={cashier.orders.show.url(order.id)}
+            className="
+                group
+                flex
+                items-center
+                justify-between
+                gap-4
+                px-2
+                py-4
+                transition
+                hover:bg-slate-50
+            "
+        >
+            <div className="min-w-0">
+                <p
+                    className="
+                        font-mono
+                        text-xs
+                        font-black
+                        uppercase
+                        tracking-wide
+                        text-blue-600
+                    "
+                >
+                    {order.order_number}
+                </p>
+
+                <p className="mt-1 truncate font-black text-slate-900">
+                    {order.student_name}
+                </p>
+
+                <p className="mt-1 text-xs text-slate-400">
+                    {order.created_at
+                        ?? 'Order date unavailable'}
+                </p>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-3">
+                <p className="font-black text-slate-900">
+                    {formatCurrency(
+                        order.total,
+                    )}
+                </p>
+
+                <ArrowRight
+                    size={16}
+                    className="
+                        text-slate-300
+                        transition
+                        group-hover:translate-x-1
+                        group-hover:text-blue-600
+                    "
+                />
+            </div>
+        </Link>
+    );
+}
+
+function ConfirmedOrderRow({
+    order,
+}: {
+    order: ConfirmedOrder;
 }) {
     return (
         <Link
@@ -537,8 +629,8 @@ function CashierOrderRow({
                 </p>
 
                 <p className="mt-1 text-xs text-slate-400">
-                    {order.created_at
-                        ?? 'Order date unavailable'}
+                    {order.paid_at
+                        ?? 'Payment date unavailable'}
                 </p>
             </div>
 
@@ -558,15 +650,15 @@ function CashierOrderRow({
                 <span
                     className="
                         rounded-full
-                        bg-amber-100
+                        bg-emerald-100
                         px-3
                         py-1
                         text-xs
                         font-bold
-                        text-amber-700
+                        text-emerald-700
                     "
                 >
-                    Pending
+                    Confirmed
                 </span>
 
                 <ArrowRight

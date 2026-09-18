@@ -4,7 +4,6 @@ import {
     Eye,
     Search,
     ShoppingBag,
-    UserRound,
 } from 'lucide-react';
 
 import {
@@ -36,6 +35,7 @@ interface CashierOrder {
     total: string;
     total_quantity: number;
     created_at: string | null;
+    image_url: string | null;
     student: OrderStudent;
 }
 
@@ -187,11 +187,11 @@ function OrderCard({
         <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-blue-200 hover:shadow-md">
             <div className="flex items-start justify-between gap-4">
                 <div>
-                    <p className="font-mono text-xs font-black uppercase tracking-wide text-blue-600">
+                    <p className="font-mono text-lg font-black uppercase tracking-wide text-blue-600">
                         {order.order_number}
                     </p>
 
-                    <p className="mt-2 text-xs text-slate-400">
+                    <p className="mt-1 text-xs text-slate-400">
                         {order.created_at
                             ?? 'Order date unavailable'}
                     </p>
@@ -202,28 +202,19 @@ function OrderCard({
                 </span>
             </div>
 
-            <div className="mt-5 rounded-2xl bg-slate-50 p-4">
-                <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm">
-                        <UserRound size={18} />
-                    </div>
-
-                    <div>
-                        <p className="font-black text-slate-900">
-                            {order.student.name}
-                        </p>
-
-                        <p className="mt-1 text-xs font-semibold text-slate-500">
-                            {order.student.student_id}
-                        </p>
-
-                        {order.student.course && (
-                            <p className="mt-1 text-xs text-slate-400">
-                                {order.student.course}
-                            </p>
-                        )}
-                    </div>
-                </div>
+            <div className="mt-5 flex h-36 items-center justify-center overflow-hidden rounded-2xl bg-slate-50">
+                {order.image_url ? (
+                    <img
+                        src={order.image_url}
+                        alt={order.order_number}
+                        className="h-full w-full object-contain p-3"
+                    />
+                ) : (
+                    <ShoppingBag
+                        size={36}
+                        className="text-slate-300"
+                    />
+                )}
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-3">

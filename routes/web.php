@@ -16,6 +16,7 @@ use App\Http\Controllers\Auth\RequiredPasswordChangeController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CartPageController;
 use App\Http\Controllers\Cashier\CashierOrderController;
+use App\Http\Controllers\Cashier\SalesController as CashierSalesController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\NotificationController;
@@ -28,6 +29,7 @@ use App\Http\Controllers\Staff\InventoryController;
 use App\Http\Controllers\Staff\StockMovementController;
 use App\Http\Controllers\Staff\WaitingListController;
 use App\Http\Controllers\Student\OrderQrController;
+use App\Http\Controllers\Student\PreorderPaymentController;
 use App\Http\Controllers\Student\StudentDashboardController;
 use App\Http\Controllers\Student\StudentOrderController;
 use App\Http\Controllers\Student\StudentOrderDetailsController;
@@ -1061,6 +1063,37 @@ Route::middleware([
                 )->name(
                     'orders.receipt',
                 );
+
+                /*
+                |--------------------------------------------------------------------------
+                | Ready Preorder Payment
+                |--------------------------------------------------------------------------
+                |
+                | Checkout only collects a payment method when
+                | stock is already available. A preorder has
+                | nothing to pay for at that point, so once it
+                | becomes ready the student submits payment here.
+                */
+
+                Route::get(
+                    '/orders/{order}/pay',
+                    [
+                        PreorderPaymentController::class,
+                        'edit',
+                    ],
+                )->name(
+                    'orders.pay',
+                );
+
+                Route::post(
+                    '/orders/{order}/pay',
+                    [
+                        PreorderPaymentController::class,
+                        'update',
+                    ],
+                )->name(
+                    'orders.pay.store',
+                );
                 /*
                 |--------------------------------------------------------------------------
                 | Student Order QR
@@ -1293,6 +1326,22 @@ Route::middleware([
                     ],
                 )->name(
                     'dashboard',
+                );
+
+                /*
+                |--------------------------------------------------------------------------
+                | Sales (aggregate totals only — see SalesController)
+                |--------------------------------------------------------------------------
+                */
+
+                Route::get(
+                    '/sales',
+                    [
+                        CashierSalesController::class,
+                        'index',
+                    ],
+                )->name(
+                    'sales.index',
                 );
 
                 /*

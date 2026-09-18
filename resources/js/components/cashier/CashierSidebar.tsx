@@ -2,7 +2,7 @@ import {
     Banknote,
     LayoutDashboard,
     ReceiptText,
-    Search,
+    TrendingUp,
 } from 'lucide-react';
 
 import type {
@@ -22,7 +22,6 @@ interface MenuItem {
     name: string;
     icon: LucideIcon;
     link: string;
-    enabled: boolean;
 }
 
 export default function CashierSidebar() {
@@ -33,25 +32,21 @@ export default function CashierSidebar() {
             name: 'Dashboard',
             icon: LayoutDashboard,
             link: cashier.dashboard.url(),
-            enabled: true,
         },
         {
             name: 'Pending Payments',
             icon: Banknote,
             link: cashier.orders.index.url(),
-            enabled: true,
         },
         {
-            name: 'Search Order',
-            icon: Search,
-            link: '/cashier/search',
-            enabled: false,
+            name: 'Sales',
+            icon: TrendingUp,
+            link: cashier.sales.index.url(),
         },
         {
             name: 'Payment History',
             icon: ReceiptText,
             link: cashier.payments.index.url(),
-            enabled: true,
         },
     ];
 
@@ -95,51 +90,6 @@ export default function CashierSidebar() {
                         || url.startsWith(
                             `${item.link}/`,
                         );
-
-                    if (!item.enabled) {
-                        return (
-                            <div
-                                key={item.name}
-                                title="This module will be available later."
-                                className="
-                                    flex
-                                    cursor-not-allowed
-                                    items-center
-                                    gap-4
-                                    rounded-xl
-                                    px-4
-                                    py-3
-                                    text-sm
-                                    font-medium
-                                    text-blue-100/50
-                                "
-                            >
-                                <Icon
-                                    size={19}
-                                />
-
-                                <span className="flex-1">
-                                    {item.name}
-                                </span>
-
-                                <span
-                                    className="
-                                        rounded-full
-                                        bg-white/10
-                                        px-2
-                                        py-1
-                                        text-[9px]
-                                        font-black
-                                        uppercase
-                                        tracking-wide
-                                        text-blue-100/70
-                                    "
-                                >
-                                    Soon
-                                </span>
-                            </div>
-                        );
-                    }
 
                     return (
                         <Link

@@ -1,10 +1,15 @@
 import {
     CalendarDays,
+    CheckCircle2,
     ChevronLeft,
     ChevronRight,
+    Clock3,
     CreditCard,
+    Info,
+    PackageCheck,
     ReceiptText,
     Search,
+    ShoppingBag,
 } from 'lucide-react';
 
 import {
@@ -17,6 +22,8 @@ import {
     useEffect,
     useState,
 } from 'react';
+
+import DetailPopup from '@/components/action-feedback/DetailPopup';
 
 import CashierLayout from '@/layouts/CashierLayout';
 
@@ -31,6 +38,15 @@ interface ConfirmedBy {
     name: string;
 }
 
+interface PaymentItem {
+    id: number;
+    product_name: string;
+    variant_name: string;
+    quantity: number;
+    unit_price: string;
+    line_total: string;
+}
+
 interface PaymentRecord {
     id: number;
     transaction_number: string;
@@ -40,8 +56,13 @@ interface PaymentRecord {
     payment_method: string | null;
     payment_reference: string | null;
     paid_at: string | null;
+    created_at: string | null;
+    fulfillment_status: string;
+    ready_for_release_at: string | null;
+    released_at: string | null;
     student: PaymentStudent;
     confirmed_by: ConfirmedBy;
+    items: PaymentItem[];
 }
 
 interface PaginationLink {
@@ -79,6 +100,9 @@ export default function Index({
     const [search, setSearch] = useState(
         filters.search ?? '',
     );
+
+    const [activePayment, setActivePayment] =
+        useState<PaymentRecord | null>(null);
 
     /*
      * Delay searching slightly so we do not
@@ -335,14 +359,6 @@ export default function Index({
                                             </th>
 
                                             <th className="px-6 py-4">
-                                                Order
-                                            </th>
-
-                                            <th className="px-6 py-4">
-                                                Student
-                                            </th>
-
-                                            <th className="px-6 py-4">
                                                 Amount
                                             </th>
 
@@ -354,12 +370,8 @@ export default function Index({
                                                 Paid At
                                             </th>
 
-                                            <th className="px-6 py-4">
-                                                Confirmed By
-                                            </th>
-
                                             <th className="px-6 py-4 text-right">
-                                                Action
+                                                Details
                                             </th>
                                         </tr>
                                     </thead>
@@ -373,6 +385,11 @@ export default function Index({
                                                     }
                                                     payment={
                                                         payment
+                                                    }
+                                                    onViewDetails={() =>
+                                                        setActivePayment(
+                                                            payment,
+                                                        )
                                                     }
                                                 />
                                             ),
@@ -391,6 +408,11 @@ export default function Index({
                                             }
                                             payment={
                                                 payment
+                                            }
+                                            onViewDetails={() =>
+                                                setActivePayment(
+                                                    payment,
+                                                )
                                             }
                                         />
                                     ),
@@ -412,14 +434,215 @@ export default function Index({
                     )}
                 </section>
             </div>
+
+            <DetailPopup
+                open={activePayment !== null}
+                title={
+                    activePayment
+                        ? activePayment.short_reference
+                        : 'Transaction Details'
+                }
+                icon={ReceiptText}
+                onClose={() =>
+                    setActivePayment(null)
+                }
+                actionHref={
+                    activePayment
+                        ? cashier.orders.receipt.url(
+                              activePayment.id,
+                              {
+                                  query: {
+                                      from: 'payments',
+                                  },
+                              },
+                          )
+                        : undefined
+                }
+                actionLabel="View Receipt"
+            >
+                {activePayment && (
+                    <div className="space-y-6">
+                        {/* Transaction + Order Identifiers */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                                <p className="text-xs font-black uppercase tracking-wide text-blue-600">
+                                    Transaction #
+                                </p>
+
+                                <p className="mt-1 break-all font-mono text-base font-black text-slate-900">
+                                    {
+                                        activePayment.transaction_number
+                                    }
+                                </p>
+                            </div>
+
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+                                    Order #
+                                </p>
+
+                                <p className="mt-1 break-all font-mono text-base font-black text-slate-900">
+                                    {
+                                        activePayment.order_number
+                                    }
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Amount */}
+                        <div className="rounded-2xl bg-blue-50/60 p-5 text-center">
+                            <p className="text-xs font-black uppercase tracking-wide text-blue-600">
+                                Total Amount
+                            </p>
+
+                            <p className="mt-1 text-3xl font-black text-slate-900">
+                                {formatCurrency(
+                                    activePayment.total,
+                                )}
+                            </p>
+                        </div>
+
+                        {/* Items Purchased */}
+                        <div>
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+                                Items Purchased
+                            </p>
+
+                            {activePayment.items.length > 0 ? (
+                                <div className="mt-2 divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200">
+                                    {activePayment.items.map(
+                                        (item) => (
+                                            <div
+                                                key={
+                                                    item.id
+                                                }
+                                                className="flex items-start justify-between gap-4 px-4 py-3"
+                                            >
+                                                <div className="min-w-0">
+                                                    <p className="font-bold text-slate-900">
+                                                        {
+                                                            item.product_name
+                                                        }
+                                                    </p>
+
+                                                    <p className="mt-0.5 text-xs text-slate-400">
+                                                        {
+                                                            item.variant_name
+                                                        }{' '}
+                                                        · Qty{' '}
+                                                        {
+                                                            item.quantity
+                                                        }{' '}
+                                                        ×{' '}
+                                                        {formatCurrency(
+                                                            item.unit_price,
+                                                        )}
+                                                    </p>
+                                                </div>
+
+                                                <p className="shrink-0 font-black text-slate-900">
+                                                    {formatCurrency(
+                                                        item.line_total,
+                                                    )}
+                                                </p>
+                                            </div>
+                                        ),
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="mt-2 text-sm text-slate-500">
+                                    No item details available for this order.
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Transaction Timeline */}
+                        <div>
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+                                Transaction Timeline
+                            </p>
+
+                            <div className="mt-3">
+                                <TimelineStep
+                                    icon={ShoppingBag}
+                                    title="Order Placed"
+                                    value={
+                                        activePayment.created_at
+                                            ?? 'Unavailable'
+                                    }
+                                    completed
+                                />
+
+                                <TimelineStep
+                                    icon={CheckCircle2}
+                                    title="Payment Confirmed"
+                                    value={`${activePayment.paid_at ?? 'Unavailable'} · ${formatPaymentMethod(activePayment.payment_method)}${activePayment.payment_reference ? ` (Ref: ${activePayment.payment_reference})` : ''}`}
+                                    completed
+                                />
+
+                                <TimelineStep
+                                    icon={PackageCheck}
+                                    title="Ready for Release"
+                                    value={
+                                        activePayment.ready_for_release_at
+                                            ?? 'Not yet ready'
+                                    }
+                                    completed={
+                                        activePayment.ready_for_release_at
+                                            !== null
+                                    }
+                                />
+
+                                <TimelineStep
+                                    icon={CheckCircle2}
+                                    title="Released"
+                                    value={
+                                        activePayment.released_at
+                                            ?? 'Not yet released'
+                                    }
+                                    completed={
+                                        activePayment.released_at
+                                            !== null
+                                    }
+                                    last
+                                />
+                            </div>
+                        </div>
+
+                        {/* People */}
+                        <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-5">
+                            <MobileInfo
+                                label="Student"
+                                value={
+                                    activePayment.student.name
+                                }
+                                secondary={
+                                    activePayment.student
+                                        .student_id
+                                }
+                            />
+
+                            <MobileInfo
+                                label="Confirmed By"
+                                value={
+                                    activePayment.confirmed_by
+                                        .name
+                                }
+                            />
+                        </div>
+                    </div>
+                )}
+            </DetailPopup>
         </CashierLayout>
     );
 }
 
 function PaymentRow({
     payment,
+    onViewDetails,
 }: {
     payment: PaymentRecord;
+    onViewDetails: () => void;
 }) {
     return (
         <tr className="transition hover:bg-slate-50/70">
@@ -434,22 +657,6 @@ function PaymentRow({
             </td>
 
             <td className="px-6 py-5">
-                <p className="whitespace-nowrap font-mono text-xs font-bold text-slate-700">
-                    {payment.order_number}
-                </p>
-            </td>
-
-            <td className="px-6 py-5">
-                <p className="font-bold text-slate-900">
-                    {payment.student.name}
-                </p>
-
-                <p className="mt-1 text-xs font-semibold text-slate-400">
-                    {payment.student.student_id}
-                </p>
-            </td>
-
-            <td className="px-6 py-5">
                 <p className="whitespace-nowrap font-black text-slate-900">
                     {formatCurrency(
                         payment.total,
@@ -458,18 +665,11 @@ function PaymentRow({
             </td>
 
             <td className="px-6 py-5">
-                <p className="text-sm font-bold text-slate-700">
-                    {formatPaymentMethod(
-                        payment.payment_method,
-                    )}
-                </p>
-
-                {payment.payment_reference && (
-                    <p className="mt-1 max-w-36 truncate font-mono text-[11px] text-slate-400">
-                        Ref:{' '}
-                        {payment.payment_reference}
-                    </p>
-                )}
+                <MethodBadge
+                    method={
+                        payment.payment_method
+                    }
+                />
             </td>
 
             <td className="px-6 py-5">
@@ -479,39 +679,56 @@ function PaymentRow({
                 </p>
             </td>
 
-            <td className="px-6 py-5">
-                <p className="whitespace-nowrap text-sm font-bold text-slate-700">
-                    {payment.confirmed_by.name}
-                </p>
-            </td>
-
             <td className="px-6 py-5 text-right">
-                <Link
-                    href={cashier.orders.receipt.url(payment.id)}
+                <button
+                    type="button"
+                    onClick={onViewDetails}
                     className="
                         inline-flex items-center
                         gap-2 rounded-xl
-                        border border-blue-200
-                        bg-blue-50 px-3 py-2
+                        border border-slate-200
+                        bg-white px-3 py-2
                         text-xs font-bold
-                        text-blue-700 transition
+                        text-slate-700 transition
                         hover:border-blue-300
-                        hover:bg-blue-100
+                        hover:bg-blue-50
+                        hover:text-blue-700
                     "
                 >
-                    <ReceiptText size={15} />
+                    <Info size={15} />
 
-                    View Receipt
-                </Link>
+                    Details
+                </button>
             </td>
         </tr>
     );
 }
 
+function MethodBadge({
+    method,
+}: {
+    method: string | null;
+}) {
+    return (
+        <span
+            className="
+                inline-flex items-center
+                rounded-full bg-slate-100
+                px-3 py-1 text-xs
+                font-bold text-slate-700
+            "
+        >
+            {formatPaymentMethod(method)}
+        </span>
+    );
+}
+
 function PaymentCard({
     payment,
+    onViewDetails,
 }: {
     payment: PaymentRecord;
+    onViewDetails: () => void;
 }) {
     return (
         <article className="p-5">
@@ -533,68 +750,39 @@ function PaymentCard({
                 </p>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-4">
-                <MobileInfo
-                    label="Order"
-                    value={payment.order_number}
-                />
-
-                <MobileInfo
-                    label="Payment"
-                    value={formatPaymentMethod(
-                        payment.payment_method,
-                    )}
-                />
-
-                <MobileInfo
-                    label="Student"
-                    value={payment.student.name}
-                    secondary={
-                        payment.student.student_id
+            <div className="mt-4 flex items-center justify-between gap-4">
+                <MethodBadge
+                    method={
+                        payment.payment_method
                     }
                 />
 
-                <MobileInfo
-                    label="Confirmed By"
-                    value={
-                        payment.confirmed_by.name
-                    }
-                />
-
-                <MobileInfo
-                    label="Paid At"
-                    value={
-                        payment.paid_at
-                            ?? 'Unavailable'
-                    }
-                />
-
-                {payment.payment_reference && (
-                    <MobileInfo
-                        label="Reference"
-                        value={
-                            payment.payment_reference
-                        }
-                    />
-                )}
+                <p className="text-sm font-semibold text-slate-500">
+                    {payment.paid_at
+                        ?? 'Unavailable'}
+                </p>
             </div>
 
-            <Link
-                href={cashier.orders.receipt.url(payment.id)}
+            <button
+                type="button"
+                onClick={onViewDetails}
                 className="
                     mt-5 flex w-full
                     items-center justify-center
                     gap-2 rounded-xl
-                    bg-blue-50 px-4 py-3
+                    border border-slate-200
+                    bg-white px-4 py-3
                     text-sm font-bold
-                    text-blue-700 transition
-                    hover:bg-blue-100
+                    text-slate-700 transition
+                    hover:border-blue-300
+                    hover:bg-blue-50
+                    hover:text-blue-700
                 "
             >
-                <ReceiptText size={16} />
+                <Info size={16} />
 
-                View Receipt
-            </Link>
+                Details
+            </button>
         </article>
     );
 }
@@ -623,6 +811,73 @@ function MobileInfo({
                     {secondary}
                 </p>
             )}
+        </div>
+    );
+}
+
+function TimelineStep({
+    icon: Icon,
+    title,
+    value,
+    completed,
+    last = false,
+}: {
+    icon: typeof Clock3;
+    title: string;
+    value: string;
+    completed: boolean;
+    last?: boolean;
+}) {
+    return (
+        <div className="flex gap-3">
+            <div className="flex flex-col items-center">
+                <div
+                    className={`
+                        flex h-8 w-8 shrink-0 items-center
+                        justify-center rounded-full border-2
+                        ${
+                            completed
+                                ? 'border-emerald-500 bg-emerald-500 text-white'
+                                : 'border-slate-200 bg-white text-slate-300'
+                        }
+                    `}
+                >
+                    {completed ? (
+                        <Icon size={14} />
+                    ) : (
+                        <Clock3 size={14} />
+                    )}
+                </div>
+
+                {!last && (
+                    <div
+                        className={`
+                            min-h-8 w-0.5 flex-1
+                            ${
+                                completed
+                                    ? 'bg-emerald-200'
+                                    : 'bg-slate-200'
+                            }
+                        `}
+                    />
+                )}
+            </div>
+
+            <div className={last ? 'pb-0' : 'pb-4'}>
+                <p
+                    className={`text-sm font-black ${
+                        completed
+                            ? 'text-slate-900'
+                            : 'text-slate-400'
+                    }`}
+                >
+                    {title}
+                </p>
+
+                <p className="mt-0.5 text-xs leading-5 text-slate-500">
+                    {value}
+                </p>
+            </div>
         </div>
     );
 }

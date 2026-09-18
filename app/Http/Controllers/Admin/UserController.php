@@ -8,6 +8,7 @@ use App\Services\AuditLogger;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -504,66 +505,82 @@ class UserController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Protect Last Active Normal Admin
+        | Protect Last Active Normal Admin + Deactivate Account
         |--------------------------------------------------------------------------
         |
-        | This applies only to role = admin.
+        | Locked and re-checked together in one transaction so two
+        | concurrent deactivation requests (two browser tabs, or a
+        | race between two admins) can never both pass the "at least
+        | one Admin remains active" count before either commits —
+        | which could otherwise leave zero active Admin accounts.
         |
         | Super Admin is protected separately above.
-        |
         */
 
-        if (
-            $user->role ===
-            User::ROLE_ADMIN
-            &&
-            $user->is_active
-        ) {
-            $activeAdmins =
-                User::query()
-                    ->where(
-                        'role',
-                        User::ROLE_ADMIN,
-                    )
-                    ->where(
-                        'is_active',
-                        true,
-                    )
-                    ->count();
+        $result =
+            DB::transaction(
+                function () use ($user): string {
+                    $lockedUser =
+                        User::query()
+                            ->lockForUpdate()
+                            ->findOrFail(
+                                $user->id,
+                            );
 
-            if (
-                $activeAdmins <= 1
-            ) {
-                return back()->withErrors([
-                    'user' => 'The last active Admin account cannot be deactivated.',
-                ]);
-            }
+                    if (! $lockedUser->is_active) {
+                        return 'already_inactive';
+                    }
+
+                    if (
+                        $lockedUser->role ===
+                        User::ROLE_ADMIN
+                    ) {
+                        /*
+                         * Postgres rejects FOR UPDATE combined
+                         * with an aggregate in the same query, so
+                         * the matching rows are locked and counted
+                         * in PHP instead of via ->count().
+                         */
+                        $activeAdmins =
+                            User::query()
+                                ->where(
+                                    'role',
+                                    User::ROLE_ADMIN,
+                                )
+                                ->where(
+                                    'is_active',
+                                    true,
+                                )
+                                ->lockForUpdate()
+                                ->pluck('id')
+                                ->count();
+
+                        if ($activeAdmins <= 1) {
+                            return 'last_admin';
+                        }
+                    }
+
+                    $lockedUser->update([
+                        'is_active' => false,
+                    ]);
+
+                    return 'deactivated';
+                },
+                attempts: 3,
+            );
+
+        if ($result === 'last_admin') {
+            return back()->withErrors([
+                'user' => 'The last active Admin account cannot be deactivated.',
+            ]);
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Already Disabled
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            ! $user->is_active
-        ) {
+        if ($result === 'already_inactive') {
             return back()->with(
                 'success',
                 "{$user->name}'s account is already disabled.",
             );
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Deactivate Account
-        |--------------------------------------------------------------------------
-        */
-
-        $user->update([
-            'is_active' => false,
-        ]);
 
         AuditLogger::log(
             request: $request,

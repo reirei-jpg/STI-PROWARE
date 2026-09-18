@@ -502,6 +502,7 @@ class StockReceiptController extends Controller
             && in_array(
                 $user->role,
                 [
+                    'super_admin',
                     'admin',
                     'specialist',
                 ],
@@ -907,6 +908,7 @@ class StockReceiptController extends Controller
             && in_array(
                 $user->role,
                 [
+                    'super_admin',
                     'admin',
                     'specialist',
                 ],
@@ -1714,6 +1716,7 @@ class StockReceiptController extends Controller
             && in_array(
                 $user->role,
                 [
+                    'super_admin',
                     'admin',
                     'specialist',
                 ],
@@ -2069,6 +2072,7 @@ class StockReceiptController extends Controller
             && in_array(
                 $user->role,
                 [
+                    'super_admin',
                     'admin',
                     'specialist',
                 ],

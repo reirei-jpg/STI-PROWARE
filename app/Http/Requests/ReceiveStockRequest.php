@@ -8,13 +8,14 @@ use Illuminate\Validation\Rule;
 class ReceiveStockRequest extends FormRequest
 {
     /**
-     * Allow Admin and Specialist to receive stock.
+     * Allow Super Admin, Admin and Specialist to receive stock.
      */
     public function authorize(): bool
     {
         return in_array(
             $this->user()?->role,
             [
+                'super_admin',
                 'admin',
                 'specialist',
             ],

@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\CashierSalesSummaryService;
 use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,10 @@ use Inertia\Response;
 
 class CashierOrderController extends Controller
 {
+    public function __construct(
+        private readonly CashierSalesSummaryService $salesSummary,
+    ) {}
+
     /**
      * Cashier dashboard.
      */
@@ -41,36 +46,31 @@ class CashierOrderController extends Controller
                 )
                 ->count();
 
-        $paidToday =
-            Order::query()
-                ->where(
-                    'payment_status',
-                    Order::PAYMENT_PAID,
-                )
-                ->whereDate(
-                    'paid_at',
-                    today(),
-                )
-                ->count();
+        /*
+         * Shared with the Sales report's "Today" card so the
+         * two never disagree.
+         */
+        $todaySales =
+            $this->salesSummary->today();
 
-        $totalCollectedToday =
-            Order::query()
-                ->where(
-                    'payment_status',
-                    Order::PAYMENT_PAID,
-                )
-                ->whereDate(
-                    'paid_at',
-                    today(),
-                )
-                ->sum('total');
-
-        $recentOrders =
+        /*
+         * Oldest-first: the orders that have been
+         * waiting the longest need attention first,
+         * matching the same convention already used
+         * by the Specialist Waiting List. Shown inside
+         * the "Waiting for Payment" popup, not as a
+         * standalone page section.
+         */
+        $pendingOrders =
             Order::query()
                 ->with([
                     'student.user',
                 ])
-                ->latest()
+                ->where(
+                    'payment_status',
+                    Order::PAYMENT_PENDING,
+                )
+                ->oldest()
                 ->limit(5)
                 ->get()
                 ->map(
@@ -91,10 +91,55 @@ class CashierOrderController extends Controller
                             'total' => (string)
                                 $order->total,
 
-                            'payment_status' => $order->payment_status,
-
                             'created_at' => $order
                                 ->created_at
+                                ?->format(
+                                    'M d, Y h:i A',
+                                ),
+                        ];
+                    },
+                )
+                ->values();
+
+        /*
+         * What the cashier just finished, complementing
+         * the "still to do" popup above with "already done".
+         */
+        $recentlyConfirmed =
+            Order::query()
+                ->with([
+                    'student.user',
+                ])
+                ->where(
+                    'payment_status',
+                    Order::PAYMENT_PAID,
+                )
+                ->whereNotNull(
+                    'paid_at',
+                )
+                ->latest('paid_at')
+                ->limit(5)
+                ->get()
+                ->map(
+                    function (
+                        Order $order,
+                    ): array {
+                        return [
+                            'id' => $order->id,
+
+                            'order_number' => $order->order_number,
+
+                            'student_name' => $order
+                                ->student
+                                ?->user
+                                ?->name
+                                ?? 'Unknown Student',
+
+                            'total' => (string)
+                                $order->total,
+
+                            'paid_at' => $order
+                                ->paid_at
                                 ?->format(
                                     'M d, Y h:i A',
                                 ),
@@ -108,12 +153,11 @@ class CashierOrderController extends Controller
             [
                 'pendingPayments' => $pendingPayments,
 
-                'paidToday' => $paidToday,
+                'todaySales' => $todaySales,
 
-                'totalCollectedToday' => (string)
-                    $totalCollectedToday,
+                'pendingOrders' => $pendingOrders,
 
-                'recentOrders' => $recentOrders,
+                'recentlyConfirmed' => $recentlyConfirmed,
             ],
         );
     }
@@ -136,6 +180,7 @@ class CashierOrderController extends Controller
             Order::query()
                 ->with([
                     'student.user',
+                    'items.productVariant.product',
                 ])
                 ->where(
                     'payment_status',
@@ -147,6 +192,27 @@ class CashierOrderController extends Controller
                     function (
                         Order $order,
                     ): array {
+                        /*
+                         * One representative image for the
+                         * card thumbnail. An order can contain
+                         * several different products, so this
+                         * shows the first item's image only.
+                         */
+                        $product =
+                            $order->items
+                                ->first()
+                                ?->productVariant
+                                ?->product;
+
+                        $imageUrl =
+                            $product?->image_path
+                                ? '/storage/'
+                                    .ltrim(
+                                        $product->image_path,
+                                        '/',
+                                    )
+                                : null;
+
                         return [
                             'id' => $order->id,
 
@@ -170,6 +236,8 @@ class CashierOrderController extends Controller
                                 ?->format(
                                     'M d, Y h:i A',
                                 ),
+
+                            'image_url' => $imageUrl,
 
                             'student' => [
                                 'name' => $order
@@ -254,6 +322,7 @@ class CashierOrderController extends Controller
         $query = Order::query()
             ->with([
                 'student.user',
+                'items',
             ])
             ->where(
                 'payment_status',
@@ -480,6 +549,38 @@ class CashierOrderController extends Controller
                             'M d, Y h:i A',
                         ),
 
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Fulfillment Timeline
+                    |--------------------------------------------------------------------------
+                    |
+                    | Lets the Details popup show everything that
+                    | has happened to this transaction so far, not
+                    | just the payment step.
+                    |
+                    */
+
+                    'created_at' => $order
+                        ->created_at
+                        ?->format(
+                            'M d, Y h:i A',
+                        ),
+
+                    'fulfillment_status' => $order
+                        ->fulfillment_status,
+
+                    'ready_for_release_at' => $order
+                        ->ready_for_release_at
+                        ?->format(
+                            'M d, Y h:i A',
+                        ),
+
+                    'released_at' => $order
+                        ->released_at
+                        ?->format(
+                            'M d, Y h:i A',
+                        ),
+
                     'student' => [
                         'name' => $order
                             ->student
@@ -497,6 +598,36 @@ class CashierOrderController extends Controller
                         'name' => $cashier?->name
                             ?? 'Unknown Cashier',
                     ],
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Items Purchased
+                    |--------------------------------------------------------------------------
+                    */
+
+                    'items' => $order
+                        ->items
+                        ->map(
+                            fn ($item): array => [
+                                'id' => $item->id,
+
+                                'product_name' => $item
+                                    ->product_name,
+
+                                'variant_name' => $item
+                                    ->variant_name,
+
+                                'quantity' => $item
+                                    ->quantity,
+
+                                'unit_price' => (string)
+                                    $item->unit_price,
+
+                                'line_total' => (string)
+                                    $item->line_total,
+                            ],
+                        )
+                        ->values(),
                 ];
             },
         );
@@ -815,6 +946,21 @@ class CashierOrderController extends Controller
                             'M d, Y h:i A',
                         ),
 
+                    'ready_for_release_at' => $order->ready_for_release_at
+                        ?->format(
+                            'M d, Y h:i A',
+                        ),
+
+                    'released_at' => $order->released_at
+                        ?->format(
+                            'M d, Y h:i A',
+                        ),
+
+                    'cancelled_at' => $order->cancelled_at
+                        ?->format(
+                            'M d, Y h:i A',
+                        ),
+
                     /*
                 |--------------------------------------------------------------------------
                 | Student
@@ -1119,64 +1265,127 @@ class CashierOrderController extends Controller
         | We preserve exactly what the Student
         | submitted during checkout.
         |
+        | Locked and re-checked inside the transaction so two
+        | concurrent confirmations (double-click, duplicate
+        | network retry, two cashier tabs) can never both pass
+        | the isPaid() guard and both write — which previously
+        | produced duplicate audit entries and duplicate
+        | notifications to the student and every specialist.
         */
 
-        $order->forceFill([
-            'payment_status' => Order::PAYMENT_PAID,
+        $confirmed =
+            DB::transaction(
+                function () use (
+                    $order,
+                    $user,
+                    $transactionNumber,
+                    $releaseQrToken,
+                ): bool {
+                    $lockedOrder =
+                        Order::query()
+                            ->lockForUpdate()
+                            ->findOrFail(
+                                $order->id,
+                            );
 
-            'paid_at' => now(),
+                    if (
+                        $lockedOrder->isCancelled()
+                    ) {
+                        throw ValidationException::withMessages([
+                            'payment' => 'A cancelled order cannot be paid.',
+                        ]);
+                    }
 
-            /*
-             * Cashier responsible for
-             * verifying/receiving payment.
-             */
-            'payment_confirmed_by' => $user->id,
+                    if (
+                        $lockedOrder->isPaid()
+                    ) {
+                        return false;
+                    }
 
-            'transaction_number' => $transactionNumber,
+                    $lockedOrder->forceFill([
+                        'payment_status' => Order::PAYMENT_PAID,
 
-            /*
-             * Generate Release QR.
-             */
-            'release_qr_token' => $releaseQrToken,
+                        'paid_at' => now(),
 
-            'release_qr_used_at' => null,
-        ])->save();
+                        /*
+                         * Cashier responsible for
+                         * verifying/receiving payment.
+                         */
+                        'payment_confirmed_by' => $user->id,
+
+                        'transaction_number' => $transactionNumber,
+
+                        /*
+                         * Generate Release QR.
+                         */
+                        'release_qr_token' => $releaseQrToken,
+
+                        'release_qr_used_at' => null,
+                    ])->save();
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Advance Paid Preorder Items
+                    |--------------------------------------------------------------------------
+                    |
+                    | A preorder reaches this point only after the Cashier
+                    | successfully confirms payment. Its stock was already
+                    | reserved earlier, when it first became "ready", so paying
+                    | for it is the only remaining gate before it should behave
+                    | exactly like a normal order item — including at release,
+                    | where only item_type = TYPE_ORDER is ever scanned out. This
+                    | used to require a separate manual "Process" step on the
+                    | admin Waiting List page; promoting item_type here removes
+                    | that gap so a paid preorder is never left unreleasable
+                    | just because nobody remembered to click a button.
+                    */
+
+                    $lockedOrder->items()
+                        ->where(
+                            'item_type',
+                            OrderItem::TYPE_PREORDER,
+                        )
+                        ->where(
+                            'preorder_status',
+                            OrderItem::PREORDER_STATUS_READY,
+                        )
+                        ->update([
+                            'item_type' => OrderItem::TYPE_ORDER,
+
+                            'preorder_status' => OrderItem::PREORDER_STATUS_PAID,
+
+                            'preorder_paid_at' => $lockedOrder->paid_at,
+                        ]);
+
+                    return true;
+                },
+                attempts: 3,
+            );
 
         $order->refresh();
 
         /*
         |--------------------------------------------------------------------------
-        | Advance Paid Preorder Items
+        | Already Confirmed Concurrently
         |--------------------------------------------------------------------------
         |
-        | A preorder reaches this point only after the Cashier
-        | successfully confirms payment. Its stock was already
-        | reserved earlier, when it first became "ready", so paying
-        | for it is the only remaining gate before it should behave
-        | exactly like a normal order item — including at release,
-        | where only item_type = TYPE_ORDER is ever scanned out. This
-        | used to require a separate manual "Process" step on the
-        | admin Waiting List page; promoting item_type here removes
-        | that gap so a paid preorder is never left unreleasable
-        | just because nobody remembered to click a button.
+        | Another request won the race and confirmed this order
+        | first. Nothing more to do — the audit log entry and
+        | notifications below belong to whichever request actually
+        | performed the confirmation, not to this one.
         */
 
-        $order->items()
-            ->where(
-                'item_type',
-                OrderItem::TYPE_PREORDER,
-            )
-            ->where(
-                'preorder_status',
-                OrderItem::PREORDER_STATUS_READY,
-            )
-            ->update([
-                'item_type' => OrderItem::TYPE_ORDER,
-
-                'preorder_status' => OrderItem::PREORDER_STATUS_PAID,
-
-                'preorder_paid_at' => $order->paid_at,
-            ]);
+        if (! $confirmed) {
+            return redirect()
+                ->route(
+                    'cashier.orders.receipt',
+                    $order,
+                )
+                ->with(
+                    'success',
+                    'Payment has already been confirmed for this order.',
+                );
+        }
 
         /*
         |--------------------------------------------------------------------------

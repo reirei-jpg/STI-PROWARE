@@ -111,21 +111,16 @@ interface ReceiptProps {
         | 'student'
         | 'cashier';
 
+    backUrl: string;
+
     order: ReceiptOrder;
 }
 
 export default function Show({
     viewer,
+    backUrl,
     order,
 }: ReceiptProps) {
-    /*
-     * Determine where the Back button
-     * should return.
-     */
-    const backUrl =
-        viewer === 'cashier'
-            ? `/cashier/orders/${order.id}`
-            : `/student/orders/${order.id}`;
 
     /*
      * Merchandise has already been

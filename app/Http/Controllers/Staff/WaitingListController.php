@@ -34,6 +34,7 @@ class WaitingListController extends Controller
             && in_array(
                 $user->role,
                 [
+                    'super_admin',
                     'admin',
                     'specialist',
                 ],
@@ -451,6 +452,7 @@ class WaitingListController extends Controller
             && in_array(
                 $user->role,
                 [
+                    'super_admin',
                     'admin',
                     'specialist',
                 ],

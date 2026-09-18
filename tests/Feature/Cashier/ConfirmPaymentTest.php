@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Cashier\CashierOrderController;
+use App\Models\AuditLog;
 use App\Models\Category;
 use App\Models\Notification;
 use App\Models\Order;
@@ -7,6 +9,8 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\NotificationService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 function cashierUser(): User
@@ -333,4 +337,107 @@ test('confirming payment notifies the student and every active specialist', func
             ->where('user_id', $inactiveSpecialist->id)
             ->exists(),
     )->toBeFalse();
+});
+
+test('confirming payment twice for the same order never produces duplicate audit logs or notifications', function () {
+    $cashier = cashierUser();
+    $studentUser = studentUserWithProfile();
+
+    $specialist = User::factory()->create([
+        'role' => 'specialist',
+        'is_active' => true,
+    ]);
+
+    $order = orderAwaitingConfirmation($studentUser->student, $studentUser);
+
+    $this->actingAs($cashier)
+        ->patch("/cashier/orders/{$order->id}/payment")
+        ->assertSessionHas('success');
+
+    // A second confirmation attempt on the same order — the exact
+    // shape of a double-click, a duplicate network retry, or two
+    // cashier tabs racing to confirm the same order.
+    $this->actingAs($cashier)
+        ->patch("/cashier/orders/{$order->id}/payment")
+        ->assertSessionHas('success');
+
+    expect(
+        AuditLog::query()
+            ->where('action', 'payment_confirmed')
+            ->count(),
+    )->toBe(1);
+
+    expect(
+        Notification::query()
+            ->where('user_id', $studentUser->id)
+            ->where('type', Notification::TYPE_PAYMENT_CONFIRMED)
+            ->count(),
+    )->toBe(1);
+
+    expect(
+        Notification::query()
+            ->where('user_id', $specialist->id)
+            ->where('type', Notification::TYPE_ORDER_READY_FOR_FULFILLMENT)
+            ->count(),
+    )->toBe(1);
+});
+
+test('two requests racing to confirm the same order only confirm it once', function () {
+    $cashier = cashierUser();
+    $studentUser = studentUserWithProfile();
+
+    $specialist = User::factory()->create([
+        'role' => 'specialist',
+        'is_active' => true,
+    ]);
+
+    $order = orderAwaitingConfirmation($studentUser->student, $studentUser);
+
+    // Two independently-fetched copies of the same order simulate
+    // two requests that both read it as "not yet paid" before either
+    // had a chance to write — exactly the window a missing row lock
+    // leaves open. Calling the controller directly (rather than over
+    // HTTP) lets both "requests" hold their own stale copy at once,
+    // since a real HTTP round trip would re-fetch fresh state for the
+    // second call and hide the race entirely.
+    $orderForRequestA = Order::find($order->id);
+    $orderForRequestB = Order::find($order->id);
+
+    $request = Request::create(
+        "/cashier/orders/{$order->id}/payment",
+        'PATCH',
+    );
+
+    $request->setUserResolver(
+        fn () => $cashier,
+    );
+
+    $controller = app(CashierOrderController::class);
+    $notificationService = app(NotificationService::class);
+
+    $controller->confirmPayment($request, $orderForRequestA, $notificationService);
+    $controller->confirmPayment($request, $orderForRequestB, $notificationService);
+
+    expect(
+        AuditLog::query()
+            ->where('action', 'payment_confirmed')
+            ->count(),
+    )->toBe(1);
+
+    expect(
+        Notification::query()
+            ->where('user_id', $studentUser->id)
+            ->where('type', Notification::TYPE_PAYMENT_CONFIRMED)
+            ->count(),
+    )->toBe(1);
+
+    expect(
+        Notification::query()
+            ->where('user_id', $specialist->id)
+            ->where('type', Notification::TYPE_ORDER_READY_FOR_FULFILLMENT)
+            ->count(),
+    )->toBe(1);
+
+    $order->refresh();
+    expect($order->payment_status)->toBe(Order::PAYMENT_PAID);
 });
