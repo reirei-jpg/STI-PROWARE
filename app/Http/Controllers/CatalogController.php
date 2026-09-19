@@ -715,10 +715,6 @@ class CatalogController extends Controller
 
         $usedSlots =
             OrderItem::query()
-                ->where(
-                    'item_type',
-                    OrderItem::TYPE_PREORDER,
-                )
                 ->whereHas(
                     'productVariant',
                     fn ($query) => $query->where(

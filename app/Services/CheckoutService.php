@@ -287,10 +287,6 @@ class CheckoutService
                         ) {
                             $usedEarlyBirdSlots =
                                 OrderItem::query()
-                                    ->where(
-                                        'item_type',
-                                        OrderItem::TYPE_PREORDER,
-                                    )
                                     ->whereHas(
                                         'productVariant',
                                         function ($query) use ($product): void {

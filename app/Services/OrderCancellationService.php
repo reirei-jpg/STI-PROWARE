@@ -98,10 +98,10 @@ class OrderCancellationService
                 $inventoryIds = $this->releaseReservedStock($items);
 
                 $items
-                    ->where('item_type', OrderItem::TYPE_PREORDER)
                     ->whereIn('preorder_status', [
                         OrderItem::PREORDER_STATUS_WAITING,
                         OrderItem::PREORDER_STATUS_READY,
+                        OrderItem::PREORDER_STATUS_PAID,
                     ])
                     ->each(function (OrderItem $item): void {
                         $item->forceFill([
