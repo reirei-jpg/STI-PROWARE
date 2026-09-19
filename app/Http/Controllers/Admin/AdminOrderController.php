@@ -359,6 +359,7 @@ class AdminOrderController extends Controller
 
         $order->load([
             'student.user',
+            'canceller',
             'items',
         ]);
 
@@ -415,6 +416,18 @@ class AdminOrderController extends Controller
                         ?->format(
                             'M d, Y h:i A',
                         ),
+
+                    'can_cancel' => $order
+                        ->canBeCancelledByStaff(),
+
+                    'cancel_url' => route(
+                        'admin.orders.cancel',
+                        $order,
+                        false,
+                    ),
+
+                    'cancellation' => $order
+                        ->cancellationSummary(),
 
                     'student' => [
                         'name' => $order

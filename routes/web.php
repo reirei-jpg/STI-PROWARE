@@ -20,10 +20,12 @@ use App\Http\Controllers\Cashier\SalesController as CashierSalesController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\OrderCancellationController;
 use App\Http\Controllers\OrderReceiptController;
 use App\Http\Controllers\QrOrderScanController;
 use App\Http\Controllers\Specialist\OrderScanController;
 use App\Http\Controllers\Specialist\PreorderConfigurationController;
+use App\Http\Controllers\Specialist\SpecialistDashboardController;
 use App\Http\Controllers\Staff\InventoryAdjustmentController;
 use App\Http\Controllers\Staff\InventoryController;
 use App\Http\Controllers\Staff\StockMovementController;
@@ -35,6 +37,7 @@ use App\Http\Controllers\Student\StudentOrderController;
 use App\Http\Controllers\Student\StudentOrderDetailsController;
 use App\Http\Controllers\Student\StudentPreorderController;
 use App\Http\Controllers\Student\StudentProfileController;
+use App\Http\Controllers\UnclaimedOrderController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -801,6 +804,16 @@ Route::middleware([
                     'orders.show',
                 );
 
+                Route::post(
+                    '/orders/{order}/cancel',
+                    [
+                        OrderCancellationController::class,
+                        'staff',
+                    ],
+                )->name(
+                    'orders.cancel',
+                );
+
                 /*
                 |--------------------------------------------------------------------------
                 | Admin Sales
@@ -1054,6 +1067,16 @@ Route::middleware([
                     'orders.show',
                 );
 
+                Route::post(
+                    '/orders/{order}/cancel',
+                    [
+                        OrderCancellationController::class,
+                        'student',
+                    ],
+                )->name(
+                    'orders.cancel',
+                );
+
                 Route::get(
                     '/orders/{order}/receipt',
                     [
@@ -1147,6 +1170,22 @@ Route::middleware([
 
                 /*
                 |--------------------------------------------------------------------------
+                | Unclaimed Orders
+                |--------------------------------------------------------------------------
+                */
+
+                Route::get(
+                    '/unclaimed',
+                    [
+                        UnclaimedOrderController::class,
+                        'index',
+                    ],
+                )->name(
+                    'unclaimed.index',
+                );
+
+                /*
+                |--------------------------------------------------------------------------
                 | Release History
                 |--------------------------------------------------------------------------
                 */
@@ -1178,11 +1217,7 @@ Route::middleware([
                  */
                 Route::get(
                     '/dashboard',
-                    function () {
-                        return Inertia::render(
-                            'specialist/Dashboard',
-                        );
-                    },
+                    SpecialistDashboardController::class,
                 )->name(
                     'dashboard',
                 );
@@ -1444,6 +1479,32 @@ Route::middleware([
                     ],
                 )->name(
                     'orders.payment.confirm',
+                );
+
+                Route::post(
+                    '/orders/{order}/cancel',
+                    [
+                        OrderCancellationController::class,
+                        'staff',
+                    ],
+                )->name(
+                    'orders.cancel',
+                );
+
+                /*
+                |--------------------------------------------------------------------------
+                | Unclaimed Orders
+                |--------------------------------------------------------------------------
+                */
+
+                Route::get(
+                    '/unclaimed',
+                    [
+                        UnclaimedOrderController::class,
+                        'index',
+                    ],
+                )->name(
+                    'unclaimed.index',
                 );
             });
         /*

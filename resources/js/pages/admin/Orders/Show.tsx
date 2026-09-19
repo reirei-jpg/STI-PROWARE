@@ -12,9 +12,11 @@ import {
 
 import {
     Head,
-    Link,
 } from '@inertiajs/react';
 
+import { useState } from 'react';
+
+import CancelOrderModal from '@/components/action-feedback/CancelOrderModal';
 import AdminLayout from '@/layouts/AdminLayout';
 
 interface StudentInfo {
@@ -51,6 +53,14 @@ interface AdminOrder {
     paid_at: string | null;
     released_at: string | null;
     cancelled_at: string | null;
+    can_cancel: boolean;
+    cancel_url: string;
+    cancellation: {
+        reason: string | null;
+        note: string | null;
+        cancelled_by: string;
+        refunded_at: string | null;
+    } | null;
     student: StudentInfo;
     items: OrderItem[];
 }
@@ -62,6 +72,8 @@ interface ShowPageProps {
 export default function Show({
     order,
 }: ShowPageProps) {
+    const [cancelOpen, setCancelOpen] = useState(false);
+
     const payment =
         getPaymentStatus(
             order.payment_status,
@@ -83,8 +95,11 @@ export default function Show({
 
             <div className="mx-auto max-w-6xl space-y-5">
                 {/* BACK */}
-                <Link
-                    href="/admin/orders"
+                <button
+                    type="button"
+                    onClick={() =>
+                        window.history.back()
+                    }
                     className="
                         inline-flex
                         items-center
@@ -98,8 +113,8 @@ export default function Show({
                 >
                     <ArrowLeft size={17} />
 
-                    Back to Orders
-                </Link>
+                    Back
+                </button>
 
                 {/* MAIN ORDER HEADER */}
                 <section
@@ -322,6 +337,52 @@ export default function Show({
                                 <p className="mt-1 text-xs text-red-600">
                                     {order.cancelled_at}
                                 </p>
+
+                                {order.cancellation && (
+                                    <dl className="mt-2 space-y-0.5 text-xs text-red-700">
+                                        <div>
+                                            <dt className="inline font-bold">
+                                                Cancelled by:{' '}
+                                            </dt>
+                                            <dd className="inline">
+                                                {order.cancellation.cancelled_by}
+                                            </dd>
+                                        </div>
+
+                                        {order.cancellation.reason && (
+                                            <div>
+                                                <dt className="inline font-bold">
+                                                    Reason:{' '}
+                                                </dt>
+                                                <dd className="inline">
+                                                    {order.cancellation.reason}
+                                                </dd>
+                                            </div>
+                                        )}
+
+                                        {order.cancellation.note && (
+                                            <div>
+                                                <dt className="inline font-bold">
+                                                    Note:{' '}
+                                                </dt>
+                                                <dd className="inline">
+                                                    {order.cancellation.note}
+                                                </dd>
+                                            </div>
+                                        )}
+
+                                        {order.cancellation.refunded_at && (
+                                            <div>
+                                                <dt className="inline font-bold">
+                                                    Refund recorded:{' '}
+                                                </dt>
+                                                <dd className="inline">
+                                                    {order.cancellation.refunded_at}
+                                                </dd>
+                                            </div>
+                                        )}
+                                    </dl>
+                                )}
                             </div>
                         </div>
                     ) : (
@@ -365,6 +426,24 @@ export default function Show({
                                     null
                                 }
                             />
+                        </div>
+                    )}
+
+                    {order.can_cancel && (
+                        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                            <p className="text-xs text-slate-500">
+                                Cancelling gives the reserved stock back and
+                                notifies the student.
+                            </p>
+
+                            <button
+                                type="button"
+                                onClick={() => setCancelOpen(true)}
+                                className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 transition hover:bg-red-100"
+                            >
+                                <XCircle size={17} />
+                                Cancel Order
+                            </button>
                         </div>
                     )}
                 </section>
@@ -709,6 +788,14 @@ export default function Show({
                     </p>
                 </section>
             </div>
+            <CancelOrderModal
+                open={cancelOpen}
+                mode="staff"
+                orderNumber={order.order_number}
+                actionUrl={order.cancel_url}
+                isPaid={order.payment_status === 'paid'}
+                onClose={() => setCancelOpen(false)}
+            />
         </AdminLayout>
     );
 }
@@ -1037,6 +1124,14 @@ function getPaymentStatus(
     if (status === 'cancelled') {
         return {
             label: 'Cancelled',
+            className:
+                'bg-red-100 text-red-700',
+        };
+    }
+
+    if (status === 'refunded') {
+        return {
+            label: 'Refunded',
             className:
                 'bg-red-100 text-red-700',
         };

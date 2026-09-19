@@ -581,6 +581,11 @@ class StudentDashboardController extends Controller
                     'early_bird_applied',
                     true,
                 )
+                ->where(
+                    'preorder_status',
+                    '!=',
+                    OrderItem::PREORDER_STATUS_CANCELLED,
+                )
                 ->sum('quantity');
 
         $remainingSlots =

@@ -887,6 +887,7 @@ class CashierOrderController extends Controller
 
         $order->load([
             'student.user',
+            'canceller',
             'items.productVariant.product',
         ]);
 
@@ -960,6 +961,18 @@ class CashierOrderController extends Controller
                         ?->format(
                             'M d, Y h:i A',
                         ),
+
+                    'can_cancel' => $order
+                        ->canBeCancelledByStaff(),
+
+                    'cancel_url' => route(
+                        'cashier.orders.cancel',
+                        $order,
+                        false,
+                    ),
+
+                    'cancellation' => $order
+                        ->cancellationSummary(),
 
                     /*
                 |--------------------------------------------------------------------------

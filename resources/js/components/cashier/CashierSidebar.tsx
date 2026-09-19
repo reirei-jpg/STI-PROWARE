@@ -1,5 +1,6 @@
 import {
     Banknote,
+    Hourglass,
     LayoutDashboard,
     ReceiptText,
     TrendingUp,
@@ -37,6 +38,11 @@ export default function CashierSidebar() {
             name: 'Pending Payments',
             icon: Banknote,
             link: cashier.orders.index.url(),
+        },
+        {
+            name: 'Waiting to Be Claimed',
+            icon: Hourglass,
+            link: '/cashier/unclaimed',
         },
         {
             name: 'Sales',

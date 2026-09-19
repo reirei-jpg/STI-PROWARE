@@ -28,6 +28,8 @@ import StudentLayout from '@/layouts/StudentLayout';
 
 import ActionNotification from '@/components/action-feedback/ActionNotification';
 
+import CancelOrderModal from '@/components/action-feedback/CancelOrderModal';
+
 /*
 |--------------------------------------------------------------------------
 | Types
@@ -123,6 +125,19 @@ interface StudentOrder {
 
     cancelled_at: string | null;
 
+    cancel_url: string;
+
+    cancel_blocked_reason: string | null;
+
+    cancel_until: string | null;
+
+    cancellation: {
+        reason: string | null;
+        note: string | null;
+        cancelled_by: string;
+        refunded_at: string | null;
+    } | null;
+
     /*
      * Retained because backend still provides it.
      * We don't need to show a large Student
@@ -169,6 +184,8 @@ export default function Show({
     order,
     flash,
 }: ShowProps) {
+
+    const [cancelOpen, setCancelOpen] = useState(false);
 
 
             const [
@@ -1078,8 +1095,78 @@ export default function Show({
                                     cannot continue to
                                     payment or release.
                                 </p>
+
+                                {order.cancellation && (
+                                    <dl className="mt-3 space-y-1 text-sm text-red-800">
+                                        {order.cancellation.reason && (
+                                            <div>
+                                                <dt className="inline font-bold">
+                                                    Reason:{' '}
+                                                </dt>
+                                                <dd className="inline">
+                                                    {order.cancellation.reason}
+                                                </dd>
+                                            </div>
+                                        )}
+
+                                        {order.cancellation.note && (
+                                            <div>
+                                                <dt className="inline font-bold">
+                                                    Note:{' '}
+                                                </dt>
+                                                <dd className="inline">
+                                                    {order.cancellation.note}
+                                                </dd>
+                                            </div>
+                                        )}
+
+                                        {order.cancellation.refunded_at && (
+                                            <div>
+                                                <dt className="inline font-bold">
+                                                    Refunded:{' '}
+                                                </dt>
+                                                <dd className="inline">
+                                                    {order.cancellation.refunded_at}
+                                                </dd>
+                                            </div>
+                                        )}
+                                    </dl>
+                                )}
                             </div>
                         </div>
+                    </section>
+                )}
+
+                {/* Cancel Order */}
+                {!isCancelled
+                    && order.fulfillment_status !== 'released' && (
+                    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <h2 className="font-black text-slate-900">
+                            Need to cancel?
+                        </h2>
+
+                        {order.cancel_blocked_reason === null ? (
+                            <>
+                                <p className="mt-2 text-sm leading-6 text-slate-500">
+                                    {order.cancel_until
+                                        ? `You can cancel this order until ${order.cancel_until}. After that, please see the cashier.`
+                                        : 'You can cancel this order while it is still waiting for stock.'}
+                                </p>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setCancelOpen(true)}
+                                    className="mt-4 inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 transition hover:bg-red-100"
+                                >
+                                    <XCircle size={17} />
+                                    Cancel Order
+                                </button>
+                            </>
+                        ) : (
+                            <p className="mt-2 text-sm leading-6 text-slate-500">
+                                {order.cancel_blocked_reason}
+                            </p>
+                        )}
                     </section>
                 )}
 
@@ -1456,6 +1543,14 @@ export default function Show({
                     </Link>
                 </div>
             </div>
+
+            <CancelOrderModal
+                open={cancelOpen}
+                mode="student"
+                orderNumber={order.order_number}
+                actionUrl={order.cancel_url}
+                onClose={() => setCancelOpen(false)}
+            />
         </StudentLayout>
     );
 }

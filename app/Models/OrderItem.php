@@ -25,6 +25,9 @@ class OrderItem extends Model
     public const PREORDER_STATUS_EXPIRED =
         'expired';
 
+    public const PREORDER_STATUS_CANCELLED =
+        'cancelled';
+
     protected $fillable = [
         'order_id',
         'product_variant_id',

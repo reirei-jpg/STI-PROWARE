@@ -1,4 +1,5 @@
 import {
+    ArrowLeft,
     ArrowRight,
     CheckCircle2,
     ChevronLeft,
@@ -210,6 +211,28 @@ export default function Index({
             <Head title="Orders" />
 
             <div className="mx-auto max-w-7xl space-y-6">
+                {/* BACK */}
+                <button
+                    type="button"
+                    onClick={() =>
+                        window.history.back()
+                    }
+                    className="
+                        inline-flex
+                        items-center
+                        gap-2
+                        text-sm
+                        font-bold
+                        text-blue-600
+                        transition
+                        hover:text-blue-800
+                    "
+                >
+                    <ArrowLeft size={17} />
+
+                    Back
+                </button>
+
                 {/* HEADER */}
                 <section>
                     <p className="text-sm font-black uppercase tracking-wide text-blue-600">
@@ -1090,6 +1113,15 @@ function getPaymentStatus(
     ) {
         return {
             label: 'Cancelled',
+
+            className:
+                'bg-red-100 text-red-700',
+        };
+    }
+
+    if (status === 'refunded') {
+        return {
+            label: 'Refunded',
 
             className:
                 'bg-red-100 text-red-700',

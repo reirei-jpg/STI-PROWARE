@@ -71,6 +71,7 @@ class StudentOrderDetailsController extends Controller
 
         $order->load([
             'student.user',
+            'canceller',
             'items.productVariant.product',
         ]);
 
@@ -193,6 +194,29 @@ class StudentOrderDetailsController extends Controller
                     'cancelled_at' => $this->formatDateTime(
                         $order->cancelled_at,
                     ),
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Cancellation
+                    |--------------------------------------------------------------------------
+                    */
+
+                    'cancel_url' => route(
+                        'student.orders.cancel',
+                        $order,
+                        false,
+                    ),
+
+                    'cancel_blocked_reason' => $order
+                        ->studentCancelBlockedReason(),
+
+                    'cancel_until' => $this->formatDateTime(
+                        $order
+                            ->studentCancelDeadline(),
+                    ),
+
+                    'cancellation' => $order
+                        ->cancellationSummary(),
 
                     /*
                     |--------------------------------------------------------------------------

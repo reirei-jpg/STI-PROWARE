@@ -22,6 +22,7 @@ interface Preorder {
         | 'ready'
         | 'paid'
         | 'expired'
+        | 'cancelled'
         | null;
 
     quantity: number;
@@ -73,6 +74,16 @@ function getStatus(
         case 'expired':
             return {
                 label: 'Expired',
+                icon: XCircle,
+                badge:
+                    'border-red-200 bg-red-50 text-red-700',
+                iconBox:
+                    'bg-red-100 text-red-700',
+            };
+
+        case 'cancelled':
+            return {
+                label: 'Cancelled',
                 icon: XCircle,
                 badge:
                     'border-red-200 bg-red-50 text-red-700',

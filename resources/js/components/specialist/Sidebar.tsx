@@ -12,6 +12,7 @@ import {
     ShoppingBag,
     Truck,
     History,
+    Hourglass,
 } from 'lucide-react';
 
 
@@ -44,6 +45,12 @@ export default function SpecialistSidebar() {
             name: 'Order Fulfillment',
             icon: PackageCheck,
             link: specialist.orders.index.url(),
+            enabled: true,
+        },
+        {
+            name: 'Waiting to Be Claimed',
+            icon: Hourglass,
+            link: '/specialist/unclaimed',
             enabled: true,
         },
         {

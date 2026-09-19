@@ -113,10 +113,12 @@ class WaitingListController extends Controller
                 $status,
             );
         } else {
-            $query->where(
+            $query->whereNotIn(
                 'preorder_status',
-                '!=',
-                OrderItem::PREORDER_STATUS_EXPIRED,
+                [
+                    OrderItem::PREORDER_STATUS_EXPIRED,
+                    OrderItem::PREORDER_STATUS_CANCELLED,
+                ],
             );
         }
 

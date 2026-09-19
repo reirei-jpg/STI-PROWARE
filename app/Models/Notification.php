@@ -42,6 +42,12 @@ class Notification extends Model
     public const TYPE_ORDER_RELEASED =
         'order_released';
 
+    public const TYPE_ORDER_CANCELLED =
+        'order_cancelled';
+
+    public const TYPE_ORDER_UNCLAIMED_REMINDER =
+        'order_unclaimed_reminder';
+
     public const TYPE_LOW_STOCK =
         'low_stock';
 

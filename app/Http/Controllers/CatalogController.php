@@ -158,7 +158,7 @@ class CatalogController extends Controller
                             true,
                         );
                     },
-                    ])
+                ])
                 ->where(
                     'is_active',
                     true,
@@ -336,14 +336,14 @@ class CatalogController extends Controller
                             : null,
 
                     'category' => [
-                    'id' => $product
-                        ->category
-                        ->id,
+                        'id' => $product
+                            ->category
+                            ->id,
 
-                    'name' => $product
-                        ->category
-                        ->name,
-                ],
+                        'name' => $product
+                            ->category
+                            ->name,
+                    ],
 
                     'variants' => $variants,
                 ],
@@ -729,6 +729,11 @@ class CatalogController extends Controller
                 ->where(
                     'early_bird_applied',
                     true,
+                )
+                ->where(
+                    'preorder_status',
+                    '!=',
+                    OrderItem::PREORDER_STATUS_CANCELLED,
                 )
                 ->sum('quantity');
 

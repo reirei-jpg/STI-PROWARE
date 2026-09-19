@@ -26,6 +26,7 @@ import cashier from '@/routes/cashier';
 
 
 import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal';
+import CancelOrderModal from '@/components/action-feedback/CancelOrderModal';
 import ActionNotification from '@/components/action-feedback/ActionNotification';
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
 
@@ -108,6 +109,17 @@ interface CashierOrder {
 
     cancelled_at: string | null;
 
+    can_cancel: boolean;
+
+    cancel_url: string;
+
+    cancellation: {
+        reason: string | null;
+        note: string | null;
+        cancelled_by: string;
+        refunded_at: string | null;
+    } | null;
+
     student: OrderStudent;
 
     items: OrderItem[];
@@ -143,6 +155,8 @@ export default function Show({
         confirmPaymentOpen,
         setConfirmPaymentOpen,
     ] = useState(false);
+
+    const [cancelOpen, setCancelOpen] = useState(false);
 
     const {
         processing,
@@ -974,8 +988,79 @@ export default function Show({
                                     cannot continue to
                                     payment or release.
                                 </p>
+
+                                {order.cancellation && (
+                                    <dl className="mt-3 space-y-1 text-sm text-red-800">
+                                        <div>
+                                            <dt className="inline font-bold">
+                                                Cancelled by:{' '}
+                                            </dt>
+                                            <dd className="inline">
+                                                {order.cancellation.cancelled_by}
+                                            </dd>
+                                        </div>
+
+                                        {order.cancellation.reason && (
+                                            <div>
+                                                <dt className="inline font-bold">
+                                                    Reason:{' '}
+                                                </dt>
+                                                <dd className="inline">
+                                                    {order.cancellation.reason}
+                                                </dd>
+                                            </div>
+                                        )}
+
+                                        {order.cancellation.note && (
+                                            <div>
+                                                <dt className="inline font-bold">
+                                                    Note:{' '}
+                                                </dt>
+                                                <dd className="inline">
+                                                    {order.cancellation.note}
+                                                </dd>
+                                            </div>
+                                        )}
+
+                                        {order.cancellation.refunded_at && (
+                                            <div>
+                                                <dt className="inline font-bold">
+                                                    Refund recorded:{' '}
+                                                </dt>
+                                                <dd className="inline">
+                                                    {order.cancellation.refunded_at}
+                                                </dd>
+                                            </div>
+                                        )}
+                                    </dl>
+                                )}
                             </div>
                         </div>
+                    </section>
+                )}
+
+                {/* Cancel Order */}
+                {order.can_cancel && (
+                    <section className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <div>
+                            <h2 className="font-black text-slate-900">
+                                Cancel this order
+                            </h2>
+
+                            <p className="mt-1 text-sm text-slate-500">
+                                Use this when the order will not go ahead. Reserved stock goes
+                                back on the shelf and the student is notified.
+                            </p>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={() => setCancelOpen(true)}
+                            className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 transition hover:bg-red-100"
+                        >
+                            <XCircle size={17} />
+                            Cancel Order
+                        </button>
                     </section>
                 )}
 
@@ -1342,6 +1427,20 @@ export default function Show({
                 }
                 onConfirm={
                     processPaymentConfirmation
+                }
+            />
+
+            <CancelOrderModal
+                open={cancelOpen}
+                mode="staff"
+                orderNumber={order.order_number}
+                actionUrl={order.cancel_url}
+                isPaid={order.payment_status === 'paid'}
+                onClose={() => setCancelOpen(false)}
+                onCancelled={() =>
+                    showSuccess(
+                        `Order ${order.order_number} was cancelled.`,
+                    )
                 }
             />
 
