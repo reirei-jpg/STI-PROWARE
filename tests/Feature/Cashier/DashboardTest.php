@@ -99,6 +99,9 @@ test('the waiting for payment list surfaces the longest-waiting order first', fu
 });
 
 test('the dashboard reports todays sales and the most recently confirmed payments', function () {
+    // Midday in Manila, so "two hours ago" is still today whenever the suite runs.
+    $this->travelTo(now('Asia/Manila')->startOfDay()->addHours(12)->utc());
+
     $cashier = dashboardTestCashier();
     $studentUser = dashboardTestStudent();
 

@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class UnpaidOrderExpirationService
 {
@@ -68,6 +69,9 @@ class UnpaidOrderExpirationService
                 // Paid or cancelled by someone else since the list was
                 // built. The cancellation service already refused it.
                 continue;
+            } catch (Throwable $exception) {
+                // One bad order must not stop the rest from being cancelled.
+                report($exception);
             }
         }
 

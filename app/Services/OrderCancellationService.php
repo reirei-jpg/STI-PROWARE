@@ -37,6 +37,7 @@ class OrderCancellationService
         string $reason,
         ?string $note = null,
         bool $refundConfirmed = false,
+        bool $requireUnpaid = false,
     ): Order {
         /**
          * @var array{
@@ -52,6 +53,7 @@ class OrderCancellationService
                 $reason,
                 $note,
                 $refundConfirmed,
+                $requireUnpaid,
             ): array {
                 /*
                 | Lock and re-verify inside the transaction so a cancel can
@@ -78,6 +80,17 @@ class OrderCancellationService
                 }
 
                 $wasPaid = $lockedOrder->isPaid();
+
+                /*
+                | A student may only cancel while unpaid. Checked here, under
+                | the lock, so a payment confirmed a moment earlier by the
+                | cashier is caught with a clear message.
+                */
+                if ($wasPaid && $requireUnpaid) {
+                    throw ValidationException::withMessages([
+                        'order' => 'This order was just paid. Please see the cashier if you need to cancel it.',
+                    ]);
+                }
 
                 if ($wasPaid && ! $refundConfirmed) {
                     throw ValidationException::withMessages([

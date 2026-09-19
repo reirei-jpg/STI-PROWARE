@@ -1853,7 +1853,9 @@ function ActionBadge({
                     ? 'bg-amber-100 text-amber-700'
                     : action === 'released'
                       ? 'bg-emerald-100 text-emerald-700'
-                      : 'bg-slate-100 text-slate-700';
+                      : action === 'cancelled'
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-slate-100 text-slate-700';
 
     return (
         <span
@@ -1999,6 +2001,7 @@ const ACTIVITY_TITLES: Record<string, string> = {
     'orders:release_qr_scanned': 'Release QR Verified',
     'orders:ready_for_pickup': 'Marked Ready for Pickup',
     'orders:released': 'Order Released to Student',
+    'orders:cancelled': 'Order Cancelled',
 
     'inventory:inventory_adjusted': 'Inventory Quantity Adjusted',
     'inventory:stock_received': 'Stock Received',

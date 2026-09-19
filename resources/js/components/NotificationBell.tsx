@@ -673,6 +673,18 @@ function NotificationBadge({
             'bg-emerald-100 text-emerald-700';
     }
 
+    if (type === 'order_cancelled') {
+        label = 'Order Cancelled';
+
+        style = 'bg-red-100 text-red-700';
+    }
+
+    if (type === 'order_unclaimed_reminder') {
+        label = 'Pickup Reminder';
+
+        style = 'bg-amber-100 text-amber-700';
+    }
+
     if (
         type ===
         'payment_confirmed'

@@ -56,6 +56,7 @@ class OrderCancellationController extends Controller
             actor: $user,
             reason: Order::CANCEL_REASON_STUDENT_REQUEST,
             note: $validated['note'] ?? null,
+            requireUnpaid: true,
         );
 
         return redirect()
