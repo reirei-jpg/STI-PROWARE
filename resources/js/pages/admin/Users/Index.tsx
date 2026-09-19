@@ -59,6 +59,7 @@ interface SystemUser {
     email: string;
     role: string;
     is_active: boolean;
+    is_locked: boolean;
     student: StudentInfo | null;
     staff: StaffInfo | null;
     created_at: string | null;
@@ -95,9 +96,15 @@ type RoleFilter =
     | 'specialist'
     | 'admin';
 
+type StatusFilter =
+    | 'all'
+    | 'active'
+    | 'inactive';
+
 interface UserFilters {
     search: string;
     role: RoleFilter;
+    status: StatusFilter;
 }
 
 interface UsersPageProps {
@@ -126,6 +133,9 @@ export default function Index({
 
     const currentRole =
         filters.role ?? 'all';
+
+    const currentStatus =
+        filters.status ?? 'all';
 
 const {
     notification,
@@ -184,6 +194,12 @@ useEffect(() => {
                                 'all'
                                     ? undefined
                                     : currentRole,
+
+                            status:
+                                currentStatus ===
+                                'all'
+                                    ? undefined
+                                    : currentStatus,
                         },
                         {
                             preserveState: true,
@@ -204,10 +220,12 @@ useEffect(() => {
         search,
         filters.search,
         currentRole,
+        currentStatus,
     ]);
 
-    const changeRole = (
+    const applyFilters = (
         role: RoleFilter,
+        status: StatusFilter,
     ): void => {
         router.get(
             '/admin/users',
@@ -220,6 +238,11 @@ useEffect(() => {
                     role === 'all'
                         ? undefined
                         : role,
+
+                status:
+                    status === 'all'
+                        ? undefined
+                        : status,
             },
             {
                 preserveState: true,
@@ -228,6 +251,28 @@ useEffect(() => {
             },
         );
     };
+
+    const changeRole = (
+        role: RoleFilter,
+    ): void =>
+        applyFilters(
+            role,
+            currentStatus,
+        );
+
+    const changeStatus = (
+        status: StatusFilter,
+    ): void =>
+        applyFilters(
+            currentRole,
+            status,
+        );
+
+    const resetFilters = (): void =>
+        applyFilters(
+            'all',
+            'all',
+        );
 
     const visitPage = (
         url: string | null,
@@ -367,6 +412,11 @@ useEffect(() => {
                         label="Total Accounts"
                         value={summary.total}
                         tone="slate"
+                        active={
+                            currentRole === 'all'
+                            && currentStatus === 'all'
+                        }
+                        onClick={resetFilters}
                     />
 
                     <SummaryCard
@@ -376,6 +426,12 @@ useEffect(() => {
                                 .active_accounts
                         }
                         tone="green"
+                        active={
+                            currentStatus === 'active'
+                        }
+                        onClick={() =>
+                            changeStatus('active')
+                        }
                     />
 
                     <SummaryCard
@@ -385,6 +441,12 @@ useEffect(() => {
                                 .inactive_accounts
                         }
                         tone="red"
+                        active={
+                            currentStatus === 'inactive'
+                        }
+                        onClick={() =>
+                            changeStatus('inactive')
+                        }
                     />
 
                     <SummaryCard
@@ -393,6 +455,12 @@ useEffect(() => {
                             summary.students
                         }
                         tone="blue"
+                        active={
+                            currentRole === 'student'
+                        }
+                        onClick={() =>
+                            changeRole('student')
+                        }
                     />
                 </section>
 
@@ -908,6 +976,9 @@ function UserRow({
                     active={
                         user.is_active
                     }
+                    locked={
+                        user.is_locked
+                    }
                 />
 
                 <AccountActions
@@ -1145,6 +1216,9 @@ function AccountActions({
                                     active={
                                         user.is_active
                                     }
+                                    locked={
+                                        user.is_locked
+                                    }
                                 />
                             </div>
                         </div>
@@ -1342,8 +1416,10 @@ function AccountActions({
 
 function CompactAccountStatus({
     active,
+    locked = false,
 }: {
     active: boolean;
+    locked?: boolean;
 }) {
     return (
         <div
@@ -1362,23 +1438,29 @@ function CompactAccountStatus({
                     rounded-full
 
                     ${
-                        active
-                            ? 'bg-emerald-500'
-                            : 'bg-red-500'
+                        locked
+                            ? 'bg-amber-500'
+                            : active
+                              ? 'bg-emerald-500'
+                              : 'bg-red-500'
                     }
                 `}
             />
 
             <span
                 className={
-                    active
-                        ? 'text-emerald-700'
-                        : 'text-red-700'
+                    locked
+                        ? 'text-amber-700'
+                        : active
+                          ? 'text-emerald-700'
+                          : 'text-red-700'
                 }
             >
-                {active
-                    ? 'Active'
-                    : 'Disabled'}
+                {locked
+                    ? 'Locked (Security)'
+                    : active
+                      ? 'Active'
+                      : 'Disabled'}
             </span>
         </div>
     );
@@ -1486,10 +1568,14 @@ function SummaryCard({
     label,
     value,
     tone,
+    active = false,
+    onClick,
 }: {
     label: string;
     value: number;
     tone: SummaryTone;
+    active?: boolean;
+    onClick?: () => void;
 }) {
     const styles = {
         slate:
@@ -1505,14 +1591,28 @@ function SummaryCard({
             'border-red-200 bg-red-50/60 text-red-700',
     };
 
+    const ringStyles = {
+        slate: 'ring-slate-400',
+        blue: 'ring-blue-500',
+        green: 'ring-emerald-500',
+        red: 'ring-red-500',
+    };
+
     return (
-        <article
+        <button
+            type="button"
+            onClick={onClick}
             className={`
                 rounded-2xl
                 border
                 p-4
+                text-left
                 shadow-sm
+                transition
+                hover:-translate-y-0.5
+                hover:shadow-md
                 ${styles[tone]}
+                ${active ? `ring-2 ${ringStyles[tone]}` : ''}
             `}
         >
             <p className="text-xs font-bold text-slate-500">
@@ -1522,7 +1622,7 @@ function SummaryCard({
             <p className="mt-1 text-2xl font-black">
                 {value}
             </p>
-        </article>
+        </button>
     );
 }
 

@@ -69,6 +69,27 @@ class UserController extends Controller
             $role = 'all';
         }
 
+        $status =
+            (string)
+            $request->query(
+                'status',
+                'all',
+            );
+
+        if (
+            ! in_array(
+                $status,
+                [
+                    'all',
+                    'active',
+                    'inactive',
+                ],
+                true,
+            )
+        ) {
+            $status = 'all';
+        }
+
         /*
         |--------------------------------------------------------------------------
         | Query
@@ -158,6 +179,19 @@ class UserController extends Controller
 
         /*
         |--------------------------------------------------------------------------
+        | Status Filter
+        |--------------------------------------------------------------------------
+        */
+
+        if ($status !== 'all') {
+            $query->where(
+                'is_active',
+                $status === 'active',
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
         | Users
         |--------------------------------------------------------------------------
         */
@@ -182,6 +216,8 @@ class UserController extends Controller
 
                             'is_active' => (bool)
                                 $user->is_active,
+
+                            'is_locked' => $user->isLocked(),
 
                             'student' => $user->student
                                     ? [
@@ -386,6 +422,8 @@ class UserController extends Controller
                     'search' => $search,
 
                     'role' => $role,
+
+                    'status' => $status,
                 ],
             ],
         );
@@ -407,6 +445,50 @@ class UserController extends Controller
             403,
         );
 
+        /*
+        |--------------------------------------------------------------------------
+        | Protect Super Admin
+        |--------------------------------------------------------------------------
+        |
+        | Mirrors deactivate()'s protection: an ordinary Admin must
+        | never be able to change a Super Admin account's state,
+        | activation included.
+        */
+
+        if (
+            $user->isSuperAdmin()
+            &&
+            ! $admin->isSuperAdmin()
+        ) {
+            return back()->withErrors([
+                'user' => 'You are not allowed to activate the Super Admin account.',
+            ]);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Security Lockout Requires Super Admin For Admin-Tier
+        |--------------------------------------------------------------------------
+        |
+        | An account auto-locked after repeated failed login
+        | attempts is treated as a possible attack in progress, not
+        | routine account management. For Admin-tier accounts, only
+        | the Super Admin can clear it, so a real, deliberate check
+        | happens on whether the account owner or an attacker was
+        | behind the attempts — a peer Admin reactivating it would
+        | skip that check entirely.
+        */
+
+        if (
+            $user->isLocked()
+            && $user->isAdminLevel()
+            && ! $admin->isSuperAdmin()
+        ) {
+            return back()->withErrors([
+                'user' => 'This account was locked for security reasons and can only be reactivated by the Super Admin.',
+            ]);
+        }
+
         if ($user->is_active) {
             return back()->with(
                 'success',
@@ -414,8 +496,19 @@ class UserController extends Controller
             );
         }
 
+        $wasLocked =
+            $user->isLocked();
+
+        $previousLockedAt =
+            $user->locked_at
+                ?->toDateTimeString();
+
         $user->update([
             'is_active' => true,
+
+            'failed_login_attempts' => 0,
+
+            'locked_at' => null,
         ]);
 
         AuditLogger::log(
@@ -425,17 +518,31 @@ class UserController extends Controller
 
             module: 'users',
 
-            description: "Activated account for {$user->name}.",
+            description: $wasLocked
+                ? "Reactivated {$user->name}'s account after a security lockout."
+                : "Activated account for {$user->name}.",
 
             subject: $user,
 
-            oldValues: [
-                'is_active' => false,
-            ],
+            oldValues: $wasLocked
+                ? [
+                    'is_active' => false,
 
-            newValues: [
-                'is_active' => true,
-            ],
+                    'locked_at' => $previousLockedAt,
+                ]
+                : [
+                    'is_active' => false,
+                ],
+
+            newValues: $wasLocked
+                ? [
+                    'is_active' => true,
+
+                    'locked_at' => null,
+                ]
+                : [
+                    'is_active' => true,
+                ],
         );
 
         return back()->with(
@@ -505,16 +612,20 @@ class UserController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Protect Last Active Normal Admin + Deactivate Account
+        | Protect Last Active Admin/Super Admin + Deactivate Account
         |--------------------------------------------------------------------------
         |
         | Locked and re-checked together in one transaction so two
         | concurrent deactivation requests (two browser tabs, or a
         | race between two admins) can never both pass the "at least
-        | one Admin remains active" count before either commits —
-        | which could otherwise leave zero active Admin accounts.
+        | one account of this tier remains active" count before
+        | either commits — which could otherwise leave zero active
+        | Admin, or zero active Super Admin, accounts.
         |
-        | Super Admin is protected separately above.
+        | Self-deactivation is blocked above, but that alone does not
+        | stop two different Super Admins from deactivating each
+        | other at the same time, so Super Admin needs this same
+        | last-one-standing floor, not just the self-check.
         */
 
         $result =
@@ -532,8 +643,14 @@ class UserController extends Controller
                     }
 
                     if (
-                        $lockedUser->role ===
-                        User::ROLE_ADMIN
+                        in_array(
+                            $lockedUser->role,
+                            [
+                                User::ROLE_ADMIN,
+                                User::ROLE_SUPER_ADMIN,
+                            ],
+                            true,
+                        )
                     ) {
                         /*
                          * Postgres rejects FOR UPDATE combined
@@ -541,11 +658,11 @@ class UserController extends Controller
                          * the matching rows are locked and counted
                          * in PHP instead of via ->count().
                          */
-                        $activeAdmins =
+                        $activeInTier =
                             User::query()
                                 ->where(
                                     'role',
-                                    User::ROLE_ADMIN,
+                                    $lockedUser->role,
                                 )
                                 ->where(
                                     'is_active',
@@ -555,7 +672,7 @@ class UserController extends Controller
                                 ->pluck('id')
                                 ->count();
 
-                        if ($activeAdmins <= 1) {
+                        if ($activeInTier <= 1) {
                             return 'last_admin';
                         }
                     }
@@ -571,7 +688,9 @@ class UserController extends Controller
 
         if ($result === 'last_admin') {
             return back()->withErrors([
-                'user' => 'The last active Admin account cannot be deactivated.',
+                'user' => $user->isSuperAdmin()
+                        ? 'The last active Super Admin account cannot be deactivated.'
+                        : 'The last active Admin account cannot be deactivated.',
             ]);
         }
 

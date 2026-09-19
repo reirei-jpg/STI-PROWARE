@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -114,6 +115,20 @@ class RequiredPasswordChangeController extends Controller
 
             'must_change_password' => false,
         ]);
+
+        AuditLogger::log(
+            request: $request,
+            action: 'password_changed',
+            module: 'users',
+            description: "{$user->name} set their permanent password after first login.",
+            subject: $user,
+            oldValues: [
+                'must_change_password' => true,
+            ],
+            newValues: [
+                'must_change_password' => false,
+            ],
+        );
 
         /*
         |--------------------------------------------------------------------------

@@ -560,15 +560,19 @@ class StaffUserController extends Controller
         |--------------------------------------------------------------------------
         | Admin Editing Rules
         |--------------------------------------------------------------------------
+        |
+        | A Staff Admin can never edit an admin-level account —
+        | including Super Admin, which the previous
+        | role === ROLE_ADMIN check did not cover.
         */
 
         if (
             ! $admin->isSuperAdmin()
-            && $user->role === User::ROLE_ADMIN
+            && $user->isAdminLevel()
         ) {
             abort(
                 403,
-                'Staff Admin accounts cannot edit Admin users.',
+                'Staff Admin accounts cannot edit Admin or Super Admin users.',
             );
         }
 
@@ -761,11 +765,11 @@ class StaffUserController extends Controller
 
         if (
             ! $admin->isSuperAdmin()
-            && $user->role === User::ROLE_ADMIN
+            && $user->isAdminLevel()
         ) {
             abort(
                 403,
-                'Staff Admin accounts cannot edit Admin users.',
+                'Staff Admin accounts cannot edit Admin or Super Admin users.',
             );
         }
 
@@ -814,14 +818,14 @@ class StaffUserController extends Controller
                     )->ignore(
                         $user->id,
                     ),
-            ],
+                ],
 
                 'role' => [
                     'required',
                     Rule::in(
                         $allowedRoles,
                     ),
-            ],
+                ],
 
                 'position_id' => [
                     'required',
@@ -836,7 +840,7 @@ class StaffUserController extends Controller
                             true,
                         ),
                     ),
-            ],
+                ],
 
                 'supervisor_id' => [
                     'nullable',
@@ -846,7 +850,7 @@ class StaffUserController extends Controller
                         'staffs',
                         'id',
                     ),
-            ],
+                ],
             ],
             [
                 'name.required' => 'The staff member name is required.',

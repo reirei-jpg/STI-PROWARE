@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
+use App\Services\AuditLogger;
 use App\Services\ProductCodeGenerator;
 use App\Services\ProductVariantGenerator;
 use App\Services\PurchaseOrderNumberGenerator;
@@ -1246,6 +1247,29 @@ class PurchaseOrderController extends Controller
 
         /*
         |--------------------------------------------------------------------------
+        | Audit Log
+        |--------------------------------------------------------------------------
+        */
+
+        AuditLogger::log(
+            request: $request,
+            action: 'created',
+            module: 'purchase_orders',
+            description: "Created purchase order {$purchaseOrder->po_number} for supplier {$purchaseOrder->supplier_name} (".count($validated['items']).' item(s)).',
+            subject: $purchaseOrder,
+            newValues: [
+                'po_number' => $purchaseOrder->po_number,
+
+                'supplier_name' => $purchaseOrder->supplier_name,
+
+                'status' => $purchaseOrder->status,
+
+                'item_count' => count($validated['items']),
+            ],
+        );
+
+        /*
+        |--------------------------------------------------------------------------
         | Redirect To Created Purchase Order
         |--------------------------------------------------------------------------
         */
@@ -1547,39 +1571,6 @@ class PurchaseOrderController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Purchase Order Safeguards
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            $purchaseOrder->isArchived()
-        ) {
-            return back()->with(
-                'error',
-                'Archived purchase orders cannot be modified.',
-            );
-        }
-
-        if (
-            $purchaseOrder->isCompleted()
-        ) {
-            return back()->with(
-                'error',
-                'Completed purchase orders cannot be modified.',
-            );
-        }
-
-        if (
-            $purchaseOrderItem->isArchived()
-        ) {
-            return back()->with(
-                'error',
-                'Archived purchase order items cannot be modified.',
-            );
-        }
-
-        /*
-        |--------------------------------------------------------------------------
         | Validation
         |--------------------------------------------------------------------------
         */
@@ -1624,128 +1615,233 @@ class PurchaseOrderController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Receiving Safeguard
+        | Lock + Re-Verify + Update, One Transaction
         |--------------------------------------------------------------------------
         |
-        | Example:
-        |
-        | Ordered  = 20
-        | Received = 8
-        |
-        | Admin may change Ordered to 8, 10, 20, 25, etc.
-        | Admin may NOT change Ordered to 7 or anything below 8.
-        |
+        | quantity_received can change concurrently — StockReceiptController
+        | locks this same row while receiving stock. Without locking here
+        | too, an admin editing this item could read a stale
+        | quantity_received, pass the "ordered >= received" check against
+        | that stale value, and still write — even though a receipt that
+        | landed in between may have pushed the real quantity_received
+        | above what this request just validated against. The archived/
+        | completed safeguards are re-checked against freshly locked data
+        | for the same reason: they could have changed after this request
+        | started but before it reaches the write.
         */
 
-        $quantityOrdered =
-            (int) $validated[
-                'quantity_ordered'
-            ];
+        $result =
+            DB::transaction(
+                function () use (
+                    $purchaseOrder,
+                    $purchaseOrderItem,
+                    $validated,
+                ): array {
+                    $lockedOrder =
+                        PurchaseOrder::query()
+                            ->whereKey(
+                                $purchaseOrder->id,
+                            )
+                            ->lockForUpdate()
+                            ->first();
 
-        $quantityReceived =
-            (int) $purchaseOrderItem
-                ->quantity_received;
+                    if (! $lockedOrder) {
+                        return [
+                            'status' => 'not_found',
+                        ];
+                    }
 
-        if (
-            $quantityOrdered
-            < $quantityReceived
-        ) {
-            return back()->withErrors([
-                'quantity_ordered' => "Quantity ordered cannot be less than the {$quantityReceived} unit(s) already received.",
-            ]);
-        }
+                    if ($lockedOrder->isArchived()) {
+                        return [
+                            'status' => 'order_archived',
+                        ];
+                    }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Build Update Data
-        |--------------------------------------------------------------------------
-        */
+                    if ($lockedOrder->isCompleted()) {
+                        return [
+                            'status' => 'order_completed',
+                        ];
+                    }
 
-        $updateData = [
-            'quantity_ordered' => $quantityOrdered,
+                    $lockedItem =
+                        PurchaseOrderItem::query()
+                            ->whereKey(
+                                $purchaseOrderItem->id,
+                            )
+                            ->where(
+                                'purchase_order_id',
+                                $lockedOrder->id,
+                            )
+                            ->lockForUpdate()
+                            ->first();
 
-            'unit_cost' => $validated[
-                    'unit_cost'
-                ]
-                ?? null,
-        ];
+                    if (! $lockedItem) {
+                        return [
+                            'status' => 'not_found',
+                        ];
+                    }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Manual Item Fields
-        |--------------------------------------------------------------------------
-        |
-        | Catalog product identity is intentionally not editable here.
-        | If the catalog variant itself is wrong, that should be handled through
-        | the archive/add workflow rather than rewriting historical identity.
-        |
-        */
+                    if ($lockedItem->isArchived()) {
+                        return [
+                            'status' => 'item_archived',
+                        ];
+                    }
 
-        if (
-            $purchaseOrderItem->isManualItem()
-        ) {
-            if (
-                blank(
-                    $validated[
-                        'manual_name'
-                    ]
-                    ?? null,
-                )
-            ) {
-                return back()
-                    ->withErrors([
-                        'manual_name' => 'Please enter the manual item name.',
-                    ]);
-            }
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Receiving Safeguard
+                    |--------------------------------------------------------------------------
+                    |
+                    | Example:
+                    |
+                    | Ordered  = 20
+                    | Received = 8
+                    |
+                    | Admin may change Ordered to 8, 10, 20, 25, etc.
+                    | Admin may NOT change Ordered to 7 or anything below 8.
+                    |
+                    */
 
-            $updateData[
-                'manual_name'
-            ] =
-                $validated[
-                    'manual_name'
-                ];
+                    $quantityOrdered =
+                        (int) $validated[
+                            'quantity_ordered'
+                        ];
 
-            $updateData[
-                'manual_description'
-            ] =
-                $validated[
-                    'manual_description'
-                ]
-                ?? null;
+                    $quantityReceived =
+                        (int) $lockedItem
+                            ->quantity_received;
 
-            $updateData[
-                'manual_sku'
-            ] =
-                $validated[
-                    'manual_sku'
-                ]
-                ?? null;
+                    if (
+                        $quantityOrdered
+                        < $quantityReceived
+                    ) {
+                        return [
+                            'status' => 'below_received',
 
-            $updateData[
-                'track_inventory'
-            ] =
-                (bool) (
-                    $validated[
-                        'track_inventory'
-                    ]
-                    ?? false
-                );
-        }
+                            'quantity_received' => $quantityReceived,
+                        ];
+                    }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Update Item
-        |--------------------------------------------------------------------------
-        */
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Build Update Data
+                    |--------------------------------------------------------------------------
+                    */
 
-        $purchaseOrderItem->update(
-            $updateData,
-        );
+                    $updateData = [
+                        'quantity_ordered' => $quantityOrdered,
 
-        return back()->with(
-            'success',
-            'Purchase order item updated successfully.',
-        );
+                        'unit_cost' => $validated[
+                                'unit_cost'
+                            ]
+                            ?? null,
+                    ];
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Manual Item Fields
+                    |--------------------------------------------------------------------------
+                    |
+                    | Catalog product identity is intentionally not editable here.
+                    | If the catalog variant itself is wrong, that should be handled through
+                    | the archive/add workflow rather than rewriting historical identity.
+                    |
+                    */
+
+                    if (
+                        $lockedItem->isManualItem()
+                    ) {
+                        if (
+                            blank(
+                                $validated[
+                                    'manual_name'
+                                ]
+                                ?? null,
+                            )
+                        ) {
+                            return [
+                                'status' => 'manual_name_required',
+                            ];
+                        }
+
+                        $updateData[
+                            'manual_name'
+                        ] =
+                            $validated[
+                                'manual_name'
+                            ];
+
+                        $updateData[
+                            'manual_description'
+                        ] =
+                            $validated[
+                                'manual_description'
+                            ]
+                            ?? null;
+
+                        $updateData[
+                            'manual_sku'
+                        ] =
+                            $validated[
+                                'manual_sku'
+                            ]
+                            ?? null;
+
+                        $updateData[
+                            'track_inventory'
+                        ] =
+                            (bool) (
+                                $validated[
+                                    'track_inventory'
+                                ]
+                                ?? false
+                            );
+                    }
+
+                    $lockedItem->update(
+                        $updateData,
+                    );
+
+                    return [
+                        'status' => 'updated',
+                    ];
+                },
+            );
+
+        return match ($result['status']) {
+            'order_archived' => back()->with(
+                'error',
+                'Archived purchase orders cannot be modified.',
+            ),
+
+            'order_completed' => back()->with(
+                'error',
+                'Completed purchase orders cannot be modified.',
+            ),
+
+            'item_archived' => back()->with(
+                'error',
+                'Archived purchase order items cannot be modified.',
+            ),
+
+            'not_found' => back()->with(
+                'error',
+                'This purchase order item could not be found.',
+            ),
+
+            'below_received' => back()->withErrors([
+                'quantity_ordered' => "Quantity ordered cannot be less than the {$result['quantity_received']} unit(s) already received.",
+            ]),
+
+            'manual_name_required' => back()->withErrors([
+                'manual_name' => 'Please enter the manual item name.',
+            ]),
+
+            default => back()->with(
+                'success',
+                'Purchase order item updated successfully.',
+            ),
+        };
     }
 
     /**
@@ -2584,6 +2680,22 @@ class PurchaseOrderController extends Controller
             'archived_by' => $user->id,
         ]);
 
+        AuditLogger::log(
+            request: $request,
+            action: 'archived',
+            module: 'purchase_orders',
+            description: "Archived purchase order {$purchaseOrder->po_number} for supplier {$purchaseOrder->supplier_name}.",
+            subject: $purchaseOrder,
+            oldValues: [
+                'archived_at' => null,
+            ],
+            newValues: [
+                'archived_at' => $purchaseOrder
+                    ->archived_at
+                    ?->toDateTimeString(),
+            ],
+        );
+
         return redirect()
             ->route(
                 'admin.purchase-orders.index',
@@ -2636,11 +2748,30 @@ class PurchaseOrderController extends Controller
         |--------------------------------------------------------------------------
         */
 
+        $previouslyArchivedAt =
+            $purchaseOrder
+                ->archived_at
+                ?->toDateTimeString();
+
         $purchaseOrder->update([
             'archived_at' => null,
 
             'archived_by' => null,
         ]);
+
+        AuditLogger::log(
+            request: $request,
+            action: 'restored',
+            module: 'purchase_orders',
+            description: "Restored purchase order {$purchaseOrder->po_number} for supplier {$purchaseOrder->supplier_name}.",
+            subject: $purchaseOrder,
+            oldValues: [
+                'archived_at' => $previouslyArchivedAt,
+            ],
+            newValues: [
+                'archived_at' => null,
+            ],
+        );
 
         return back()->with(
             'success',

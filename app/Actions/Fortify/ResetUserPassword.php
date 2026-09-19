@@ -4,6 +4,7 @@ namespace App\Actions\Fortify;
 
 use App\Concerns\PasswordValidationRules;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Fortify\Contracts\ResetsUserPasswords;
 
@@ -25,5 +26,14 @@ class ResetUserPassword implements ResetsUserPasswords
         $user->forceFill([
             'password' => $input['password'],
         ])->save();
+
+        AuditLogger::log(
+            request: request(),
+            action: 'password_changed',
+            module: 'users',
+            description: "{$user->name} reset their password via the forgot-password link.",
+            subject: $user,
+            actor: $user,
+        );
     }
 }

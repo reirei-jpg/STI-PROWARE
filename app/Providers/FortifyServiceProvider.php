@@ -7,6 +7,7 @@ use App\Actions\Fortify\ResetUserPassword;
 use App\Http\Responses\LoginResponse;
 use App\Http\Responses\RegisterResponse;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -22,6 +23,14 @@ use Laravel\Fortify\Fortify;
 
 class FortifyServiceProvider extends ServiceProvider
 {
+    /**
+     * Failed login attempts allowed before an account is
+     * automatically locked, independent of the per-minute
+     * rate limiter below (which resets every 60 seconds and
+     * can be sidestepped by waiting or switching IP).
+     */
+    private const MAX_FAILED_LOGIN_ATTEMPTS = 5;
+
     /**
      * Register application services.
      */
@@ -102,8 +111,35 @@ class FortifyServiceProvider extends ServiceProvider
 
                 /*
                 |--------------------------------------------------------------------------
+                | Security Lockout
+                |--------------------------------------------------------------------------
+                |
+                | Blocks the account regardless of whether the
+                | password entered this time happens to be correct —
+                | a locked account must stay locked until an admin
+                | (Super Admin, for Admin-tier accounts) clears it.
+                |
+                */
+
+                if (
+                    $user
+                    && $user->isLocked()
+                ) {
+                    throw ValidationException::withMessages([
+                        'email' => 'This account has been locked due to too many failed login attempts. Please contact an administrator.',
+                    ]);
+                }
+
+                /*
+                |--------------------------------------------------------------------------
                 | Invalid Credentials
                 |--------------------------------------------------------------------------
+                |
+                | Deliberately identical whether the email doesn't
+                | exist at all or the password is simply wrong, so a
+                | failed attempt never reveals which one was the
+                | problem.
+                |
                 */
 
                 if (
@@ -113,7 +149,28 @@ class FortifyServiceProvider extends ServiceProvider
                         $user->password,
                     )
                 ) {
-                    return null;
+                    if ($user) {
+                        $this->recordFailedLoginAttempt(
+                            $user,
+                            $request,
+                        );
+                    }
+
+                    throw ValidationException::withMessages([
+                        'email' => 'Invalid credentials.',
+                    ]);
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Reset Failed Attempts On Success
+                |--------------------------------------------------------------------------
+                */
+
+                if ($user->failed_login_attempts > 0) {
+                    $user->update([
+                        'failed_login_attempts' => 0,
+                    ]);
                 }
 
                 /*
@@ -165,6 +222,58 @@ class FortifyServiceProvider extends ServiceProvider
 
                 return $user;
             },
+        );
+    }
+
+    /**
+     * Increments the failed-login counter for an account whose
+     * password just didn't match, locking it once the threshold
+     * is reached. Unlike the per-minute rate limiter, this floor
+     * does not reset every 60 seconds and cannot be sidestepped
+     * by waiting or switching IP address.
+     */
+    private function recordFailedLoginAttempt(
+        User $user,
+        Request $request,
+    ): void {
+        $previousAttempts =
+            $user->failed_login_attempts;
+
+        $attempts =
+            $previousAttempts + 1;
+
+        if ($attempts < self::MAX_FAILED_LOGIN_ATTEMPTS) {
+            $user->update([
+                'failed_login_attempts' => $attempts,
+            ]);
+
+            return;
+        }
+
+        $user->update([
+            'failed_login_attempts' => $attempts,
+
+            'is_active' => false,
+
+            'locked_at' => now(),
+        ]);
+
+        AuditLogger::log(
+            request: $request,
+            action: 'account_locked',
+            module: 'users',
+            description: "{$user->name}'s account was automatically locked after {$attempts} failed login attempts.",
+            subject: $user,
+            oldValues: [
+                'is_active' => true,
+
+                'failed_login_attempts' => $previousAttempts,
+            ],
+            newValues: [
+                'is_active' => false,
+
+                'failed_login_attempts' => $attempts,
+            ],
         );
     }
 

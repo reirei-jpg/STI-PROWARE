@@ -8,9 +8,11 @@ use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
 use App\Models\Category;
 use App\Models\Product;
+use App\Services\AuditLogger;
 use App\Services\ProductCodeGenerator;
 use App\Services\ProductVariantGenerator;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -26,8 +28,18 @@ class ProductController extends Controller
      * Display all products.
      */
     public function index(
+        Request $request,
         ProductFilters $productFilters,
     ): Response {
+        $user =
+            $request->user();
+
+        abort_unless(
+            $user
+            && $user->isAdminLevel(),
+            403,
+        );
+
         $products = $productFilters
             ->apply(
                 Product::query()
@@ -78,16 +90,16 @@ class ProductController extends Controller
                     'is_active' => $product->is_active,
 
                     'category' => [
-                    'id' => $product->category->id,
+                        'id' => $product->category->id,
 
-                    'name' => $product->category->name,
-                ],
+                        'name' => $product->category->name,
+                    ],
 
                     'creator' => [
-                    'id' => $product->creator->id,
+                        'id' => $product->creator->id,
 
-                    'name' => $product->creator->name,
-                ],
+                        'name' => $product->creator->name,
+                    ],
 
                     'created_at' => $product
                         ->created_at
@@ -131,8 +143,18 @@ class ProductController extends Controller
     /**
      * Display the Add Product form.
      */
-    public function create(): Response
-    {
+    public function create(
+        Request $request,
+    ): Response {
+        $user =
+            $request->user();
+
+        abort_unless(
+            $user
+            && $user->isAdminLevel(),
+            403,
+        );
+
         $categories = Category::query()
             ->where('is_active', true)
             ->orderBy('name')
@@ -379,6 +401,27 @@ class ProductController extends Controller
             ->variants()
             ->count();
 
+        AuditLogger::log(
+            request: $request,
+            action: 'created',
+            module: 'products',
+            description: "Created product {$product->code} — {$product->name} ({$variantCount} variant(s)).",
+            subject: $product,
+            newValues: [
+                'code' => $product->code,
+
+                'name' => $product->name,
+
+                'category_id' => $product->category_id,
+
+                'base_price' => (string) $product->base_price,
+
+                'availability_status' => $product->availability_status,
+
+                'is_active' => (bool) $product->is_active,
+            ],
+        );
+
         return redirect()
             ->route(
                 'admin.products.edit',
@@ -390,8 +433,18 @@ class ProductController extends Controller
      * Display the Edit Product form.
      */
     public function edit(
+        Request $request,
         Product $product,
     ): Response {
+        $user =
+            $request->user();
+
+        abort_unless(
+            $user
+            && $user->isAdminLevel(),
+            403,
+        );
+
         $product->load([
             'category:id,name',
         ]);
@@ -518,38 +571,38 @@ class ProductController extends Controller
             */
 
                 'availabilityStatuses' => [
-                [
-                    'value' => Product::AVAILABILITY_AVAILABLE,
+                    [
+                        'value' => Product::AVAILABILITY_AVAILABLE,
 
-                    'label' => 'Available',
+                        'label' => 'Available',
 
-                    'description' => 'Released merchandise that students may order when stock is available.',
+                        'description' => 'Released merchandise that students may order when stock is available.',
+                    ],
+
+                    [
+                        'value' => Product::AVAILABILITY_COMING_SOON,
+
+                        'label' => 'Coming Soon',
+
+                        'description' => 'Announced merchandise that may accept student preorders.',
+                    ],
+
+                    [
+                        'value' => Product::AVAILABILITY_OUT_OF_STOCK,
+
+                        'label' => 'Out of Stock',
+
+                        'description' => 'Released merchandise that is temporarily unavailable for normal ordering.',
+                    ],
+
+                    [
+                        'value' => Product::AVAILABILITY_INACTIVE,
+
+                        'label' => 'Inactive',
+
+                        'description' => 'Hide the merchandise from normal catalog use.',
+                    ],
                 ],
-
-                [
-                    'value' => Product::AVAILABILITY_COMING_SOON,
-
-                    'label' => 'Coming Soon',
-
-                    'description' => 'Announced merchandise that may accept student preorders.',
-                ],
-
-                [
-                    'value' => Product::AVAILABILITY_OUT_OF_STOCK,
-
-                    'label' => 'Out of Stock',
-
-                    'description' => 'Released merchandise that is temporarily unavailable for normal ordering.',
-                ],
-
-                [
-                    'value' => Product::AVAILABILITY_INACTIVE,
-
-                    'label' => 'Inactive',
-
-                    'description' => 'Hide the merchandise from normal catalog use.',
-                ],
-            ],
             ],
         );
     }
@@ -563,6 +616,15 @@ class ProductController extends Controller
     ): RedirectResponse {
         $validated =
             $request->validated();
+
+        $auditOldValues =
+            $product->only([
+                'category_id',
+                'name',
+                'base_price',
+                'availability_status',
+                'is_active',
+            ]);
 
         /*
         |--------------------------------------------------------------------------
@@ -779,6 +841,22 @@ class ProductController extends Controller
 
             throw $exception;
         }
+
+        AuditLogger::log(
+            request: $request,
+            action: 'updated',
+            module: 'products',
+            description: "Updated product {$product->code} — {$product->name}.",
+            subject: $product,
+            oldValues: $auditOldValues,
+            newValues: $product->only([
+                'category_id',
+                'name',
+                'base_price',
+                'availability_status',
+                'is_active',
+            ]),
+        );
 
         /*
         |--------------------------------------------------------------------------

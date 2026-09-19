@@ -8,8 +8,10 @@ use App\Models\Notification;
 use App\Services\CheckoutService;
 use App\Services\NotificationService;
 use App\Services\PaymentMethodValidator;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -414,17 +416,72 @@ class CheckoutController extends Controller
         |
         */
 
-        $order =
-            $this
-                ->checkoutService
-                ->checkoutForStudent(
-                    $user,
-                    $validated['item_ids'],
+        /*
+        |--------------------------------------------------------------------------
+        | Checkout + Payment Save, One Transaction
+        |--------------------------------------------------------------------------
+        |
+        | The payment_reference uniqueness check above runs before
+        | any row exists, so two concurrent checkouts submitting the
+        | same reference can both pass it and both reach this save()
+        | — the database's own unique index (not the check above) is
+        | what actually prevents the duplicate. Wrapping the order
+        | creation and the payment save in one transaction means a
+        | rejected duplicate reference rolls back the whole order —
+        | including the items, stock reservations, and cart changes
+        | CheckoutService already made — instead of leaving behind an
+        | order with no valid payment info attached.
+        */
+
+        try {
+            $order =
+                DB::transaction(
+                    function () use (
+                        $user,
+                        $validated,
+                        $isPreorderOnly,
+                        $paymentMethod,
+                        $paymentReference,
+                    ) {
+                        $order =
+                            $this
+                                ->checkoutService
+                                ->checkoutForStudent(
+                                    $user,
+                                    $validated['item_ids'],
+                                );
+
+                        if (! $isPreorderOnly) {
+                            $order->forceFill([
+                                'payment_method' => $paymentMethod,
+
+                                'payment_reference' => $paymentReference,
+                            ])->save();
+                        }
+
+                        return $order;
+                    },
                 );
+        } catch (QueryException $exception) {
+            if (
+                str_contains(
+                    $exception->getMessage(),
+                    'orders_payment_reference_unique',
+                )
+            ) {
+                return back()
+                    ->withErrors([
+                        'payment_reference' => 'This payment reference has already been used for another order. Please check your transaction and try again.',
+                    ])
+                    ->withInput();
+            }
+
+            throw $exception;
+        }
 
         /*
         |--------------------------------------------------------------------------
-        | Save Student's Payment Selection
+        | Notify Cashiers Of New Payment
         |--------------------------------------------------------------------------
         |
         | The order is still PENDING PAYMENT.
@@ -434,11 +491,6 @@ class CheckoutController extends Controller
         */
 
         if (! $isPreorderOnly) {
-            $order->forceFill([
-                'payment_method' => $paymentMethod,
-
-                'payment_reference' => $paymentReference,
-            ])->save();
 
             /*
             |--------------------------------------------------------------------------

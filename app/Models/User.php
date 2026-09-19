@@ -41,6 +41,8 @@ class User extends Authenticatable
         'role',
         'is_active',
         'must_change_password',
+        'failed_login_attempts',
+        'locked_at',
     ];
 
     protected $hidden = [
@@ -56,6 +58,8 @@ class User extends Authenticatable
             'is_active' => 'boolean',
 
             'must_change_password' => 'boolean',
+
+            'locked_at' => 'datetime',
         ];
     }
 
@@ -151,5 +155,20 @@ class User extends Authenticatable
             ],
             true,
         );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Account Status Helpers
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * Whether this account is locked due to too many failed
+     * login attempts, as opposed to being manually deactivated.
+     */
+    public function isLocked(): bool
+    {
+        return $this->locked_at !== null;
     }
 }

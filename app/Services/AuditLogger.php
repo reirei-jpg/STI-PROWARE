@@ -22,9 +22,22 @@ class AuditLogger
         ?Model $subject = null,
         ?array $oldValues = null,
         ?array $newValues = null,
+        ?Model $actor = null,
     ): AuditLog {
+        /*
+        |--------------------------------------------------------------------------
+        | Actor Override
+        |--------------------------------------------------------------------------
+        |
+        | Some actions (e.g. a forgot-password reset) happen before
+        | the request is authenticated, so $request->user() is null
+        | even though the caller knows exactly who performed it
+        | (proven a different way, like an emailed reset token).
+        */
+
         $user =
-            $request->user();
+            $actor
+            ?? $request->user();
 
         return AuditLog::create([
             /*
@@ -84,17 +97,6 @@ class AuditLogger
             'new_values' => self::sanitize(
                 $newValues,
             ),
-
-            /*
-            |--------------------------------------------------------------------------
-            | Request Information
-            |--------------------------------------------------------------------------
-            */
-
-            'ip_address' => $request->ip(),
-
-            'user_agent' => $request
-                ->userAgent(),
         ]);
     }
 

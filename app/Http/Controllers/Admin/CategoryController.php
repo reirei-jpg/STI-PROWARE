@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -15,8 +16,18 @@ class CategoryController extends Controller
     /**
      * Show categories.
      */
-    public function index(): Response
-    {
+    public function index(
+        Request $request,
+    ): Response {
+        $user =
+            $request->user();
+
+        abort_unless(
+            $user
+            && $user->isAdminLevel(),
+            403,
+        );
+
         $categories =
             Category::query()
                 ->orderBy(
@@ -53,6 +64,15 @@ class CategoryController extends Controller
     public function store(
         Request $request,
     ): RedirectResponse {
+        $user =
+            $request->user();
+
+        abort_unless(
+            $user
+            && $user->isAdminLevel(),
+            403,
+        );
+
         $validated =
             $request->validate(
                 [
@@ -83,33 +103,49 @@ class CategoryController extends Controller
                 ],
             );
 
-        Category::query()
-            ->create([
-                'name' => trim(
-                    $validated[
-                        'name'
-                    ],
-                ),
+        $category =
+            Category::query()
+                ->create([
+                    'name' => trim(
+                        $validated[
+                            'name'
+                        ],
+                    ),
 
-                'description' => isset(
-                    $validated[
-                        'description'
-                    ],
-                )
-                    && trim(
+                    'description' => isset(
                         $validated[
                             'description'
                         ],
-                    ) !== ''
-                        ? trim(
+                    )
+                        && trim(
                             $validated[
                                 'description'
                             ],
-                        )
-                        : null,
+                        ) !== ''
+                            ? trim(
+                                $validated[
+                                    'description'
+                                ],
+                            )
+                            : null,
 
-                'is_active' => true,
-            ]);
+                    'is_active' => true,
+                ]);
+
+        AuditLogger::log(
+            request: $request,
+            action: 'created',
+            module: 'categories',
+            description: "Created category {$category->name}.",
+            subject: $category,
+            newValues: [
+                'name' => $category->name,
+
+                'description' => $category->description,
+
+                'is_active' => (bool) $category->is_active,
+            ],
+        );
 
         return redirect()
             ->route(
@@ -128,6 +164,15 @@ class CategoryController extends Controller
         Request $request,
         Category $category,
     ): RedirectResponse {
+        $user =
+            $request->user();
+
+        abort_unless(
+            $user
+            && $user->isAdminLevel(),
+            403,
+        );
+
         $validated =
             $request->validate(
                 [
@@ -164,6 +209,13 @@ class CategoryController extends Controller
                 ],
             );
 
+        $oldValues =
+            $category->only([
+                'name',
+                'description',
+                'is_active',
+            ]);
+
         $category->update([
             'name' => trim(
                 $validated[
@@ -193,6 +245,20 @@ class CategoryController extends Controller
                     'is_active'
                 ],
         ]);
+
+        AuditLogger::log(
+            request: $request,
+            action: 'updated',
+            module: 'categories',
+            description: "Updated category {$category->name}.",
+            subject: $category,
+            oldValues: $oldValues,
+            newValues: $category->only([
+                'name',
+                'description',
+                'is_active',
+            ]),
+        );
 
         return redirect()
             ->route(

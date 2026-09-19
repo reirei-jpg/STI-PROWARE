@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Services\NotificationService;
 use App\Services\PaymentMethodValidator;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -227,48 +228,65 @@ class PreorderPaymentController extends Controller
                 $request,
             );
 
-        $saved =
-            DB::transaction(
-                function () use (
-                    $order,
-                    $payment,
-                ): ?Order {
-                    $locked =
-                        Order::query()
-                            ->whereKey(
-                                $order->id,
-                            )
-                            ->lockForUpdate()
-                            ->first();
+        try {
+            $saved =
+                DB::transaction(
+                    function () use (
+                        $order,
+                        $payment,
+                    ): ?Order {
+                        $locked =
+                            Order::query()
+                                ->whereKey(
+                                    $order->id,
+                                )
+                                ->lockForUpdate()
+                                ->first();
 
-                    if (
-                        ! $locked
-                        || $locked->payment_method !== null
-                    ) {
-                        return null;
-                    }
+                        if (
+                            ! $locked
+                            || $locked->payment_method !== null
+                        ) {
+                            return null;
+                        }
 
-                    $stillReady =
-                        $locked->items()
-                            ->where(
-                                'preorder_status',
-                                OrderItem::PREORDER_STATUS_READY,
-                            )
-                            ->exists();
+                        $stillReady =
+                            $locked->items()
+                                ->where(
+                                    'preorder_status',
+                                    OrderItem::PREORDER_STATUS_READY,
+                                )
+                                ->exists();
 
-                    if (! $stillReady) {
-                        return null;
-                    }
+                        if (! $stillReady) {
+                            return null;
+                        }
 
-                    $locked->forceFill([
-                        'payment_method' => $payment['payment_method'],
+                        $locked->forceFill([
+                            'payment_method' => $payment['payment_method'],
 
-                        'payment_reference' => $payment['payment_reference'],
-                    ])->save();
+                            'payment_reference' => $payment['payment_reference'],
+                        ])->save();
 
-                    return $locked;
-                },
-            );
+                        return $locked;
+                    },
+                );
+        } catch (QueryException $exception) {
+            if (
+                str_contains(
+                    $exception->getMessage(),
+                    'orders_payment_reference_unique',
+                )
+            ) {
+                return back()
+                    ->withErrors([
+                        'payment_reference' => 'This payment reference has already been used for another order. Please check your transaction and try again.',
+                    ])
+                    ->withInput();
+            }
+
+            throw $exception;
+        }
 
         if (! $saved) {
             return redirect()

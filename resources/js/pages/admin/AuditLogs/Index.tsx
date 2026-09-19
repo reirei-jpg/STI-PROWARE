@@ -1,4 +1,5 @@
 import {
+    ArrowRight,
     ChevronLeft,
     ChevronRight,
     Clock3,
@@ -7,6 +8,8 @@ import {
     ShieldCheck,
     UserRound,
 } from 'lucide-react';
+
+import type { LucideIcon } from 'lucide-react';
 
 import {
     Head,
@@ -18,6 +21,8 @@ import {
     useState,
 } from 'react';
 
+import DetailPopup from '@/components/action-feedback/DetailPopup';
+
 import AdminLayout from '@/layouts/AdminLayout';
 
 interface AuditUser {
@@ -25,6 +30,29 @@ interface AuditUser {
     name: string;
     email: string;
     role: string;
+}
+
+interface OrderSubjectSummary {
+    order_number: string;
+    student_name: string;
+    payment_status: string;
+    fulfillment_status: string;
+    total: string;
+}
+
+interface UserSubjectSummary {
+    name: string;
+    email: string;
+    role: string;
+    is_active: boolean;
+}
+
+interface ProductSubjectSummary {
+    code: string;
+    name: string;
+    category_name: string;
+    base_price: string;
+    is_active: boolean;
 }
 
 interface AuditLogItem {
@@ -41,6 +69,12 @@ interface AuditLogItem {
     user: AuditUser | null;
     subject_type: string | null;
     subject_id: number | null;
+    related_record_url: string | null;
+    subject_summary:
+        | OrderSubjectSummary
+        | UserSubjectSummary
+        | ProductSubjectSummary
+        | null;
     old_values: Record<
         string,
         unknown
@@ -49,8 +83,6 @@ interface AuditLogItem {
         string,
         unknown
     > | null;
-    ip_address: string | null;
-    user_agent: string | null;
     created_at: string | null;
 }
 
@@ -69,9 +101,44 @@ interface PaginatedLogs {
 interface AuditSummary {
     total: number;
     today: number;
-    users: number;
-    authentication: number;
+    this_week: number;
+    active_staff_today: number;
 }
+
+interface ModuleBreakdownRow {
+    module: string;
+    count: number;
+}
+
+interface DailyBreakdownRow {
+    label: string;
+    count: number;
+    is_today: boolean;
+}
+
+interface ActiveStaffRow {
+    user_id: number;
+    name: string | null;
+    role: string | null;
+    action_count: number;
+}
+
+interface AuditCardDetails {
+    total: {
+        module_breakdown: ModuleBreakdownRow[];
+    };
+    today: {
+        module_breakdown: ModuleBreakdownRow[];
+    };
+    this_week: {
+        daily_breakdown: DailyBreakdownRow[];
+    };
+    active_staff_today: {
+        staff: ActiveStaffRow[];
+    };
+}
+
+type SummaryCardKey = keyof AuditCardDetails;
 
 interface AuditFilters {
     search: string;
@@ -82,6 +149,7 @@ interface AuditFilters {
 interface AuditLogsPageProps {
     logs: PaginatedLogs;
     summary: AuditSummary;
+    cardDetails: AuditCardDetails;
     filters: AuditFilters;
     modules: string[];
     actions: string[];
@@ -90,10 +158,25 @@ interface AuditLogsPageProps {
 export default function Index({
     logs,
     summary,
+    cardDetails,
     filters,
     modules,
     actions,
 }: AuditLogsPageProps) {
+    const [
+        activeCard,
+        setActiveCard,
+    ] = useState<SummaryCardKey | null>(
+        null,
+    );
+
+    const [
+        detailsLog,
+        setDetailsLog,
+    ] = useState<AuditLogItem | null>(
+        null,
+    );
+
     const [
         search,
         setSearch,
@@ -338,6 +421,11 @@ export default function Index({
                             summary.total
                         }
                         tone="slate"
+                        onClick={() =>
+                            setActiveCard(
+                                'total',
+                            )
+                        }
                     />
 
                     <SummaryCard
@@ -346,22 +434,37 @@ export default function Index({
                             summary.today
                         }
                         tone="blue"
+                        onClick={() =>
+                            setActiveCard(
+                                'today',
+                            )
+                        }
                     />
 
                     <SummaryCard
-                        label="User Actions"
+                        label="This Week"
                         value={
-                            summary.users
+                            summary.this_week
                         }
                         tone="green"
+                        onClick={() =>
+                            setActiveCard(
+                                'this_week',
+                            )
+                        }
                     />
 
                     <SummaryCard
-                        label="Authentication"
+                        label="Active Staff Today"
                         value={
-                            summary.authentication
+                            summary.active_staff_today
                         }
                         tone="amber"
+                        onClick={() =>
+                            setActiveCard(
+                                'active_staff_today',
+                            )
+                        }
                     />
                 </section>
 
@@ -613,6 +716,11 @@ export default function Index({
                                             log={
                                                 log
                                             }
+                                            onViewDetails={() =>
+                                                setDetailsLog(
+                                                    log,
+                                                )
+                                            }
                                         />
                                     ),
                                 )}
@@ -729,7 +837,507 @@ export default function Index({
                     )}
                 </section>
             </div>
+
+            <DetailPopup
+                open={activeCard !== null}
+                title={
+                    activeCard
+                        ? CARD_META[activeCard].title
+                        : ''
+                }
+                icon={
+                    activeCard
+                        ? CARD_META[activeCard].icon
+                        : FileClock
+                }
+                onClose={() =>
+                    setActiveCard(null)
+                }
+            >
+                {activeCard === 'total' && (
+                    <ModuleBreakdownList
+                        rows={
+                            cardDetails.total
+                                .module_breakdown
+                        }
+                    />
+                )}
+
+                {activeCard === 'today' && (
+                    <ModuleBreakdownList
+                        rows={
+                            cardDetails.today
+                                .module_breakdown
+                        }
+                    />
+                )}
+
+                {activeCard === 'this_week' && (
+                    <DailyBreakdownList
+                        rows={
+                            cardDetails.this_week
+                                .daily_breakdown
+                        }
+                    />
+                )}
+
+                {activeCard === 'active_staff_today' && (
+                    <ActiveStaffList
+                        rows={
+                            cardDetails
+                                .active_staff_today
+                                .staff
+                        }
+                    />
+                )}
+            </DetailPopup>
+
+            <DetailPopup
+                open={detailsLog !== null}
+                title={
+                    detailsLog
+                        ? getActivityTitle(
+                              detailsLog.action,
+                              detailsLog.module,
+                          )
+                        : ''
+                }
+                icon={FileClock}
+                onClose={() =>
+                    setDetailsLog(null)
+                }
+                actionHref={
+                    detailsLog?.related_record_url
+                    ?? undefined
+                }
+                actionLabel={
+                    detailsLog?.module === 'orders'
+                        ? 'View Full Order'
+                        : detailsLog?.module === 'users'
+                          ? 'View Full Account'
+                          : undefined
+                }
+            >
+                {detailsLog && (
+                    <div className="space-y-5">
+                        <p className="text-sm leading-6 text-slate-600">
+                            {
+                                detailsLog.description
+                            }
+                        </p>
+
+                        {detailsLog.related_record_url && (
+                            <div>
+                                <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+                                    {getRecordLabel(
+                                        detailsLog.module,
+                                        detailsLog.action,
+                                    )}{' '}
+                                    #
+                                    {
+                                        detailsLog.subject_id
+                                    }
+                                </p>
+
+                                <div className="mt-3">
+                                    <RecordSummary
+                                        log={
+                                            detailsLog
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        <div>
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+                                Changes Made
+                            </p>
+
+                            <div className="mt-3">
+                                <ChangesList
+                                    oldValues={
+                                        detailsLog.old_values
+                                    }
+                                    newValues={
+                                        detailsLog.new_values
+                                    }
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </DetailPopup>
         </AdminLayout>
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Record Summary
+|--------------------------------------------------------------------------
+*/
+
+function RecordSummary({
+    log,
+}: {
+    log: AuditLogItem;
+}) {
+    if (! log.subject_summary) {
+        return (
+            <p className="text-sm text-slate-500">
+                This record's live details
+                aren't available anymore
+                (it may have since been
+                deleted), but the Changes
+                Made details above still
+                show what happened.
+            </p>
+        );
+    }
+
+    if (log.module === 'orders') {
+        const order =
+            log.subject_summary as OrderSubjectSummary;
+
+        return (
+            <div className="space-y-4">
+                <div className="rounded-2xl bg-blue-50 p-5 text-center">
+                    <p className="text-xs font-black uppercase tracking-wide text-blue-600">
+                        {order.order_number}
+                    </p>
+
+                    <p className="mt-1 text-2xl font-black text-slate-900">
+                        {formatCurrency(
+                            order.total,
+                        )}
+                    </p>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                        {order.student_name}
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-slate-200 p-3">
+                        <p className="text-[10px] font-bold uppercase text-slate-400">
+                            Payment
+                        </p>
+
+                        <p className="mt-1 text-sm font-black text-slate-900">
+                            {formatValue(
+                                order.payment_status,
+                            )}
+                        </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 p-3">
+                        <p className="text-[10px] font-bold uppercase text-slate-400">
+                            Fulfillment
+                        </p>
+
+                        <p className="mt-1 text-sm font-black text-slate-900">
+                            {formatValue(
+                                order.fulfillment_status,
+                            )}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (log.module === 'products') {
+        const product =
+            log.subject_summary as ProductSubjectSummary;
+
+        return (
+            <div className="space-y-4">
+                <div className="rounded-2xl bg-blue-50 p-5 text-center">
+                    <p className="text-xs font-black uppercase tracking-wide text-blue-600">
+                        {product.code}
+                    </p>
+
+                    <p className="mt-1 text-lg font-black text-slate-900">
+                        {product.name}
+                    </p>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                        {product.category_name}
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-slate-200 p-3">
+                        <p className="text-[10px] font-bold uppercase text-slate-400">
+                            Price
+                        </p>
+
+                        <p className="mt-1 text-sm font-black text-slate-900">
+                            {formatCurrency(
+                                product.base_price,
+                            )}
+                        </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 p-3">
+                        <p className="text-[10px] font-bold uppercase text-slate-400">
+                            Status
+                        </p>
+
+                        <p className="mt-1 text-sm font-black text-slate-900">
+                            {product.is_active
+                                ? 'Active'
+                                : 'Inactive'}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    const user =
+        log.subject_summary as UserSubjectSummary;
+
+    return (
+        <div className="space-y-4">
+            <div className="rounded-2xl bg-blue-50 p-5 text-center">
+                <p className="text-lg font-black text-slate-900">
+                    {user.name}
+                </p>
+
+                <p className="mt-1 text-sm text-slate-500">
+                    {user.email}
+                </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-slate-200 p-3">
+                    <p className="text-[10px] font-bold uppercase text-slate-400">
+                        Role
+                    </p>
+
+                    <p className="mt-1 text-sm font-black text-slate-900">
+                        {formatValue(
+                            user.role,
+                        )}
+                    </p>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 p-3">
+                    <p className="text-[10px] font-bold uppercase text-slate-400">
+                        Status
+                    </p>
+
+                    <p className="mt-1 text-sm font-black text-slate-900">
+                        {user.is_active
+                            ? 'Active'
+                            : 'Inactive'}
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function formatCurrency(
+    amount: string,
+): string {
+    return new Intl.NumberFormat(
+        'en-PH',
+        {
+            style: 'currency',
+            currency: 'PHP',
+        },
+    ).format(
+        Number(amount),
+    );
+}
+
+const CARD_META: Record<
+    SummaryCardKey,
+    { title: string; icon: LucideIcon }
+> = {
+    total: {
+        title: 'Total Logs — By Module',
+        icon: FileClock,
+    },
+
+    today: {
+        title: "Today's Activity — By Module",
+        icon: Clock3,
+    },
+
+    this_week: {
+        title: 'This Week — Daily Activity',
+        icon: Clock3,
+    },
+
+    active_staff_today: {
+        title: 'Active Staff Today',
+        icon: UserRound,
+    },
+};
+
+/*
+|--------------------------------------------------------------------------
+| Module Breakdown
+|--------------------------------------------------------------------------
+*/
+
+function ModuleBreakdownList({
+    rows,
+}: {
+    rows: ModuleBreakdownRow[];
+}) {
+    if (rows.length === 0) {
+        return (
+            <p className="text-sm text-slate-500">
+                No activity recorded yet.
+            </p>
+        );
+    }
+
+    const highest = Math.max(
+        ...rows.map((row) => row.count),
+    );
+
+    return (
+        <div className="space-y-3">
+            {rows.map((row) => (
+                <div key={row.module}>
+                    <div className="flex items-center justify-between text-sm">
+                        <span className="font-bold text-slate-700">
+                            {formatValue(
+                                row.module,
+                            )}
+                        </span>
+
+                        <span className="font-black text-slate-900">
+                            {row.count}
+                        </span>
+                    </div>
+
+                    <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                            className="h-full rounded-full bg-blue-500"
+                            style={{
+                                width: `${(row.count / highest) * 100}%`,
+                            }}
+                        />
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Daily Breakdown
+|--------------------------------------------------------------------------
+*/
+
+function DailyBreakdownList({
+    rows,
+}: {
+    rows: DailyBreakdownRow[];
+}) {
+    const highest = Math.max(
+        1,
+        ...rows.map((row) => row.count),
+    );
+
+    return (
+        <div className="flex items-end justify-between gap-2">
+            {rows.map((row) => (
+                <div
+                    key={row.label}
+                    className="flex flex-1 flex-col items-center gap-2"
+                >
+                    <span className="text-xs font-black text-slate-900">
+                        {row.count}
+                    </span>
+
+                    <div className="flex h-24 w-full items-end rounded-lg bg-slate-100">
+                        <div
+                            className={`w-full rounded-lg ${
+                                row.is_today
+                                    ? 'bg-blue-600'
+                                    : 'bg-blue-300'
+                            }`}
+                            style={{
+                                height: `${(row.count / highest) * 100}%`,
+                            }}
+                        />
+                    </div>
+
+                    <span
+                        className={`text-[10px] font-bold uppercase ${
+                            row.is_today
+                                ? 'text-blue-700'
+                                : 'text-slate-400'
+                        }`}
+                    >
+                        {row.label}
+                    </span>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Active Staff
+|--------------------------------------------------------------------------
+*/
+
+function ActiveStaffList({
+    rows,
+}: {
+    rows: ActiveStaffRow[];
+}) {
+    if (rows.length === 0) {
+        return (
+            <p className="text-sm text-slate-500">
+                No staff activity recorded today.
+            </p>
+        );
+    }
+
+    return (
+        <div className="space-y-2">
+            {rows.map((row) => (
+                <div
+                    key={row.user_id}
+                    className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 px-4 py-3"
+                >
+                    <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-slate-900">
+                            {row.name
+                                ?? 'Unknown Staff'}
+                        </p>
+
+                        {row.role && (
+                            <p className="text-xs text-slate-500">
+                                {formatValue(
+                                    row.role,
+                                )}
+                            </p>
+                        )}
+                    </div>
+
+                    <span className="shrink-0 rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-700">
+                        {row.action_count}{' '}
+                        action
+                        {row.action_count === 1
+                            ? ''
+                            : 's'}
+                    </span>
+                </div>
+            ))}
+        </div>
     );
 }
 
@@ -741,14 +1349,11 @@ export default function Index({
 
 function AuditLogRow({
     log,
+    onViewDetails,
 }: {
     log: AuditLogItem;
+    onViewDetails: () => void;
 }) {
-    const [
-        expanded,
-        setExpanded,
-    ] = useState(false);
-
     const actorName =
         log.actor_name
         ?? log.user?.name
@@ -767,6 +1372,7 @@ function AuditLogRow({
     const recordLabel =
         getRecordLabel(
             log.module,
+            log.action,
         );
 
     return (
@@ -935,18 +1541,14 @@ function AuditLogRow({
                             Related Record
                         </p>
 
-                        <p className="mt-1 text-sm font-bold text-slate-800">
-                            {log.subject_id
-                                ? `${recordLabel} #${log.subject_id}`
-                                : 'No related record'}
-                        </p>
-
-                        {log.ip_address && (
-                            <p className="mt-1 text-xs text-slate-500">
-                                IP Address:{' '}
-                                {
-                                    log.ip_address
-                                }
+                        {log.subject_id ? (
+                            <p className="mt-1 text-sm font-bold text-slate-800">
+                                {recordLabel} #
+                                {log.subject_id}
+                            </p>
+                        ) : (
+                            <p className="mt-1 text-sm font-bold text-slate-800">
+                                No related record
                             </p>
                         )}
                     </div>
@@ -956,11 +1558,8 @@ function AuditLogRow({
                 <div className="mt-4 flex justify-end">
                     <button
                         type="button"
-                        onClick={() =>
-                            setExpanded(
-                                (current) =>
-                                    !current,
-                            )
+                        onClick={
+                            onViewDetails
                         }
                         className="
                             rounded-xl
@@ -978,52 +1577,9 @@ function AuditLogRow({
                             hover:text-blue-700
                         "
                     >
-                        {expanded
-                            ? 'Hide Details'
-                            : 'View Details'}
+                        View Details
                     </button>
                 </div>
-
-                {/* CHANGE DETAILS */}
-                {expanded && (
-                    <div
-                        className="
-                            mt-4
-                            rounded-2xl
-                            border
-                            border-slate-200
-                            bg-slate-50
-                            p-4
-                        "
-                    >
-                        <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-                            Changes Made
-                        </p>
-
-                        <div
-                            className="
-                                mt-3
-                                grid
-                                gap-4
-                                lg:grid-cols-2
-                            "
-                        >
-                            <AuditValues
-                                title="Before"
-                                values={
-                                    log.old_values
-                                }
-                            />
-
-                            <AuditValues
-                                title="After"
-                                values={
-                                    log.new_values
-                                }
-                            />
-                        </div>
-                    </div>
-                )}
             </div>
         </article>
     );
@@ -1031,70 +1587,243 @@ function AuditLogRow({
 
 /*
 |--------------------------------------------------------------------------
-| Audit Values
+| Changes List
 |--------------------------------------------------------------------------
+|
+| Merges old_values/new_values into a single "field: before → after"
+| list instead of two separate columns — avoids making the reader
+| match up rows across two lists, and doesn't depend on the popup
+| being wide enough for two columns to fit comfortably.
 */
 
-function AuditValues({
-    title,
-    values,
+type ChangeRow =
+    | {
+          key: string;
+          kind: 'changed';
+          before: string;
+          after: string;
+      }
+    | {
+          key: string;
+          kind: 'info';
+          value: string;
+      };
+
+/*
+ * Not every key recorded alongside an action is something that
+ * "changed" — e.g. a stock receipt logs quantity_on_hand (which
+ * really did go from one number to another) alongside receipt
+ * number, PO number, product name, etc. (contextual details about
+ * the event, which never had a "before" state to compare against).
+ * A key only counts as a real change when it exists on BOTH sides
+ * with a different value; a key that only ever appears on one side
+ * is just recorded detail, shown plainly with no before/after arrow
+ * and no "Not set" placeholder.
+ */
+function buildChangeRows(
+    oldValues: Record<string, unknown> | null,
+    newValues: Record<string, unknown> | null,
+): ChangeRow[] {
+    const old = oldValues ?? {};
+    const news = newValues ?? {};
+
+    const keys = Array.from(
+        new Set([
+            ...Object.keys(old),
+            ...Object.keys(news),
+        ]),
+    );
+
+    return keys
+        .map(
+            (key): ChangeRow | null => {
+                const hasOld =
+                    Object.hasOwn(
+                        old,
+                        key,
+                    );
+
+                const hasNew =
+                    Object.hasOwn(
+                        news,
+                        key,
+                    );
+
+                if (hasOld && hasNew) {
+                    const before =
+                        formatAuditValue(
+                            key,
+                            old[key],
+                        );
+
+                    const after =
+                        formatAuditValue(
+                            key,
+                            news[key],
+                        );
+
+                    if (before === after) {
+                        return null;
+                    }
+
+                    return {
+                        key,
+                        kind: 'changed',
+                        before,
+                        after,
+                    };
+                }
+
+                return {
+                    key,
+                    kind: 'info',
+                    value: formatAuditValue(
+                        key,
+                        hasNew
+                            ? news[key]
+                            : old[key],
+                    ),
+                };
+            },
+        )
+        .filter(
+            (row): row is ChangeRow =>
+                row !== null,
+        );
+}
+
+function ChangesList({
+    oldValues,
+    newValues,
 }: {
-    title: string;
-    values: Record<
+    oldValues: Record<
+        string,
+        unknown
+    > | null;
+    newValues: Record<
         string,
         unknown
     > | null;
 }) {
-    return (
-        <div>
-            <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-                {title}
-            </p>
+    const rows = buildChangeRows(
+        oldValues,
+        newValues,
+    );
 
-            {values
-            && Object.keys(values)
-                .length > 0 ? (
-                <dl className="mt-3 space-y-2">
-                    {Object.entries(
-                        values,
-                    ).map(
-                        ([
-                            key,
-                            value,
-                        ]) => (
+    if (rows.length === 0) {
+        return (
+            <p className="text-sm text-slate-400">
+                No field changes recorded
+                for this action.
+            </p>
+        );
+    }
+
+    /*
+     * Changed rows need the extra width for the before → after
+     * arrow, so they stay full-width and stacked. Info-only rows
+     * are short one-line facts (e.g. a receipt or PO number), so
+     * a 2-column grid fits roughly twice as many on screen at
+     * once — keeps most entries readable without scrolling.
+     */
+
+    const changedRows = rows.filter(
+        (row) => row.kind === 'changed',
+    );
+
+    const infoRows = rows.filter(
+        (row) => row.kind === 'info',
+    );
+
+    return (
+        <div className="space-y-2">
+            {changedRows.map((row) => (
+                <div
+                    key={row.key}
+                    className="
+                        rounded-xl
+                        border
+                        border-slate-200
+                        bg-slate-50
+                        px-4
+                        py-3
+                    "
+                >
+                    <p className="text-xs font-bold text-slate-500">
+                        {formatValue(
+                            row.key,
+                        )}
+                    </p>
+
+                    <div
+                        className="
+                            mt-1.5
+                            flex
+                            flex-wrap
+                            items-center
+                            gap-2
+                            text-sm
+                            font-semibold
+                        "
+                    >
+                        <span className="text-slate-500 line-through decoration-slate-300">
+                            {
+                                row.before
+                            }
+                        </span>
+
+                        <ArrowRight
+                            size={14}
+                            className="shrink-0 text-slate-400"
+                        />
+
+                        <span className="text-slate-900">
+                            {
+                                row.after
+                            }
+                        </span>
+                    </div>
+                </div>
+            ))}
+
+            {infoRows.length > 0 && (
+                <div
+                    className="
+                        grid
+                        gap-2
+                        sm:grid-cols-2
+                    "
+                >
+                    {infoRows.map(
+                        (row) => (
                             <div
-                                key={key}
+                                key={
+                                    row.key
+                                }
                                 className="
-                                    flex
-                                    items-start
-                                    justify-between
-                                    gap-4
                                     rounded-xl
-                                    bg-white
-                                    px-3
-                                    py-2
+                                    border
+                                    border-slate-200
+                                    bg-slate-50
+                                    px-4
+                                    py-3
                                 "
                             >
-                                <dt className="text-xs font-bold text-slate-500">
+                                <p className="text-xs font-bold text-slate-500">
                                     {formatValue(
-                                        key,
+                                        row.key,
                                     )}
-                                </dt>
+                                </p>
 
-                                <dd className="break-all text-right text-xs font-semibold text-slate-800">
-                                    {formatAuditValue(
-                                        key,
-                                        value,
-                                    )}
-                                </dd>
+                                <p className="mt-1 wrap-break-word text-sm font-semibold text-slate-900">
+                                    {
+                                        row.value
+                                    }
+                                </p>
                             </div>
                         ),
                     )}
-                </dl>
-            ) : (
-                <p className="mt-3 text-xs text-slate-400">
-                    No values recorded.
-                </p>
+                </div>
             )}
         </div>
     );
@@ -1162,10 +1891,12 @@ function SummaryCard({
     label,
     value,
     tone,
+    onClick,
 }: {
     label: string;
     value: number;
     tone: SummaryTone;
+    onClick?: () => void;
 }) {
     const styles = {
         slate:
@@ -1182,12 +1913,18 @@ function SummaryCard({
     };
 
     return (
-        <article
+        <button
+            type="button"
+            onClick={onClick}
             className={`
                 rounded-2xl
                 border
                 p-4
+                text-left
                 shadow-sm
+                transition
+                hover:-translate-y-0.5
+                hover:shadow-md
                 ${styles[tone]}
             `}
         >
@@ -1198,7 +1935,7 @@ function SummaryCard({
             <p className="mt-1 text-2xl font-black">
                 {value}
             </p>
-        </article>
+        </button>
     );
 }
 
@@ -1250,59 +1987,71 @@ function PaginationButton({
 |--------------------------------------------------------------------------
 */
 
+const ACTIVITY_TITLES: Record<string, string> = {
+    'users:activated': 'Account Activated',
+    'users:deactivated': 'Account Deactivated',
+    'users:created': 'Employee Account Created',
+    'users:updated': 'Employee Information Updated',
+    'users:password_changed': 'Password Changed',
+
+    'orders:payment_qr_scanned': 'Payment QR Verified',
+    'orders:payment_confirmed': 'Payment Confirmed',
+    'orders:release_qr_scanned': 'Release QR Verified',
+    'orders:ready_for_pickup': 'Marked Ready for Pickup',
+    'orders:released': 'Order Released to Student',
+
+    'inventory:inventory_adjusted': 'Inventory Quantity Adjusted',
+    'inventory:stock_received': 'Stock Received',
+
+    'products:variant_created': 'Product Variant Created',
+    'products:variant_activated': 'Variant Activated',
+    'products:variant_deactivated': 'Variant Deactivated',
+    'products:created': 'Product Created',
+    'products:updated': 'Product Updated',
+
+    'categories:created': 'Category Created',
+    'categories:updated': 'Category Updated',
+
+    'purchase_orders:created': 'Purchase Order Created',
+    'purchase_orders:archived': 'Purchase Order Archived',
+    'purchase_orders:restored': 'Purchase Order Restored',
+};
+
+/*
+ * Falls back to a generic "Module — Action" title for anything not
+ * in the map above, so a newly-logged action never renders blank.
+ */
 function getActivityTitle(
     action: string,
     module: string,
 ): string {
-    if (
-        module === 'users'
-    ) {
-        if (
-            action ===
-            'activated'
-        ) {
-            return 'Account Activated';
-        }
-
-        if (
-            action ===
-            'deactivated'
-        ) {
-            return 'Account Deactivated';
-        }
-
-        if (
-            action ===
-            'created'
-        ) {
-            return 'Employee Account Created';
-        }
-
-        if (
-            action ===
-            'updated'
-        ) {
-            return 'Employee Information Updated';
-        }
-
-        if (
-            action ===
-            'password_changed'
-        ) {
-            return 'Password Changed';
-        }
-    }
-
-    return `${formatValue(
-        module,
-    )} — ${formatValue(
-        action,
-    )}`;
+    return (
+        ACTIVITY_TITLES[
+            `${module}:${action}`
+        ]
+        ?? `${formatValue(
+            module,
+        )} — ${formatValue(
+            action,
+        )}`
+    );
 }
 
 function getRecordLabel(
     module: string,
+    action: string,
 ): string {
+    /*
+     * "products" covers two different subjects: variant-level
+     * actions (variant_created, ...) point at a ProductVariant,
+     * while created/updated point at the Product itself.
+     */
+    if (module === 'products') {
+        return action.startsWith('variant_')
+            ? 'Variant ID'
+            : 'Product ID';
+    }
+
     const labels:
         Record<string, string> = {
             users:
@@ -1311,14 +2060,14 @@ function getRecordLabel(
             orders:
                 'Order ID',
 
-            products:
-                'Product ID',
+            categories:
+                'Category ID',
 
             inventory:
                 'Inventory Record',
 
-            authentication:
-                'Account',
+            purchase_orders:
+                'Purchase Order ID',
         };
 
     return labels[module]
@@ -1345,6 +2094,48 @@ function formatValue(
 
             position_id:
                 'Position',
+
+            quantity_before:
+                'Quantity Before',
+
+            quantity_after:
+                'Quantity After',
+
+            quantity_on_hand:
+                'Quantity On Hand',
+
+            verified_by:
+                'Verified By (User ID)',
+
+            purchase_order_id:
+                'Purchase Order ID',
+
+            purchase_order_item_id:
+                'Purchase Order Item ID',
+
+            receiving_mode:
+                'Receiving Mode',
+
+            receipt_number:
+                'Receipt Number',
+
+            must_change_password:
+                'Must Change Password',
+
+            payment_reference:
+                'Payment Reference',
+
+            payment_method:
+                'Payment Method',
+
+            payment_status:
+                'Payment Status',
+
+            paid_at:
+                'Paid At',
+
+            payment_qr_used_at:
+                'Payment QR Verified At',
         };
 
     if (labels[value]) {
@@ -1405,6 +2196,39 @@ function formatAuditValue(
         return value
             ? 'Yes'
             : 'No';
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Timestamps
+    |--------------------------------------------------------------------------
+    |
+    | Stored as raw "Y-m-d H:i:s" strings — shown in the same
+    | readable format used everywhere else in PROWARE.
+    */
+
+    if (
+        typeof value === 'string'
+        && /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}/.test(
+            value,
+        )
+    ) {
+        const parsed = new Date(
+            value.replace(' ', 'T'),
+        );
+
+        if (! Number.isNaN(parsed.getTime())) {
+            return new Intl.DateTimeFormat(
+                'en-PH',
+                {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                },
+            ).format(parsed);
+        }
     }
 
     /*

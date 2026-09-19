@@ -96,6 +96,67 @@ test('deactivating an already inactive account reports success without a duplica
     )->toBe(0);
 });
 
+test('the user index can be filtered by account status', function () {
+    $admin = deactivateTestAdmin();
+    User::factory()->create(['role' => 'cashier', 'is_active' => true]);
+    User::factory()->create(['role' => 'cashier', 'is_active' => false]);
+
+    $response = $this->actingAs($admin)->get('/admin/users?status=inactive');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->component('admin/Users/Index')
+        ->where('filters.status', 'inactive')
+        ->where('users.data', fn ($users) => collect($users)->every(
+            fn ($user) => $user['is_active'] === false,
+        )),
+    );
+});
+
+test('the last active super admin account cannot be deactivated', function () {
+    $superAdmin = User::factory()->create([
+        'role' => 'super_admin',
+        'is_active' => true,
+    ]);
+    $otherSuperAdmin = User::factory()->create([
+        'role' => 'super_admin',
+        'is_active' => true,
+    ]);
+
+    // Two super admins remain, so this isn't the self-deactivation guard.
+    $this->actingAs($otherSuperAdmin)
+        ->patch("/admin/users/{$superAdmin->id}/deactivate")
+        ->assertSessionHas('success');
+
+    // Only $otherSuperAdmin is left active — deactivating it must be refused.
+    $this->actingAs($superAdmin)
+        ->patch("/admin/users/{$otherSuperAdmin->id}/deactivate");
+
+    expect($otherSuperAdmin->fresh()->is_active)->toBeTrue();
+
+    $activeSuperAdminCount = User::query()
+        ->where('role', 'super_admin')
+        ->where('is_active', true)
+        ->count();
+
+    expect($activeSuperAdminCount)->toBe(1);
+});
+
+test('a regular admin cannot activate the super admin account', function () {
+    $admin = deactivateTestAdmin();
+    $superAdmin = User::factory()->create([
+        'role' => 'super_admin',
+        'is_active' => false,
+    ]);
+
+    $response = $this->actingAs($admin)
+        ->patch("/admin/users/{$superAdmin->id}/activate");
+
+    $response->assertSessionHasErrors('user');
+
+    expect($superAdmin->fresh()->is_active)->toBeFalse();
+});
+
 test('deactivating admins one after another never drops the active count below one', function () {
     $admin = deactivateTestAdmin();
     $targetA = deactivateTestAdmin();
