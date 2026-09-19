@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\StockMovement;
+use App\Services\CashierSalesSummaryService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -16,6 +17,10 @@ class AdminDashboardController extends Controller
 {
     private const DISPLAY_TIMEZONE =
         'Asia/Manila';
+
+    public function __construct(
+        private readonly CashierSalesSummaryService $salesSummary,
+    ) {}
 
     /**
      * Display the PROWARE Admin dashboard.
@@ -72,24 +77,14 @@ class AdminDashboardController extends Controller
         | Admin monitors confirmed cashier payments.
         | Admin does not process the payment here.
         |
+        | Delegated to the same shared service the Cashier
+        | dashboard and Sales report use, so this page can never
+        | quietly disagree with them on what "today's sales" means.
+        |
         */
 
         $todaySales =
-            Order::query()
-                ->where(
-                    'payment_status',
-                    Order::PAYMENT_PAID,
-                )
-                ->whereBetween(
-                    'paid_at',
-                    [
-                        $todayStartUtc,
-                        $todayEndUtc,
-                    ],
-                )
-                ->sum(
-                    'total',
-                );
+            $this->salesSummary->today();
 
         /*
         |--------------------------------------------------------------------------
@@ -124,27 +119,6 @@ class AdminDashboardController extends Controller
                     'fulfillment_status',
                     '!=',
                     Order::FULFILLMENT_CANCELLED,
-                )
-                ->count();
-
-        /*
-        |--------------------------------------------------------------------------
-        | Paid Today
-        |--------------------------------------------------------------------------
-        */
-
-        $paidToday =
-            Order::query()
-                ->where(
-                    'payment_status',
-                    Order::PAYMENT_PAID,
-                )
-                ->whereBetween(
-                    'paid_at',
-                    [
-                        $todayStartUtc,
-                        $todayEndUtc,
-                    ],
                 )
                 ->count();
 
@@ -217,53 +191,6 @@ class AdminDashboardController extends Controller
                 ->value(
                     'total',
                 );
-
-        /*
-        |--------------------------------------------------------------------------
-        | Low Stock
-        |--------------------------------------------------------------------------
-        */
-
-        $lowStockCount =
-            Inventory::query()
-                ->whereRaw(
-                    '
-                    GREATEST(
-                        quantity_on_hand
-                        - quantity_reserved,
-                        0
-                    ) > 0
-                    ',
-                )
-                ->whereRaw(
-                    '
-                    GREATEST(
-                        quantity_on_hand
-                        - quantity_reserved,
-                        0
-                    ) <= reorder_level
-                    ',
-                )
-                ->count();
-
-        /*
-        |--------------------------------------------------------------------------
-        | Out Of Stock
-        |--------------------------------------------------------------------------
-        */
-
-        $outOfStockCount =
-            Inventory::query()
-                ->whereRaw(
-                    '
-                    GREATEST(
-                        quantity_on_hand
-                        - quantity_reserved,
-                        0
-                    ) = 0
-                    ',
-                )
-                ->count();
 
         /*
         |--------------------------------------------------------------------------
@@ -579,37 +506,29 @@ class AdminDashboardController extends Controller
                 */
 
                 'overview' => [
-                    'today_sales' => number_format(
-                        (float)
-                        $todaySales,
-                        2,
-                        '.',
-                        '',
-                    ),
-
                     'orders_today' => $ordersToday,
 
                     'active_products' => $activeProducts,
 
                     'total_available_stock' => $totalAvailableStock,
-
-                    'low_stock' => $lowStockCount,
-
-                    'out_of_stock' => $outOfStockCount,
                 ],
 
                 /*
                 |--------------------------------------------------------------------------
                 | Cashier / Transaction Monitoring
                 |--------------------------------------------------------------------------
+                |
+                | today_sales and paid_today used to be two separate
+                | numbers pulled from the same query — merged into
+                | one todaySales object (total + transaction count)
+                | shared with the Cashier dashboard and Sales report.
+                |
                 */
+
+                'todaySales' => $todaySales,
 
                 'transactions' => [
                     'pending_payments' => $pendingPayments,
-
-                    'paid_today' => $paidToday,
-
-                    'released_today' => $releasedToday,
                 ],
 
                 /*

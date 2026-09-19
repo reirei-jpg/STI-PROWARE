@@ -21,17 +21,8 @@ class ProductFilters
     public function apply(
         Builder $query,
     ): Builder {
-        return $query
-            ->when(
-                $this->search(),
-                fn (
-                    Builder $query,
-                    string $search,
-                ): Builder => $this->applySearch(
-                    $query,
-                    $search,
-                ),
-            )
+        return $this
+            ->applySearchFilter($query)
             ->when(
                 $this->availabilityStatus(),
                 fn (
@@ -42,6 +33,34 @@ class ProductFilters
                     $status,
                 ),
             );
+    }
+
+    /**
+     * Apply only the search filter, leaving the availability
+     * status filter to the caller.
+     *
+     * The status filter in apply() compares the raw configured
+     * status column, which is right for the Admin catalog. The
+     * Student storefront instead shows an effective status (an
+     * "available" product with no stock left displays as Out of
+     * Stock), so it filters on that itself.
+     *
+     * @param  Builder<Product>  $query
+     * @return Builder<Product>
+     */
+    public function applySearchFilter(
+        Builder $query,
+    ): Builder {
+        return $query->when(
+            $this->search(),
+            fn (
+                Builder $query,
+                string $search,
+            ): Builder => $this->applySearch(
+                $query,
+                $search,
+            ),
+        );
     }
 
     /**

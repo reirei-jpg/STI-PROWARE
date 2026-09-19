@@ -38,7 +38,6 @@ export interface CatalogProduct {
     code: string;
     name: string;
     description: string | null;
-    base_price: string;
 
     price_min: string;
     price_max: string;
@@ -240,11 +239,20 @@ export default function CatalogCard({
                         </p>
                     </div>
 
-                    <div className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">
-                        {
-                            product.availability_summary
-                        }
-                    </div>
+                    {/*
+                      * The image badge already shows the availability
+                      * label; this pill only earns its space when it
+                      * says something different (e.g. "Preorder
+                      * Available" on a Coming Soon product).
+                      */}
+                    {product.availability_summary
+                        !== product.availability_label && (
+                        <div className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">
+                            {
+                                product.availability_summary
+                            }
+                        </div>
+                    )}
                 </div>
 
                 {product.stock_urgency === 'low_stock' && (

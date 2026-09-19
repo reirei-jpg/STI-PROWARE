@@ -196,6 +196,35 @@ class OrderScanController extends Controller
             ),
         );
 
+        /*
+        |--------------------------------------------------------------------------
+        | Philippine Day / Week / Month Boundaries
+        |--------------------------------------------------------------------------
+        |
+        | The database and app clock are UTC, but "today", "this week",
+        | and "this month" here mean the Philippine calendar — the same
+        | boundaries the Sales and Dashboard pages use — so a release
+        | made shortly after Manila midnight isn't counted on the wrong day.
+        */
+
+        $now =
+            now('Asia/Manila');
+
+        $todayRange = [
+            $now->startOfDay()->utc(),
+            $now->endOfDay()->utc(),
+        ];
+
+        $weekRange = [
+            $now->startOfWeek()->utc(),
+            $now->endOfWeek()->utc(),
+        ];
+
+        $monthRange = [
+            $now->startOfMonth()->utc(),
+            $now->endOfMonth()->utc(),
+        ];
+
         $orders = Order::query()
             ->with([
                 'student.user',
@@ -302,34 +331,24 @@ class OrderScanController extends Controller
             )
             ->when(
                 $date === 'today',
-                fn ($query) => $query->whereDate(
+                fn ($query) => $query->whereBetween(
                     'released_at',
-                    today(),
+                    $todayRange,
                 ),
             )
             ->when(
                 $date === 'week',
                 fn ($query) => $query->whereBetween(
                     'released_at',
-                    [
-                        now()
-                            ->startOfWeek(),
-                        now()
-                            ->endOfWeek(),
-                    ],
+                    $weekRange,
                 ),
             )
             ->when(
                 $date === 'month',
-                fn ($query) => $query
-                    ->whereYear(
-                        'released_at',
-                        now()->year,
-                    )
-                    ->whereMonth(
-                        'released_at',
-                        now()->month,
-                    ),
+                fn ($query) => $query->whereBetween(
+                    'released_at',
+                    $monthRange,
+                ),
             )
             ->latest(
                 'released_at',
@@ -512,9 +531,9 @@ class OrderScanController extends Controller
 
         $releasedToday =
             $releasedBaseQuery()
-                ->whereDate(
+                ->whereBetween(
                     'released_at',
-                    today(),
+                    $todayRange,
                 )
                 ->count();
 
@@ -522,12 +541,7 @@ class OrderScanController extends Controller
             $releasedBaseQuery()
                 ->whereBetween(
                     'released_at',
-                    [
-                        now()
-                            ->startOfWeek(),
-                        now()
-                            ->endOfWeek(),
-                    ],
+                    $weekRange,
                 )
                 ->count();
 

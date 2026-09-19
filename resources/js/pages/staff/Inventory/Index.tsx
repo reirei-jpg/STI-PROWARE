@@ -456,6 +456,7 @@ export default function Index({ inventories, summary, filters }: Props) {
                         value={summary.variants}
                         description="Inventory records"
                         icon={Boxes}
+                        tone="blue"
                         active={status === 'all'}
                         loading={pendingCard === 'all'}
                         onClick={() => openCardPreview('all', 'All Variants')}
@@ -466,6 +467,7 @@ export default function Index({ inventories, summary, filters }: Props) {
                         value={summary.total_on_hand}
                         description="Physical stock"
                         icon={Package}
+                        tone="slate"
                     />
 
                     <SummaryCard
@@ -473,6 +475,7 @@ export default function Index({ inventories, summary, filters }: Props) {
                         value={summary.total_reserved}
                         description="Reserved stock"
                         icon={SlidersHorizontal}
+                        tone="purple"
                     />
 
                     <SummaryCard
@@ -480,6 +483,7 @@ export default function Index({ inventories, summary, filters }: Props) {
                         value={summary.total_available}
                         description="Ready to allocate"
                         icon={CheckCircle2}
+                        tone="green"
                     />
 
                     <SummaryCard
@@ -487,6 +491,7 @@ export default function Index({ inventories, summary, filters }: Props) {
                         value={summary.low_stock}
                         description="At/below threshold"
                         icon={TrendingDown}
+                        tone="amber"
                         active={status === 'low_stock'}
                         loading={pendingCard === 'low_stock'}
                         onClick={() =>
@@ -499,6 +504,7 @@ export default function Index({ inventories, summary, filters }: Props) {
                         value={summary.out_of_stock}
                         description="No available stock"
                         icon={PackageOpen}
+                        tone="red"
                         active={status === 'out_of_stock'}
                         loading={pendingCard === 'out_of_stock'}
                         onClick={() =>
@@ -936,11 +942,50 @@ export default function Index({ inventories, summary, filters }: Props) {
 |--------------------------------------------------------------------------
 */
 
+type SummaryCardTone =
+    | 'blue'
+    | 'slate'
+    | 'purple'
+    | 'green'
+    | 'amber'
+    | 'red';
+
+const SUMMARY_CARD_TONES: Record<
+    SummaryCardTone,
+    { icon: string; ring: string }
+> = {
+    blue: {
+        icon: 'bg-blue-50 text-blue-600',
+        ring: 'ring-blue-500',
+    },
+    slate: {
+        icon: 'bg-slate-100 text-slate-600',
+        ring: 'ring-slate-500',
+    },
+    purple: {
+        icon: 'bg-purple-50 text-purple-600',
+        ring: 'ring-purple-500',
+    },
+    green: {
+        icon: 'bg-emerald-50 text-emerald-600',
+        ring: 'ring-emerald-500',
+    },
+    amber: {
+        icon: 'bg-amber-50 text-amber-600',
+        ring: 'ring-amber-500',
+    },
+    red: {
+        icon: 'bg-red-50 text-red-600',
+        ring: 'ring-red-500',
+    },
+};
+
 function SummaryCard({
     label,
     value,
     description,
     icon: Icon,
+    tone = 'blue',
     active = false,
     loading = false,
     onClick,
@@ -949,10 +994,13 @@ function SummaryCard({
     value: number;
     description: string;
     icon: typeof Package;
+    tone?: SummaryCardTone;
     active?: boolean;
     loading?: boolean;
     onClick?: () => void;
 }) {
+    const style = SUMMARY_CARD_TONES[tone];
+
     const content = (
         <div className="flex items-start justify-between gap-4">
             <div>
@@ -967,7 +1015,9 @@ function SummaryCard({
                 </p>
             </div>
 
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+            <div
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${style.icon}`}
+            >
                 {loading ? (
                     <LoaderCircle size={20} className="animate-spin" />
                 ) : (
@@ -983,7 +1033,7 @@ function SummaryCard({
                 type="button"
                 onClick={onClick}
                 disabled={loading}
-                className={`rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:cursor-wait ${active ? 'ring-2 ring-blue-500' : ''}`}
+                className={`rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:cursor-wait ${active ? `ring-2 ${style.ring}` : ''}`}
             >
                 {content}
             </button>

@@ -2,8 +2,6 @@ import {
     ArrowRight,
     CalendarDays,
     CheckCircle2,
-    ChevronLeft,
-    ChevronRight,
     PackageCheck,
     ReceiptText,
     ShoppingBag,
@@ -59,18 +57,6 @@ interface TopProduct {
     has_complete_cost: boolean;
 }
 
-interface PaginatedTransactions {
-    current_page: number;
-    data: SalesTransaction[];
-    from: number | null;
-    last_page: number;
-    next_page_url: string | null;
-    per_page: number;
-    prev_page_url: string | null;
-    to: number | null;
-    total: number;
-}
-
 interface SalesFilters {
     date_from: string | null;
     date_to: string | null;
@@ -78,7 +64,7 @@ interface SalesFilters {
 
 interface SalesPageProps {
     summary: SalesSummary;
-    transactions: PaginatedTransactions;
+    transactions: SalesTransaction[];
     topProducts: TopProduct[];
     filters: SalesFilters;
 }
@@ -158,22 +144,6 @@ export default function Index({
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
-            },
-        );
-    };
-
-    const visitPage = (
-        url: string | null,
-    ): void => {
-        if (!url) {
-            return;
-        }
-
-        router.visit(
-            url,
-            {
-                preserveState: true,
-                preserveScroll: true,
             },
         );
     };
@@ -600,138 +570,57 @@ export default function Index({
                                 </h2>
 
                                 <p className="mt-1 text-xs text-slate-500">
+                                    Most recent 5 of{' '}
                                     {
-                                        transactions.total
+                                        summary.paid_orders
                                     }{' '}
                                     paid transaction
-                                    {transactions.total ===
+                                    {summary.paid_orders ===
                                     1
                                         ? ''
                                         : 's'}
                                 </p>
                             </div>
 
-                            <ReceiptText
-                                size={20}
-                                className="text-blue-600"
-                            />
+                            <Link
+                                href="/admin/orders?status=paid"
+                                className="
+                                    inline-flex
+                                    shrink-0
+                                    items-center
+                                    gap-2
+                                    text-sm
+                                    font-black
+                                    text-blue-600
+                                    transition
+                                    hover:text-blue-800
+                                "
+                            >
+                                View All
+
+                                <ArrowRight
+                                    size={16}
+                                />
+                            </Link>
                         </div>
 
-                        {transactions.data
-                            .length > 0 ? (
-                            <>
-                                <div className="divide-y divide-slate-100">
-                                    {transactions.data.map(
-                                        (
-                                            transaction,
-                                        ) => (
-                                            <TransactionRow
-                                                key={
-                                                    transaction.id
-                                                }
-                                                transaction={
-                                                    transaction
-                                                }
-                                            />
-                                        ),
-                                    )}
-                                </div>
-
-                                <div
-                                    className="
-                                        flex
-                                        flex-col
-                                        gap-3
-                                        border-t
-                                        border-slate-100
-                                        px-5
-                                        py-4
-                                        sm:flex-row
-                                        sm:items-center
-                                        sm:justify-between
-                                        sm:px-6
-                                    "
-                                >
-                                    <p className="text-xs text-slate-500">
-                                        Showing{' '}
-                                        <strong>
-                                            {transactions.from
-                                                ?? 0}
-                                        </strong>
-                                        {' '}to{' '}
-                                        <strong>
-                                            {transactions.to
-                                                ?? 0}
-                                        </strong>
-                                        {' '}of{' '}
-                                        <strong>
-                                            {
-                                                transactions.total
+                        {transactions.length > 0 ? (
+                            <div className="divide-y divide-slate-100">
+                                {transactions.map(
+                                    (
+                                        transaction,
+                                    ) => (
+                                        <TransactionRow
+                                            key={
+                                                transaction.id
                                             }
-                                        </strong>
-                                    </p>
-
-                                    <div className="flex items-center gap-2">
-                                        <PaginationButton
-                                            disabled={
-                                                !transactions
-                                                    .prev_page_url
+                                            transaction={
+                                                transaction
                                             }
-                                            onClick={() =>
-                                                visitPage(
-                                                    transactions
-                                                        .prev_page_url,
-                                                )
-                                            }
-                                        >
-                                            <ChevronLeft
-                                                size={
-                                                    17
-                                                }
-                                            />
-                                        </PaginationButton>
-
-                                        <span
-                                            className="
-                                                rounded-xl
-                                                bg-slate-100
-                                                px-4
-                                                py-2.5
-                                                text-xs
-                                                font-bold
-                                                text-slate-600
-                                            "
-                                        >
-                                            {
-                                                transactions.current_page
-                                            }
-                                            {' / '}
-                                            {
-                                                transactions.last_page
-                                            }
-                                        </span>
-
-                                        <PaginationButton
-                                            disabled={
-                                                !transactions
-                                                    .next_page_url
-                                            }
-                                            onClick={() =>
-                                                visitPage(
-                                                    transactions
-                                                        .next_page_url,
-                                                )
-                                            }
-                                        >
-                                            <ChevronRight
-                                                size={
-                                                    17
-                                                }
-                                            />
-                                        </PaginationButton>
-                                    </div>
-                                </div>
-                            </>
+                                        />
+                                    ),
+                                )}
+                            </div>
                         ) : (
                             <div className="px-6 py-14 text-center">
                                 <ReceiptText
@@ -1354,8 +1243,8 @@ function TopProductRow({
     rank: number;
 }) {
     return (
-        <div className="px-5 py-4">
-            <div className="flex items-start gap-3">
+        <div className="px-5 py-3">
+            <div className="flex items-center gap-3">
                 <div
                     className={`
                         flex
@@ -1384,118 +1273,83 @@ function TopProductRow({
                         }
                     </p>
 
-                    <p className="mt-1 font-mono text-[10px] text-slate-400">
+                    <p className="mt-0.5 font-mono text-[10px] text-slate-400">
                         {
                             product.product_code
                         }
                     </p>
+                </div>
+            </div>
 
-                    <div className="mt-3 flex items-end justify-between gap-3">
-                        <div>
-                            <p className="text-[10px] font-bold uppercase text-slate-400">
-                                Units Sold
-                            </p>
+            <div
+                className="
+                    mt-2
+                    grid
+                    grid-cols-4
+                    gap-2
+                    text-center
+                "
+            >
+                <div>
+                    <p className="text-[9px] font-bold uppercase text-slate-400">
+                        Units
+                    </p>
 
-                            <p className="mt-1 font-black text-blue-700">
-                                {
-                                    product.total_quantity
-                                }
-                            </p>
-                        </div>
+                    <p className="mt-0.5 text-xs font-black text-blue-700">
+                        {
+                            product.total_quantity
+                        }
+                    </p>
+                </div>
 
-                        <div className="text-right">
-                            <p className="text-[10px] font-bold uppercase text-slate-400">
-                                Sales
-                            </p>
+                <div>
+                    <p className="text-[9px] font-bold uppercase text-slate-400">
+                        Sales
+                    </p>
 
-                            <p className="mt-1 font-black text-slate-900">
-                                {formatCurrency(
-                                    product.total_sales,
-                                )}
-                            </p>
-                        </div>
-                    </div>
+                    <p className="mt-0.5 text-xs font-black text-slate-900">
+                        {formatCurrency(
+                            product.total_sales,
+                        )}
+                    </p>
+                </div>
 
-                    <div className="mt-3 flex items-end justify-between gap-3 border-t border-slate-100 pt-3">
-                        <div>
-                            <p className="text-[10px] font-bold uppercase text-slate-400">
-                                Cost
-                            </p>
+                <div>
+                    <p className="text-[9px] font-bold uppercase text-slate-400">
+                        Cost
+                    </p>
 
-                            <p className="mt-1 text-sm font-bold text-red-600">
-                                {formatCurrency(
-                                    product.total_cost,
-                                )}
-                            </p>
-                        </div>
+                    <p className="mt-0.5 text-xs font-bold text-red-600">
+                        {formatCurrency(
+                            product.total_cost,
+                        )}
+                    </p>
+                </div>
 
-                        <div className="text-right">
-                            <p className="text-[10px] font-bold uppercase text-slate-400">
-                                Profit
-                                {!product.has_complete_cost && (
-                                    <span
-                                        title="Some units sold don't have a recorded purchasing cost, so this is a partial estimate."
-                                        className="ml-1 cursor-help text-amber-500"
-                                    >
-                                        ~
-                                    </span>
-                                )}
-                            </p>
+                <div>
+                    <p className="text-[9px] font-bold uppercase text-slate-400">
+                        Profit
+                        {!product.has_complete_cost && (
+                            <span
+                                title="Some units sold don't have a recorded purchasing cost, so this is a partial estimate."
+                                className="ml-0.5 cursor-help text-amber-500"
+                            >
+                                ~
+                            </span>
+                        )}
+                    </p>
 
-                            <p className="mt-1 text-sm font-bold text-violet-700">
-                                {formatCurrency(
-                                    product.total_profit,
-                                )}
-                            </p>
-                        </div>
-                    </div>
+                    <p className="mt-0.5 text-xs font-bold text-violet-700">
+                        {formatCurrency(
+                            product.total_profit,
+                        )}
+                    </p>
                 </div>
             </div>
         </div>
     );
 }
 
-/*
-|--------------------------------------------------------------------------
-| Pagination Button
-|--------------------------------------------------------------------------
-*/
-
-function PaginationButton({
-    disabled,
-    onClick,
-    children,
-}: {
-    disabled: boolean;
-    onClick: () => void;
-    children: React.ReactNode;
-}) {
-    return (
-        <button
-            type="button"
-            disabled={disabled}
-            onClick={onClick}
-            className="
-                flex
-                h-10
-                w-10
-                items-center
-                justify-center
-                rounded-xl
-                border
-                border-slate-200
-                bg-white
-                text-slate-600
-                transition
-                hover:bg-slate-50
-                disabled:cursor-not-allowed
-                disabled:opacity-40
-            "
-        >
-            {children}
-        </button>
-    );
-}
 
 /*
 |--------------------------------------------------------------------------

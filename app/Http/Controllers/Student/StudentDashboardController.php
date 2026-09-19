@@ -61,9 +61,33 @@ class StudentDashboardController extends Controller
         |
         */
 
+        /*
+        |--------------------------------------------------------------------------
+        | Grid Products
+        |--------------------------------------------------------------------------
+        |
+        | Coming Soon products are excluded here, at the query, because
+        | the page shows them in the carousel instead of repeating them
+        | in the grid. Excluding them before paginating keeps page
+        | counts, the "matching products" total, and each page's size
+        | accurate — otherwise pages would fill with Coming Soon items
+        | that the page then hid, leaving short or blank pages.
+        |
+        | Only the search filter goes through ProductFilters. The
+        | status filter is applied below against the EFFECTIVE status
+        | shown on each card, so choosing "Available" never lists a
+        | card labelled Out of Stock, and "Out of Stock" also finds
+        | products whose real stock has run out.
+        |
+        */
+
+        $requestedStatus =
+            $productFilters
+                ->availabilityStatus();
+
         $eligibleProducts =
             $productFilters
-                ->apply(
+                ->applySearchFilter(
                     Product::query()
                         ->with([
                             'category:id,name',
@@ -83,16 +107,25 @@ class StudentDashboardController extends Controller
                             'is_active',
                             true,
                         )
-                        ->where(
+                        ->whereNotIn(
                             'availability_status',
-                            '!=',
-                            Product::AVAILABILITY_INACTIVE,
+                            [
+                                Product::AVAILABILITY_INACTIVE,
+                                Product::AVAILABILITY_COMING_SOON,
+                            ],
                         ),
                 )
                 ->latest()
                 ->get()
                 ->map(
                     fn (Product $product): array => $this->presentProduct($product),
+                )
+                ->when(
+                    $requestedStatus,
+                    fn ($products) => $products->filter(
+                        fn (array $product): bool => $product['availability_status']
+                            === $requestedStatus,
+                    ),
                 );
 
         /*
@@ -104,20 +137,19 @@ class StudentDashboardController extends Controller
         | pseudo-random order that stays IDENTICAL across every
         | request for the same day, so paging through Home never
         | repeats or skips a product mid-browse. The order still
-        | rotates once per day.
+        | rotates once per day, at midnight Philippine time.
         |
         */
 
         $availabilityPriority = [
             Product::AVAILABILITY_AVAILABLE => 0,
 
-            Product::AVAILABILITY_COMING_SOON => 1,
-
-            Product::AVAILABILITY_OUT_OF_STOCK => 2,
+            Product::AVAILABILITY_OUT_OF_STOCK => 1,
         ];
 
         $dailySeed =
-            now()->format('Y-m-d');
+            now('Asia/Manila')
+                ->format('Y-m-d');
 
         $sortedProducts =
             $eligibleProducts
@@ -337,6 +369,11 @@ class StudentDashboardController extends Controller
                 default => 'Unknown',
             };
 
+        $priceRange =
+            $this->priceRange(
+                $product,
+            );
+
         /*
         |--------------------------------------------------------------------------
         | Product Data
@@ -352,15 +389,9 @@ class StudentDashboardController extends Controller
 
             'description' => $product->description,
 
-            'base_price' => $product->base_price,
+            'price_min' => $priceRange['min'],
 
-            'price_min' => $this->priceRange(
-                $product,
-            )['min'],
-
-            'price_max' => $this->priceRange(
-                $product,
-            )['max'],
+            'price_max' => $priceRange['max'],
 
             'variant_mode' => $product
                 ->variant_mode,
@@ -428,7 +459,7 @@ class StudentDashboardController extends Controller
                 'name' => $product
                     ->category
                     ->name,
-                            ],
+            ],
         ];
     }
 

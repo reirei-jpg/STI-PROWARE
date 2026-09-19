@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Services\CashierSalesSummaryService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -12,6 +13,13 @@ use Inertia\Response;
 
 class SalesController extends Controller
 {
+    private const DISPLAY_TIMEZONE =
+        'Asia/Manila';
+
+    public function __construct(
+        private readonly CashierSalesSummaryService $salesSummary,
+    ) {}
+
     /**
      * Display PROWARE sales and transaction reports.
      */
@@ -196,48 +204,48 @@ class SalesController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Today's Sales
+        | Today's Sales & This Month
         |--------------------------------------------------------------------------
+        |
+        | Delegated to the same shared service the Cashier Sales
+        | page and Admin Dashboard use, with Philippine day/month
+        | boundaries, so this page can never quietly disagree with
+        | them on what "today" or "this month" means.
+        |
         */
+
+        $now =
+            now(
+                self::DISPLAY_TIMEZONE,
+            );
 
         $todaySales =
-            Order::query()
-                ->where(
-                    'payment_status',
-                    Order::PAYMENT_PAID,
-                )
-                ->whereDate(
-                    'paid_at',
-                    now()->toDateString(),
-                )
-                ->sum('total');
+            $this->salesSummary
+                ->today()['total'];
 
-        /*
-        |--------------------------------------------------------------------------
-        | This Month
-        |--------------------------------------------------------------------------
-        */
+        $monthTotal =
+            $this->salesSummary->periodTotal(
+                $now->clone()
+                    ->startOfMonth()
+                    ->utc(),
+                $now->clone()
+                    ->endOfMonth()
+                    ->utc(),
+            );
 
         $monthSales =
-            Order::query()
-                ->where(
-                    'payment_status',
-                    Order::PAYMENT_PAID,
-                )
-                ->whereYear(
-                    'paid_at',
-                    now()->year,
-                )
-                ->whereMonth(
-                    'paid_at',
-                    now()->month,
-                )
-                ->sum('total');
+            $monthTotal['total'];
 
         /*
         |--------------------------------------------------------------------------
         | Sales Transactions
         |--------------------------------------------------------------------------
+        |
+        | This is a quick-glance shortcut, not the full transaction
+        | list — capped to the 5 most recent so the page stays
+        | scannable. Admins who want the complete, searchable list
+        | click through to Orders (filtered to Paid).
+        |
         */
 
         $transactions =
@@ -246,9 +254,9 @@ class SalesController extends Controller
                     'student.user',
                 ])
                 ->latest('paid_at')
-                ->paginate(20)
-                ->withQueryString()
-                ->through(
+                ->limit(5)
+                ->get()
+                ->map(
                     function (
                         Order $order,
                     ): array {
@@ -289,7 +297,8 @@ class SalesController extends Controller
                                 ),
                         ];
                     },
-                );
+                )
+                ->values();
 
         /*
         |--------------------------------------------------------------------------

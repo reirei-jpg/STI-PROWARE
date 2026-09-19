@@ -31,18 +31,19 @@ import AdminLayout from '@/layouts/AdminLayout';
 */
 
 interface AdminOverview {
-    today_sales: string;
     orders_today: number;
     active_products: number;
     total_available_stock: number;
-    low_stock: number;
-    out_of_stock: number;
+}
+
+interface TodaySales {
+    total: string;
+    transactions: number;
+    trend: number | null;
 }
 
 interface TransactionSummary {
     pending_payments: number;
-    paid_today: number;
-    released_today: number;
 }
 
 interface SpecialistActivity {
@@ -86,6 +87,8 @@ interface AdminDashboardProps {
 
     overview: AdminOverview;
 
+    todaySales: TodaySales;
+
     transactions: TransactionSummary;
 
     specialistActivity: SpecialistActivity;
@@ -114,16 +117,13 @@ type MetricTone =
 export default function Dashboard({
     todayDate,
     overview,
+    todaySales,
     transactions,
     specialistActivity,
     purchaseOrders,
     recentOrders,
     inventoryAlerts,
 }: AdminDashboardProps) {
-    const stockAlerts =
-        overview.low_stock
-        + overview.out_of_stock;
-
     const activePurchaseOrders =
         purchaseOrders.draft
         + purchaseOrders.awaiting_delivery
@@ -272,8 +272,7 @@ export default function Dashboard({
                             mt-6
                             grid
                             gap-4
-                            sm:grid-cols-2
-                            xl:grid-cols-4
+                            sm:grid-cols-3
                         "
                     >
                         <OverviewMetric
@@ -292,7 +291,7 @@ export default function Dashboard({
                                 overview.active_products
                             }
                             icon={Package}
-                            tone="slate"
+                            tone="purple"
                             href="/admin/products"
                         />
 
@@ -304,18 +303,6 @@ export default function Dashboard({
                             }
                             icon={Boxes}
                             tone="green"
-                            href="/staff/inventory"
-                        />
-
-                        <OverviewMetric
-                            label="Stock Alerts"
-                            value={stockAlerts}
-                            icon={AlertTriangle}
-                            tone={
-                                stockAlerts > 0
-                                    ? 'red'
-                                    : 'green'
-                            }
                             href="/staff/inventory"
                         />
                     </div>
@@ -385,6 +372,7 @@ export default function Dashboard({
                             subtitle="Financial and payment monitoring"
                             icon={WalletCards}
                             tone="blue"
+                            columns={2}
                             footer={
                                 <Link
                                     href="/admin/sales"
@@ -410,21 +398,11 @@ export default function Dashboard({
                             <DepartmentMetric
                                 label="Sales Today"
                                 value={formatCurrency(
-                                    overview.today_sales,
+                                    todaySales.total,
                                 )}
+                                sublabel={`${todaySales.transactions} transaction${todaySales.transactions === 1 ? '' : 's'}`}
                                 icon={ShoppingCart}
                                 tone="blue"
-                                href={`/admin/sales?date_from=${todayDate}&date_to=${todayDate}`}
-                            />
-
-                            <DepartmentMetric
-                                label="Paid Today"
-                                value={String(
-                                    transactions
-                                        .paid_today,
-                                )}
-                                icon={CheckCircle2}
-                                tone="green"
                                 href={`/admin/sales?date_from=${todayDate}&date_to=${todayDate}`}
                             />
 
@@ -1027,6 +1005,7 @@ function DepartmentCard({
     tone,
     footer,
     children,
+    columns = 3,
 }: {
     title: string;
     subtitle: string;
@@ -1034,6 +1013,7 @@ function DepartmentCard({
     tone: 'blue' | 'green';
     footer: React.ReactNode;
     children: React.ReactNode;
+    columns?: 2 | 3;
 }) {
     const style =
         tone === 'blue'
@@ -1111,12 +1091,16 @@ function DepartmentCard({
             </div>
 
             <div
-                className="
+                className={`
                     grid
                     gap-3
                     p-5
-                    sm:grid-cols-3
-                "
+                    ${
+                        columns === 2
+                            ? 'sm:grid-cols-2'
+                            : 'sm:grid-cols-3'
+                    }
+                `}
             >
                 {children}
             </div>
@@ -1144,12 +1128,14 @@ function DepartmentCard({
 function DepartmentMetric({
     label,
     value,
+    sublabel,
     icon: Icon,
     tone,
     href,
 }: {
     label: string;
     value: string;
+    sublabel?: string;
     icon: LucideIcon;
     tone:
         | 'blue'
@@ -1205,6 +1191,18 @@ function DepartmentMetric({
             >
                 {value}
             </p>
+
+            {sublabel && (
+                <p
+                    className="
+                        mt-0.5
+                        text-xs
+                        text-slate-400
+                    "
+                >
+                    {sublabel}
+                </p>
+            )}
         </>
     );
 

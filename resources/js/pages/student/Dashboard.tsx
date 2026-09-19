@@ -117,23 +117,36 @@ export default function Dashboard({
     | Normal Merchandise
     |--------------------------------------------------------------------------
     |
-    | Coming Soon products are NOT repeated here. Search and
-    | availability filtering both happen on the server so they
-    | apply across every Home page, not just the current one.
+    | Coming Soon products are NOT repeated here — the server
+    | leaves them out of this grid entirely (they live in the
+    | carousel), so page counts and totals only ever describe
+    | what's actually shown. Search and availability filtering
+    | also happen on the server so they apply across every Home
+    | page, not just the current one.
     |
     */
 
     const regularProducts =
-        homeProducts.data.filter(
-            (product) =>
-                product.availability_status !==
-                'coming_soon',
-        );
+        homeProducts.data;
 
     const hasFilters =
         filters.search !== ''
         ||
         filters.status !== '';
+
+    /*
+     * With the Coming Soon filter on, the grid is intentionally
+     * empty and the carousel above is the result — so that isn't
+     * an "empty search" and shouldn't show the no-results state.
+     */
+    const showingComingSoonOnly =
+        filters.status === 'coming_soon'
+        && comingSoonProducts.length > 0;
+
+    const matchingCount =
+        showingComingSoonOnly
+            ? comingSoonProducts.length
+            : homeProducts.total;
 
     /*
     |--------------------------------------------------------------------------
@@ -285,10 +298,10 @@ export default function Dashboard({
                                     "
                                 >
                                     {
-                                        homeProducts.total
+                                        matchingCount
                                     }{' '}
                                     matching product
-                                    {homeProducts.total ===
+                                    {matchingCount ===
                                     1
                                         ? ''
                                         : 's'}
@@ -630,7 +643,8 @@ export default function Dashboard({
                 |--------------------------------------------------------------------------
                 */}
 
-                {homeProducts.total === 0 && (
+                {homeProducts.total === 0
+                    && ! showingComingSoonOnly && (
                     <EmptyMerchandise
                         hasFilters={
                             hasFilters
