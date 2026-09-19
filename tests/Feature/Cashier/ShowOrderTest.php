@@ -59,8 +59,8 @@ test('the order verification page discloses the fulfillment timeline once it exi
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->component('cashier/Orders/Show')
-        ->where('order.ready_for_release_at', $readyAt->format('M d, Y h:i A'))
-        ->where('order.released_at', $releasedAt->format('M d, Y h:i A'))
+        ->where('order.ready_for_release_at', $readyAt->timezone('Asia/Manila')->format('M d, Y h:i A'))
+        ->where('order.released_at', $releasedAt->timezone('Asia/Manila')->format('M d, Y h:i A'))
         ->where('order.cancelled_at', null),
     );
 });

@@ -311,13 +311,15 @@ class OrderReceiptController extends Controller
 
                     'created_at' => $order
                         ->created_at
-                        ?->format(
+                        ?->timezone(config('app.display_timezone'))
+                        ->format(
                             'M d, Y h:i A',
                         ),
 
                     'paid_at' => $order
                         ->paid_at
-                        ?->format(
+                        ?->timezone(config('app.display_timezone'))
+                        ->format(
                             'M d, Y h:i A',
                         ),
 

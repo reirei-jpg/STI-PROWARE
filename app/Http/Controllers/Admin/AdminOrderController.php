@@ -232,19 +232,22 @@ class AdminOrderController extends Controller
 
                             'paid_at' => $order
                                 ->paid_at
-                                ?->format(
+                                ?->timezone(config('app.display_timezone'))
+                                ->format(
                                     'M d, Y h:i A',
                                 ),
 
                             'released_at' => $order
                                 ->released_at
-                                ?->format(
+                                ?->timezone(config('app.display_timezone'))
+                                ->format(
                                     'M d, Y h:i A',
                                 ),
 
                             'created_at' => $order
                                 ->created_at
-                                ?->format(
+                                ?->timezone(config('app.display_timezone'))
+                                ->format(
                                     'M d, Y h:i A',
                                 ),
 
@@ -395,25 +398,29 @@ class AdminOrderController extends Controller
 
                     'created_at' => $order
                         ->created_at
-                        ?->format(
+                        ?->timezone(config('app.display_timezone'))
+                        ->format(
                             'M d, Y h:i A',
                         ),
 
                     'paid_at' => $order
                         ->paid_at
-                        ?->format(
+                        ?->timezone(config('app.display_timezone'))
+                        ->format(
                             'M d, Y h:i A',
                         ),
 
                     'released_at' => $order
                         ->released_at
-                        ?->format(
+                        ?->timezone(config('app.display_timezone'))
+                        ->format(
                             'M d, Y h:i A',
                         ),
 
                     'cancelled_at' => $order
                         ->cancelled_at
-                        ?->format(
+                        ?->timezone(config('app.display_timezone'))
+                        ->format(
                             'M d, Y h:i A',
                         ),
 

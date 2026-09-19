@@ -78,7 +78,8 @@ class OrderScanController extends Controller
                             !== null,
 
                         'paid_at' => $order->paid_at
-                            ?->format(
+                            ?->timezone(config('app.display_timezone'))
+                            ->format(
                                 'M d, Y h:i A',
                             ),
 
@@ -412,13 +413,15 @@ class OrderScanController extends Controller
 
                     'released_at' => $order
                         ->released_at
-                        ?->format(
+                        ?->timezone(config('app.display_timezone'))
+                        ->format(
                             'M d, Y h:i A',
                         ),
 
                     'release_qr_used_at' => $order
                         ->release_qr_used_at
-                        ?->format(
+                        ?->timezone(config('app.display_timezone'))
+                        ->format(
                             'M d, Y h:i A',
                         ),
 
@@ -684,13 +687,15 @@ class OrderScanController extends Controller
 
                     'released_at' => $order
                         ->released_at
-                        ?->format(
+                        ?->timezone(config('app.display_timezone'))
+                        ->format(
                             'M d, Y h:i A',
                         ),
 
                     'release_qr_used_at' => $order
                         ->release_qr_used_at
-                        ?->format(
+                        ?->timezone(config('app.display_timezone'))
+                        ->format(
                             'M d, Y h:i A',
                         ),
 
@@ -975,19 +980,22 @@ class OrderScanController extends Controller
 
                     'created_at' => $order
                         ->created_at
-                        ?->format(
+                        ?->timezone(config('app.display_timezone'))
+                        ->format(
                             'M d, Y h:i A',
                         ),
 
                     'released_at' => $order
                         ->released_at
-                        ?->format(
+                        ?->timezone(config('app.display_timezone'))
+                        ->format(
                             'M d, Y h:i A',
                         ),
 
                     'release_qr_used_at' => $order
                         ->release_qr_used_at
-                        ?->format(
+                        ?->timezone(config('app.display_timezone'))
+                        ->format(
                             'M d, Y h:i A',
                         ),
 
@@ -1202,19 +1210,22 @@ class OrderScanController extends Controller
 
                     'created_at' => $order
                         ->created_at
-                        ?->format(
+                        ?->timezone(config('app.display_timezone'))
+                        ->format(
                             'M d, Y h:i A',
                         ),
 
                     'released_at' => $order
                         ->released_at
-                        ?->format(
+                        ?->timezone(config('app.display_timezone'))
+                        ->format(
                             'M d, Y h:i A',
                         ),
 
                     'release_qr_used_at' => $order
                         ->release_qr_used_at
-                        ?->format(
+                        ?->timezone(config('app.display_timezone'))
+                        ->format(
                             'M d, Y h:i A',
                         ),
 

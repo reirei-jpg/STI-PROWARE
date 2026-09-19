@@ -271,7 +271,8 @@ class StockMovementController extends Controller
 
                             'created_at' => $movement
                                 ->created_at
-                                ?->format(
+                                ?->timezone(config('app.display_timezone'))
+                                ->format(
                                     'M d, Y h:i A',
                                 ),
 

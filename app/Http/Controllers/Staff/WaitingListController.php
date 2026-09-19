@@ -335,7 +335,8 @@ class WaitingListController extends Controller
 
                             'created_at' => $item
                                 ->created_at
-                                ?->format(
+                                ?->timezone(config('app.display_timezone'))
+                                ->format(
                                     'M d, Y h:i A',
                                 ),
                         ];

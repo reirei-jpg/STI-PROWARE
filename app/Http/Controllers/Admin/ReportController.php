@@ -503,7 +503,8 @@ class ReportController extends Controller
                         'fulfillment_status' => $order->fulfillment_status,
 
                         'paid_at' => $order->paid_at
-                            ?->format('M d, Y h:i A'),
+                            ?->timezone(config('app.display_timezone'))
+                            ->format('M d, Y h:i A'),
                     ],
                 )
                 ->values();
@@ -565,7 +566,8 @@ class ReportController extends Controller
                                 ?? 'Unknown Staff',
 
                             'created_at' => $movement->created_at
-                                ?->format('M d, Y h:i A'),
+                                ?->timezone(config('app.display_timezone'))
+                                ->format('M d, Y h:i A'),
                         ];
                     },
                 )

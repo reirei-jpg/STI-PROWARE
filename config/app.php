@@ -68,6 +68,13 @@ return [
     'timezone' => 'UTC',
 
     /*
+    | Timezone used when showing stored timestamps to people.
+    | Storage and the scheduler stay on the timezone above.
+    */
+
+    'display_timezone' => 'Asia/Manila',
+
+    /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------

@@ -240,7 +240,8 @@ class StockReceiptController extends Controller
 
                             'created_at' => $movement
                                 ->created_at
-                                ?->format(
+                                ?->timezone(config('app.display_timezone'))
+                                ->format(
                                     'M d, Y h:i A',
                                 ),
 
@@ -440,7 +441,8 @@ class StockReceiptController extends Controller
 
                     'created_at' => $stockMovement
                         ->created_at
-                        ?->format(
+                        ?->timezone(config('app.display_timezone'))
+                        ->format(
                             'M d, Y h:i A',
                         ),
 

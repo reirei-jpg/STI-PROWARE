@@ -474,7 +474,8 @@ class PurchaseOrderController extends Controller
 
                             'archived_at' => $item
                                 ->archived_at
-                                ?->format(
+                                ?->timezone(config('app.display_timezone'))
+                                ->format(
                                     'M d, Y h:i A',
                                 ),
 
@@ -628,13 +629,15 @@ class PurchaseOrderController extends Controller
 
                     'ordered_at' => $purchaseOrder
                         ->ordered_at
-                        ?->format(
+                        ?->timezone(config('app.display_timezone'))
+                        ->format(
                             'M d, Y h:i A',
                         ),
 
                     'completed_at' => $purchaseOrder
                         ->completed_at
-                        ?->format(
+                        ?->timezone(config('app.display_timezone'))
+                        ->format(
                             'M d, Y h:i A',
                         ),
 
@@ -646,7 +649,8 @@ class PurchaseOrderController extends Controller
 
                     'archived_at' => $purchaseOrder
                         ->archived_at
-                        ?->format(
+                        ?->timezone(config('app.display_timezone'))
+                        ->format(
                             'M d, Y h:i A',
                         ),
 
@@ -2269,13 +2273,15 @@ class PurchaseOrderController extends Controller
 
                         'created_at' => $purchaseOrder
                             ->created_at
-                            ?->format(
+                            ?->timezone(config('app.display_timezone'))
+                            ->format(
                                 'M d, Y h:i A',
                             ),
 
                         'archived_at' => $purchaseOrder
                             ->archived_at
-                            ?->format(
+                            ?->timezone(config('app.display_timezone'))
+                            ->format(
                                 'M d, Y h:i A',
                             ),
                     ];
@@ -2557,7 +2563,8 @@ class PurchaseOrderController extends Controller
 
                         'archived_at' => $item
                             ->archived_at
-                            ?->format(
+                            ?->timezone(config('app.display_timezone'))
+                            ->format(
                                 'M d, Y h:i A',
                             ),
                     ];

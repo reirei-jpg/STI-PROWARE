@@ -286,13 +286,15 @@ class SalesController extends Controller
 
                             'paid_at' => $order
                                 ->paid_at
-                                ?->format(
+                                ?->timezone(config('app.display_timezone'))
+                                ->format(
                                     'M d, Y h:i A',
                                 ),
 
                             'released_at' => $order
                                 ->released_at
-                                ?->format(
+                                ?->timezone(config('app.display_timezone'))
+                                ->format(
                                     'M d, Y h:i A',
                                 ),
                         ];

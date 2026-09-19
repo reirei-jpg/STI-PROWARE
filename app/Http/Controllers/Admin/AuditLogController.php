@@ -412,7 +412,8 @@ class AuditLogController extends Controller
 
                             'created_at' => $log
                                 ->created_at
-                                ?->format(
+                                ?->timezone(config('app.display_timezone'))
+                                ->format(
                                     'M d, Y h:i A',
                                 ),
                         ];

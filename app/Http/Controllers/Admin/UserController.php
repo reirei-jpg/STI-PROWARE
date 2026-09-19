@@ -312,7 +312,8 @@ class UserController extends Controller
 
                             'created_at' => $user
                                 ->created_at
-                                ?->format(
+                                ?->timezone(config('app.display_timezone'))
+                                ->format(
                                     'M d, Y h:i A',
                                 ),
                         ];

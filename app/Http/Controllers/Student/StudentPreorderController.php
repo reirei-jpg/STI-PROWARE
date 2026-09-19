@@ -73,43 +73,43 @@ class StudentPreorderController extends Controller
                             'unit_price' => $item
                                 ->unit_price,
 
-                            'preorder_ready_at' => optional(
-                                $item
-                                    ->preorder_ready_at,
-                            )->format(
-                                'M d, Y h:i A',
-                            ),
+                            'preorder_ready_at' => $item
+                                ->preorder_ready_at
+                                ?->timezone(config('app.display_timezone'))
+                                ->format(
+                                    'M d, Y h:i A',
+                                ),
 
-                            'preorder_payment_deadline_at' => optional(
-                                $item
-                                    ->preorder_payment_deadline_at,
-                            )->format(
-                                'M d, Y h:i A',
-                            ),
+                            'preorder_payment_deadline_at' => $item
+                                ->preorder_payment_deadline_at
+                                ?->timezone(config('app.display_timezone'))
+                                ->format(
+                                    'M d, Y h:i A',
+                                ),
 
                             'product' => [
-                            'name' => $item
-                                ->productVariant
-                                ->product
-                                ->name,
+                                'name' => $item
+                                    ->productVariant
+                                    ->product
+                                    ->name,
 
-                            'code' => $item
-                                ->productVariant
-                                ->product
-                                ->code,
+                                'code' => $item
+                                    ->productVariant
+                                    ->product
+                                    ->code,
 
-                            'image_url' => $item
-                                ->productVariant
-                                ->product
-                                ->image_path
-                                    ? asset(
-                                        'storage/'
-                                        .$item
-                                            ->productVariant
-                                            ->product
-                                            ->image_path,
-                                    )
-                                        : null,
+                                'image_url' => $item
+                                    ->productVariant
+                                    ->product
+                                    ->image_path
+                                        ? asset(
+                                            'storage/'
+                                            .$item
+                                                ->productVariant
+                                                ->product
+                                                ->image_path,
+                                        )
+                                            : null,
                             ],
 
                             'variant' => [

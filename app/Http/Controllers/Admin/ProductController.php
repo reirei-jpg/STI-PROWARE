@@ -103,6 +103,7 @@ class ProductController extends Controller
 
                     'created_at' => $product
                         ->created_at
+                        ->timezone(config('app.display_timezone'))
                         ->format('M d, Y'),
                 ],
             );
