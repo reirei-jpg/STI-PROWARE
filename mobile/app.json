@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "STI PROWARE",
+    "slug": "sti-proware",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "ph.edu.sti.proware",
+      "adaptiveIcon": {
+        "backgroundColor": "#F2DB11",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
