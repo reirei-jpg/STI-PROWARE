@@ -42,12 +42,13 @@ export default function Home() {
                 </Text>
 
                 <Text className="font-sans text-slate-500">
-                    {user?.studentId} · {user?.course} · Year {user?.yearLevel}
+                    {user?.student?.studentId} · {user?.student?.course} · Year{' '}
+                    {user?.student?.yearLevel}
                 </Text>
             </View>
 
             <Pressable
-                onPress={signOut}
+                onPress={() => void signOut()}
                 accessibilityRole="button"
                 className="flex-row items-center justify-center gap-2 rounded-full border border-slate-200 bg-white py-4"
             >

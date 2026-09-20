@@ -14,8 +14,12 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/lib/auth';
 
 function RootNavigator() {
-    const { user } = useAuth();
+    const { user, restoring } = useAuth();
     const isSignedIn = user !== null;
+
+    if (restoring) {
+        return null;
+    }
 
     return (
         <Stack

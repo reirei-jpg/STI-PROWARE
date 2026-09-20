@@ -14,8 +14,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { LoginError } from '@/lib/mock-auth';
 
 export default function Login() {
     const insets = useSafeAreaInsets();
@@ -40,10 +40,10 @@ export default function Login() {
         setProcessing(true);
 
         try {
-            await signIn(email, password);
+            await signIn(email, password, remember);
         } catch (caught) {
             setError(
-                caught instanceof LoginError
+                caught instanceof ApiError
                     ? caught.message
                     : 'Something went wrong. Please try again.',
             );
@@ -91,18 +91,6 @@ export default function Login() {
 
                         <Text className="mt-3 text-center font-sans text-sm leading-6 text-slate-500">
                             Merchandise and Inventory Management System
-                        </Text>
-                    </View>
-
-                    <View className="mt-4 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3">
-                        <Text className="font-sans-semibold text-xs text-yellow-800">
-                            Sample mode
-                        </Text>
-
-                        <Text className="mt-1 font-sans text-xs leading-5 text-yellow-800">
-                            Use student@sample.test with the password
-                            "password". Real accounts work once the app is
-                            connected to the server.
                         </Text>
                     </View>
 
