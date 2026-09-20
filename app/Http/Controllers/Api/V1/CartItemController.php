@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AddCartItemRequest;
+use App\Http\Requests\UpdateCartItemRequest;
+use App\Models\CartItem;
 use App\Services\CartService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class CartItemController extends Controller
 {
@@ -33,5 +36,37 @@ class CartItemController extends Controller
                 'cart_total_quantity' => $cart->totalQuantity(),
             ],
         ], 201);
+    }
+
+    /**
+     * Change the quantity of one item, then return the refreshed cart.
+     */
+    public function update(
+        UpdateCartItemRequest $request,
+        CartItem $cartItem,
+    ): JsonResponse {
+        $this->cartService->updateQuantity(
+            $request->user(),
+            $cartItem,
+            $request->integer('quantity'),
+        );
+
+        return response()->json([
+            'message' => 'Cart quantity updated.',
+            'data' => CartController::cartFor($this->cartService, $request),
+        ]);
+    }
+
+    /**
+     * Remove one item, then return the refreshed cart.
+     */
+    public function destroy(Request $request, CartItem $cartItem): JsonResponse
+    {
+        $this->cartService->removeItem($request->user(), $cartItem);
+
+        return response()->json([
+            'message' => 'Item removed from your cart.',
+            'data' => CartController::cartFor($this->cartService, $request),
+        ]);
     }
 }

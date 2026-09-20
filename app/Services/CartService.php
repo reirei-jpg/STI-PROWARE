@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Student;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -62,6 +63,172 @@ class CartService
             quantity: $quantity,
             source: Cart::SOURCE_SPECIALIST_ASSISTED,
         );
+    }
+
+    /**
+     * The student's active self-service cart, with its items, or null when
+     * they have none yet.
+     */
+    public function activeStudentCart(User $user): ?Cart
+    {
+        return Cart::query()
+            ->where('student_id', $user->student->id)
+            ->where('created_by', $user->id)
+            ->where('source', Cart::SOURCE_STUDENT_APP)
+            ->where('status', Cart::STATUS_ACTIVE)
+            ->with([
+                'items' => fn ($query) => $query
+                    ->latest()
+                    ->with('productVariant.product.category:id,name'),
+            ])
+            ->first();
+    }
+
+    /**
+     * The cart as shown to the student: every item with its product, variant
+     * and price, plus the totals. Shared by the website cart page and the
+     * mobile app.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function present(?Cart $cart): ?array
+    {
+        if (! $cart) {
+            return null;
+        }
+
+        return [
+            'id' => $cart->id,
+            'status' => $cart->status,
+            'source' => $cart->source,
+            'total_quantity' => $cart->totalQuantity(),
+            'subtotal' => $cart->subtotal(),
+            'items' => $cart->items
+                ->map(function (CartItem $item): array {
+                    $variant = $item->productVariant;
+                    $product = $variant->product;
+
+                    return [
+                        'id' => $item->id,
+                        'item_type' => $item->item_type,
+                        'quantity' => $item->quantity,
+                        'unit_price' => $item->unit_price,
+                        'line_total' => $item->lineTotal(),
+                        'variant' => [
+                            'id' => $variant->id,
+                            'sku' => $variant->sku,
+                            'program' => $variant->program,
+                            'size' => $variant->size,
+                            'variant_name' => $variant->variant_name,
+                        ],
+                        'product' => [
+                            'id' => $product->id,
+                            'code' => $product->code,
+                            'name' => $product->name,
+                            'preorder_early_bird_slots' => $product->preorder_early_bird_slots,
+                            'preorder_early_bird_discount_percent' => $product->preorder_early_bird_discount_percent,
+                            'image_url' => $product->image_path
+                                ? asset('storage/'.$product->image_path)
+                                : null,
+                            'category' => [
+                                'id' => $product->category->id,
+                                'name' => $product->category->name,
+                            ],
+                        ],
+                    ];
+                })
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
+     * Change the quantity of one item in the student's own active cart.
+     *
+     * @throws AuthorizationException
+     * @throws ValidationException
+     */
+    public function updateQuantity(
+        User $user,
+        CartItem $cartItem,
+        int $newQuantity,
+    ): CartItem {
+        $this->assertOwnActiveCart(
+            $user,
+            $cartItem,
+            'You are not allowed to update this cart item.',
+        );
+
+        $cartItem->loadMissing([
+            'productVariant.product',
+            'productVariant.inventory',
+        ]);
+
+        $variant = $cartItem->productVariant;
+
+        if ($cartItem->item_type === CartItem::TYPE_ORDER) {
+            $availableQuantity = $variant->inventory
+                ? $variant->inventory->available_quantity
+                : 0;
+
+            if ($newQuantity > $availableQuantity) {
+                throw ValidationException::withMessages([
+                    'quantity' => "Only {$availableQuantity} unit(s) are currently available for {$variant->variant_name}.",
+                ]);
+            }
+        }
+
+        if ($cartItem->item_type === CartItem::TYPE_PREORDER) {
+            $limit = $variant->product->preorder_limit_per_student;
+
+            if ($limit !== null && $newQuantity > $limit) {
+                throw ValidationException::withMessages([
+                    'quantity' => "This product allows a maximum of {$limit} preorder unit(s) per student.",
+                ]);
+            }
+        }
+
+        $cartItem->update(['quantity' => $newQuantity]);
+
+        return $cartItem;
+    }
+
+    /**
+     * Remove one item from the student's own active cart.
+     *
+     * @throws AuthorizationException
+     */
+    public function removeItem(User $user, CartItem $cartItem): void
+    {
+        $this->assertOwnActiveCart(
+            $user,
+            $cartItem,
+            'You are not allowed to remove this cart item.',
+        );
+
+        $cartItem->delete();
+    }
+
+    /**
+     * @throws AuthorizationException
+     */
+    private function assertOwnActiveCart(
+        User $user,
+        CartItem $cartItem,
+        string $message,
+    ): void {
+        $cartItem->loadMissing('cart');
+
+        $cart = $cartItem->cart;
+
+        if (
+            ! $cart
+            || $cart->created_by !== $user->id
+            || $cart->source !== Cart::SOURCE_STUDENT_APP
+            || $cart->status !== Cart::STATUS_ACTIVE
+        ) {
+            throw new AuthorizationException($message);
+        }
     }
 
     /**

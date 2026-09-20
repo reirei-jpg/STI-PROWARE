@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\CartController;
 use App\Http\Controllers\Api\V1\CartItemController;
 use App\Http\Controllers\Api\V1\CatalogController;
 use App\Http\Middleware\EnsureApiAccountIsUsable;
@@ -41,7 +42,18 @@ Route::prefix('v1')
                 ->whereNumber('product')
                 ->name('catalog.show');
 
+            Route::get('cart', [CartController::class, 'show'])
+                ->name('cart.show');
+
             Route::post('cart/items', [CartItemController::class, 'store'])
                 ->name('cart.items.store');
+
+            Route::patch('cart/items/{cartItem}', [CartItemController::class, 'update'])
+                ->whereNumber('cartItem')
+                ->name('cart.items.update');
+
+            Route::delete('cart/items/{cartItem}', [CartItemController::class, 'destroy'])
+                ->whereNumber('cartItem')
+                ->name('cart.items.destroy');
         });
     });
