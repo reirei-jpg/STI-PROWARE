@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { PackageOpen, Search, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
@@ -28,6 +29,10 @@ const FILTERS: { label: string; value: StatusFilter }[] = [
 
 const SIDE_PADDING = 20;
 const GAP = 12;
+
+function openProduct(id: number): void {
+    router.push({ pathname: '/product/[id]', params: { id: String(id) } });
+}
 
 export default function Home() {
     const insets = useSafeAreaInsets();
@@ -85,11 +90,17 @@ export default function Home() {
                         <View style={{ width: SIDE_PADDING - GAP }} />
 
                         {catalog.comingSoon.map((product) => (
-                            <ComingSoonCard
+                            <Pressable
                                 key={product.id}
-                                product={product}
-                                width={carouselWidth}
-                            />
+                                onPress={() => openProduct(product.id)}
+                                accessibilityRole="button"
+                                accessibilityLabel={product.name}
+                            >
+                                <ComingSoonCard
+                                    product={product}
+                                    width={carouselWidth}
+                                />
+                            </Pressable>
                         ))}
 
                         <View style={{ width: SIDE_PADDING - GAP }} />
@@ -246,7 +257,13 @@ export default function Home() {
                 keyExtractor={(product) => String(product.id)}
                 numColumns={2}
                 renderItem={({ item }) => (
-                    <ProductCard product={item} width={cardWidth} />
+                    <Pressable
+                        onPress={() => openProduct(item.id)}
+                        accessibilityRole="button"
+                        accessibilityLabel={item.name}
+                    >
+                        <ProductCard product={item} width={cardWidth} />
+                    </Pressable>
                 )}
                 columnWrapperStyle={{
                     gap: GAP,
