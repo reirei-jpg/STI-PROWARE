@@ -125,6 +125,8 @@ What it would need (to discuss when the time comes):
 
 The user may later let people who are not STI students (ordinary customers) have an account and buy merchandise, in the website and the mobile app. Nothing has been decided; this note only records the intent so new work does not make it harder.
 
+Clarified by the user: the consumer should get the same kind of dashboard and shopping experience as a student, but adapted because they are not enrolled (so no student ID, course or year level, and no enrollment-based checks).
+
 Where the system is student-only today (things to revisit when this is decided):
 - Roles: a user is `student`, `cashier`, `specialist`, `admin` or `super_admin`. There is no customer role. About 17 files check `role === 'student'`.
 - Orders, carts and preorders belong to a `students` record (`student_id`, plus `Student` required for checkout and order pages). A non-student has no such record.
