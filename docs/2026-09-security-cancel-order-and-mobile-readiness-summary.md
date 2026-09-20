@@ -141,7 +141,9 @@ Done and committed:
 - The app talks to the API through `mobile/lib/api.ts`; the address comes from `mobile/lib/config.ts` (`http://10.0.2.2:8000/api/v1` for the emulator, or `EXPO_PUBLIC_API_URL`). The token is stored with `expo-secure-store` only when "Remember me" is ticked.
 - The user signed in on the emulator with a real student account and confirmed it works.
 
-Next planned (the user has not chosen yet): the bottom-tab shell and the Home/catalog screen with real data. That needs new API endpoints (catalog and product resources), then My Cart, Checkout, My Orders, order details with QR, preorders, profile and notifications.
+Built since then (all committed): bottom tabs with Home/catalog, the product page with Add to Cart, the Cart tab (typeable quantity that shows an error instead of silently changing, remove, row selection, badge) and Checkout (cash/GCash/Maya with the school QR and reference, "I reviewed my order" confirmation, preorder-only needs no payment, mixing preorder and normal items is refused with the website's message). Cart and checkout rules live in shared services used by both the website and the API (`CartService`, `CheckoutSubmitter`, `SubmitCheckoutRequest`); `tests/Feature/Checkout/WebCheckoutTest.php` pins the website's behavior and `tests/Feature/Api/V1/CheckoutTest.php` covers the API (`POST /api/v1/checkout`). Full suite: 401 tests, 398 passed, 3 skipped.
+
+Still to build: My Orders, order details with payment QR and Cancel Order, preorders (including paying for a ready preorder), profile, notifications, then Firebase push. Placing a real order from the app on the emulator has not been tried yet by the user.
 
 Working notes for the mobile app:
 - Run the app builder from `mobile/` with `npx expo start --android --port 8081` WITHOUT `CI=1`. With `CI=1` Metro does not watch files, and the phone keeps showing the old version. If the phone shows a stale screen, force-stop Expo Go and reopen `exp://10.0.2.2:8081`.
