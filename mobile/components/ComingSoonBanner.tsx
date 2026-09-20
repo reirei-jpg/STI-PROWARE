@@ -39,6 +39,10 @@ export default function ComingSoonBanner({
     const scroller = useRef<ScrollView>(null);
     const [index, setIndex] = useState(0);
 
+    // Once the student touches the banner it stops sliding by itself, so a
+    // slide can never change under their finger and cause a wrong tap.
+    const [autoSlide, setAutoSlide] = useState(true);
+
     const count = products.length;
     const imageWidth = Math.round(width * IMAGE_SHARE);
 
@@ -57,10 +61,9 @@ export default function ComingSoonBanner({
         }
     }, [index, count]);
 
-    // Turn to the next item after 5 seconds. The wait starts over after every
-    // change, so a swipe is never undone straight away.
+    // Turn to the next item after 5 seconds, until the banner is touched.
     useEffect(() => {
-        if (count <= 1) {
+        if (!autoSlide || count <= 1) {
             return;
         }
 
@@ -68,7 +71,7 @@ export default function ComingSoonBanner({
 
         return () => clearTimeout(timer);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [index, count, width]);
+    }, [autoSlide, index, count, width]);
 
     const onSwipeEnd = (
         event: NativeSyntheticEvent<NativeScrollEvent>,
@@ -88,6 +91,7 @@ export default function ComingSoonBanner({
     return (
         <View
             style={{ width, height: CARD_HEIGHT }}
+            onTouchStart={() => setAutoSlide(false)}
             className="overflow-hidden rounded-3xl border border-blue-100 bg-white"
         >
             <ScrollView

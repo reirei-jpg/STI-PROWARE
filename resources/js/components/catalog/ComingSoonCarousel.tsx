@@ -28,6 +28,16 @@ export default function ComingSoonCarousel({
         useState(0);
 
     /*
+    | Once the visitor touches or clicks the carousel it stops sliding by
+    | itself, so a slide can never change under their cursor or finger and
+    | cause a wrong click. It starts sliding again the next time the page
+    | is opened.
+    */
+
+    const [autoRotate, setAutoRotate] =
+        useState(true);
+
+    /*
     |--------------------------------------------------------------------------
     | Keep Current Slide Valid
     |--------------------------------------------------------------------------
@@ -49,12 +59,16 @@ export default function ComingSoonCarousel({
     | Automatic Rotation
     |--------------------------------------------------------------------------
     |
-    | Change advertisement every 5 seconds.
+    | Change advertisement every 5 seconds, until the visitor
+    | interacts with the carousel.
     |
     */
 
     useEffect(() => {
-        if (products.length <= 1) {
+        if (
+            !autoRotate
+            || products.length <= 1
+        ) {
             return;
         }
 
@@ -78,7 +92,10 @@ export default function ComingSoonCarousel({
                 timer,
             );
         };
-    }, [products.length]);
+    }, [
+        autoRotate,
+        products.length,
+    ]);
 
     if (products.length === 0) {
         return null;
@@ -134,6 +151,9 @@ export default function ComingSoonCarousel({
 
     return (
         <section
+            onPointerDown={() =>
+                setAutoRotate(false)
+            }
             className="
                 relative
                 overflow-hidden
