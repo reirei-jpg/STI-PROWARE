@@ -26,6 +26,7 @@
       "expo-status-bar",
       "expo-font",
       "expo-secure-store",
+      "./plugins/with-cleartext-traffic",
       [
         "expo-notifications",
         {

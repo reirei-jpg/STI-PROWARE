@@ -1,4 +1,4 @@
-import { API_URL } from './config';
+import { getApiUrl } from './config';
 
 /**
  * A failed request, in words a student can read.
@@ -31,7 +31,7 @@ export async function apiRequest<T>(
     let response: Response;
 
     try {
-        response = await fetch(`${API_URL}${path}`, {
+        response = await fetch(`${getApiUrl()}${path}`, {
             method,
             headers: {
                 Accept: 'application/json',

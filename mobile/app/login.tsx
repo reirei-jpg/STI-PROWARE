@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import ServerAddressSetting from '@/components/ServerAddressSetting';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
@@ -224,6 +225,10 @@ export default function Login() {
                                 Register
                             </Text>
                         </Text>
+                    </View>
+
+                    <View className="mt-6">
+                        <ServerAddressSetting />
                     </View>
                 </View>
             </ScrollView>

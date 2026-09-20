@@ -2,7 +2,7 @@ import { Banknote, Smartphone, WalletCards, type LucideIcon } from 'lucide-react
 import { Image, Pressable, Text, TextInput, View } from 'react-native';
 
 import type { PaymentMethod } from '@/lib/cart';
-import { SERVER_URL } from '@/lib/config';
+import { getServerUrl } from '@/lib/config';
 import { formatPesos } from '@/lib/format';
 
 const PAYMENT_OPTIONS: {
@@ -120,7 +120,7 @@ export default function PaymentMethodPicker({
                         <View className="mt-3 rounded-2xl border border-slate-200 bg-white p-3">
                             <Image
                                 source={{
-                                    uri: `${SERVER_URL}/images/payments/${method}-qr.png`,
+                                    uri: `${getServerUrl()}/images/payments/${method}-qr.png`,
                                 }}
                                 accessibilityLabel={`STI PROWARE ${methodName(method)} payment QR`}
                                 className="h-56 w-56"

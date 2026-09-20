@@ -9,6 +9,7 @@ import {
 } from 'react';
 
 import { ApiError, apiRequest } from './api';
+import { loadSavedServerAddress } from './config';
 import {
     clearToken,
     deviceName,
@@ -103,6 +104,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         let cancelled = false;
 
         (async () => {
+            // The server address chosen on this phone comes before any request.
+            await loadSavedServerAddress();
+
             const saved = await readToken();
 
             if (saved) {
