@@ -132,6 +132,26 @@ What it would need (to discuss when the time comes):
 - For now the app is students only. Staff accounts signing in on the app need an agreed message.
 - The app's login is built first with sample data. A real web account can only sign in after the `/api/v1` login exists (Sanctum, needs the user's approval).
 
+## Mobile app: progress on 20 September 2026 (real login works)
+
+Done and committed:
+- `mobile/` is an Expo (SDK 57) React Native app named STI PROWARE, app ID `sti.proware`, icons from the STI logo. Styling is NativeWind v5 (release candidate, the combination its docs list as tested for Expo 57) with Tailwind v4, Instrument Sans and Lucide icons, matching the website.
+- Screens so far: Login (mirrors the website's login) and a Home placeholder with Log out. Signed-out users only see Login; signed-in users only see Home (`Stack.Protected` in `app/_layout.tsx`).
+- Laravel Sanctum ^4.3 was installed (approved by the user). `/api/v1/auth/login`, `/auth/me` and `/auth/logout` exist. Login rules live in one class, `App\Services\AccountAuthenticator`, shared by the website (Fortify) and the API, so lockouts and messages cannot differ. Students only; staff get "The mobile app is for students only. Please use the PROWARE website." Tokens last 30 days, are per device, and die immediately if the account is locked, deactivated, made staff, or its student record becomes inactive (`EnsureApiAccountIsUsable`). Tests: `tests/Feature/Api/V1/AuthTest.php`.
+- The app talks to the API through `mobile/lib/api.ts`; the address comes from `mobile/lib/config.ts` (`http://10.0.2.2:8000/api/v1` for the emulator, or `EXPO_PUBLIC_API_URL`). The token is stored with `expo-secure-store` only when "Remember me" is ticked.
+- The user signed in on the emulator with a real student account and confirmed it works.
+
+Next planned (the user has not chosen yet): the bottom-tab shell and the Home/catalog screen with real data. That needs new API endpoints (catalog and product resources), then My Cart, Checkout, My Orders, order details with QR, preorders, profile and notifications.
+
+Working notes for the mobile app:
+- Run the app builder from `mobile/` with `npx expo start --android --port 8081` WITHOUT `CI=1`. With `CI=1` Metro does not watch files, and the phone keeps showing the old version. If the phone shows a stale screen, force-stop Expo Go and reopen `exp://10.0.2.2:8081`.
+- The website's `composer run dev` already serves Laravel on 127.0.0.1:8000, which the emulator reaches as 10.0.2.2:8000. Do not start a second server.
+- Do not make failed login attempts against real accounts: five wrong passwords lock them. Test with a fake email.
+- Memory is tight (15.7 GB). Close Dota 2 and unneeded programs while the emulator and app builder run.
+- Composer fails the HTTPS check because Avast re-signs connections. Workaround, without changing settings: build a certificate file that includes the Avast Web/Mail Shield root and set `SSL_CERT_FILE` for that one command; also load `zip`, `mbstring`, `openssl` and `curl` with `-d extension=...` and run `C:\ProgramData\ComposerSetup\bin\composer.phar`.
+- Every Composer command triggers Laravel Boost, which deletes the "herd rules" section of `CLAUDE.md`. Restore it with `git checkout -- CLAUDE.md` afterwards and re-apply only intended changes.
+- `composer audit` reports 10 advisories on `league/commonmark` (a dependency that existed before Sanctum). Updating it is a dependency change and needs the user's approval.
+
 ## Commits (this session)
 | Commit | What |
 |---|---|
