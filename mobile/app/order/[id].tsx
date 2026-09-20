@@ -91,7 +91,10 @@ function ItemRow({ item }: { item: OrderItemData }) {
 
 export default function OrderDetails() {
     const insets = useSafeAreaInsets();
-    const { id } = useLocalSearchParams<{ id: string }>();
+    const { id, notice: noticeParam } = useLocalSearchParams<{
+        id: string;
+        notice?: string;
+    }>();
     const { request } = useAuth();
 
     const [order, setOrder] = useState<OrderDetail | null>(null);
@@ -99,7 +102,7 @@ export default function OrderDetails() {
     const [refreshing, setRefreshing] = useState(false);
     const [cancelling, setCancelling] = useState(false);
     const [cancelError, setCancelError] = useState<string | null>(null);
-    const [notice, setNotice] = useState<string | null>(null);
+    const [notice, setNotice] = useState<string | null>(noticeParam ?? null);
     const [qrSvg, setQrSvg] = useState<string | null>(null);
     const [qrError, setQrError] = useState<string | null>(null);
 
@@ -345,7 +348,30 @@ export default function OrderDetails() {
                     </View>
                 </View>
 
-                {order.status.key !== 'cancelled' && (
+                {order.payment_method_needed && (
+                    <View className="gap-3 rounded-3xl border border-emerald-200 bg-emerald-50 p-4">
+                        <Text className="font-sans-bold text-base text-emerald-900">
+                            Submit your payment method
+                        </Text>
+
+                        <Text className="font-sans text-sm leading-6 text-emerald-900">
+                            Your preorder merchandise is available. Amount due:{' '}
+                            {formatPesos(order.payment_due_total)}.
+                        </Text>
+
+                        <Pressable
+                            onPress={() => router.push(`/pay/${id}`)}
+                            accessibilityRole="button"
+                            className="items-center rounded-full bg-brand py-3"
+                        >
+                            <Text className="font-sans-bold text-sm text-white">
+                                Submit payment method
+                            </Text>
+                        </Pressable>
+                    </View>
+                )}
+
+                {order.status.key !== 'cancelled' && !order.payment_method_needed && (
                     <View className="items-center gap-3 rounded-3xl border border-blue-200 bg-blue-50 p-4">
                         <View className="flex-row items-center gap-2">
                             <QrCode size={18} color="#0D6EFD" />

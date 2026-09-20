@@ -49,6 +49,10 @@ export type OrderDetail = OrderSummary & {
         title: string;
         message: string;
     };
+    /** A ready preorder still needs its payment method submitted. */
+    payment_method_needed: boolean;
+    /** What is payable now (the ready preorder items). */
+    payment_due_total: string;
     can_cancel: boolean;
     cancel_blocked_reason: string | null;
     cancel_until: string | null;
@@ -102,4 +106,39 @@ export function paymentMethodName(
         default:
             return 'Not chosen yet';
     }
+}
+
+export type PreorderItemData = {
+    id: number;
+    order_id: number;
+    order_number: string;
+    preorder_status: string | null;
+    status: OrderStatus;
+    /** A ready preorder that still needs its payment method submitted. */
+    awaiting_payment_method: boolean;
+    quantity: number;
+    unit_price: string;
+    line_total: string;
+    preorder_ready_at: string | null;
+    preorder_payment_deadline_at: string | null;
+    product_name: string;
+    variant_name: string;
+    image_url: string | null;
+};
+
+export type PreordersResponse = { data: PreorderItemData[] };
+
+/** Badge colors for a preorder's own status, like the website's. */
+const PREORDER_BADGES: Record<string, { badge: string; text: string }> = {
+    waiting: { badge: 'bg-amber-100', text: 'text-amber-700' },
+    ready: { badge: 'bg-emerald-100', text: 'text-emerald-700' },
+    paid: { badge: 'bg-blue-100', text: 'text-blue-700' },
+    expired: { badge: 'bg-red-100', text: 'text-red-700' },
+    cancelled: { badge: 'bg-red-100', text: 'text-red-700' },
+};
+
+export function preorderBadge(key: string): { badge: string; text: string } {
+    return (
+        PREORDER_BADGES[key] ?? { badge: 'bg-slate-100', text: 'text-slate-700' }
+    );
 }

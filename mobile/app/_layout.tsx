@@ -37,6 +37,8 @@ function RootNavigator() {
                 <Stack.Screen name="checkout" />
 
                 <Stack.Screen name="order/[id]" />
+
+                <Stack.Screen name="pay/[id]" />
             </Stack.Protected>
 
             <Stack.Protected guard={!isSignedIn}>
