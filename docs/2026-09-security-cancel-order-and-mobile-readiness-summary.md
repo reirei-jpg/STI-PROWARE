@@ -121,6 +121,21 @@ What it would need (to discuss when the time comes):
 - On the phone: a Microsoft sign-in flow (for example Expo AuthSession) that returns a PROWARE API token.
 - Keep the existing email and password login working, at least while this is being tried.
 
+## Firebase push notifications: the plan (explained 20 Sep 2026, not started, needs the user's decisions)
+
+Goal: the phone buzzes when a notification is created (payment confirmed, ready for pickup, preorder ready, and so on). The in-app list and bell already exist; push only adds the buzz.
+
+Facts that shape the plan:
+- Firebase Cloud Messaging (FCM) is free. A Google account and a Firebase project (free Spark plan) are needed. No Google Play listing is needed.
+- Expo Go no longer supports Android push since SDK 53, so push needs a development build (own APK with `expo-dev-client`), built with local Gradle (Android Studio is installed) or EAS Build (free Expo account). The user's daily testing then uses that dev build instead of Expo Go.
+- The Android app id `sti.proware` is what the Firebase Android app is registered with; it gives a `google-services.json` for the app (`android.googleServicesFile` in `mobile/app.json`).
+- Sending from Laravel needs FCM credentials: a service-account JSON key (a real secret: keep it out of git, in `.env`/storage, never in the app).
+- Two ways to send: (1) direct FCM HTTP v1 from Laravel (the app gets a device token with `expo-notifications` `getDevicePushTokenAsync`; PHP side would use the `kreait/laravel-firebase` package, a new dependency that needs approval); (2) Expo's push service (plain HTTPS from Laravel, no PHP package, but needs an Expo account and the FCM key uploaded to Expo). Recommended: (1), because it matches the user's "Firebase" plan and adds no third party besides Google.
+- Android 13+ asks for notification permission at runtime; a notification channel is needed; the emulator image must include Google Play services.
+
+Build steps once approved: (a) user creates the Firebase project, registers `sti.proware`, downloads `google-services.json`, creates the service-account key; (b) approve new dependencies (`expo-notifications`, `expo-device`, `expo-dev-client`, and the PHP package if option 1); (c) server: `device_tokens` table, endpoints to register and remove a token, a queued sender hooked into `NotificationService`, removal of dead tokens, deleting a device's tokens on logout and when its Sanctum token is revoked (password change), tests with the sender faked; (d) app: ask permission, register the token after login, remove it on logout, open the right order when a notification is tapped; (e) build the dev APK, test on the emulator (Google Play image) then the user's real phone.
+Keep push text free of sensitive details (it shows on lock screens). Push only wakes the phone: the app still loads data from the server, so the server must be reachable (same Wi-Fi in development, an online server later).
+
 ## Future idea: accounts for non-students, "random consumers" (noted 20 Sep 2026, not decided, not started)
 
 The user may later let people who are not STI students (ordinary customers) have an account and buy merchandise, in the website and the mobile app. Nothing has been decided; this note only records the intent so new work does not make it harder.
