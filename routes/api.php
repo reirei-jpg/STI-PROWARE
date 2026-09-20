@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\CatalogController;
 use App\Http\Middleware\EnsureApiAccountIsUsable;
 use Illuminate\Support\Facades\Route;
 
@@ -31,5 +32,8 @@ Route::prefix('v1')
 
             Route::post('auth/logout', [AuthController::class, 'logout'])
                 ->name('auth.logout');
+
+            Route::get('catalog', [CatalogController::class, 'index'])
+                ->name('catalog.index');
         });
     });
