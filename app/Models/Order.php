@@ -295,6 +295,50 @@ class Order extends Model
             === self::FULFILLMENT_RELEASED;
     }
 
+    /**
+     * Every item on the order is a preorder whose payment period expired, so
+     * nothing here can still be paid for or collected. The order itself stays
+     * "pending" in the database; this is how screens tell it apart.
+     */
+    public function hasOnlyExpiredPreorders(): bool
+    {
+        $items = $this->relationLoaded('items')
+            ? $this->items
+            : $this->items()->get();
+
+        return $items->isNotEmpty()
+            && $items->every(
+                fn (OrderItem $item): bool => $item->item_type === OrderItem::TYPE_PREORDER
+                    && $item->preorder_status === OrderItem::PREORDER_STATUS_EXPIRED,
+            );
+    }
+
+    /**
+     * Orders that are NOT made up only of expired preorders: those with no
+     * expired preorder item, or with at least one item that is still live.
+     */
+    public function scopeExcludingExpiredPreorders(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query): void {
+            $query
+                ->whereDoesntHave(
+                    'items',
+                    fn (Builder $items) => $items
+                        ->where('item_type', OrderItem::TYPE_PREORDER)
+                        ->where('preorder_status', OrderItem::PREORDER_STATUS_EXPIRED),
+                )
+                ->orWhereHas(
+                    'items',
+                    fn (Builder $items) => $items->where(
+                        fn (Builder $live) => $live
+                            ->where('item_type', '!=', OrderItem::TYPE_PREORDER)
+                            ->orWhereNull('preorder_status')
+                            ->orWhere('preorder_status', '!=', OrderItem::PREORDER_STATUS_EXPIRED),
+                    ),
+                );
+        });
+    }
+
     public function isCancelled(): bool
     {
         return $this->payment_status
@@ -357,6 +401,10 @@ class Order extends Model
 
         if ($this->isPaid()) {
             return 'This order is already paid. Please see the cashier if you need to cancel it.';
+        }
+
+        if ($this->hasOnlyExpiredPreorders()) {
+            return 'This preorder has expired.';
         }
 
         $deadline = $this->studentCancelDeadline();

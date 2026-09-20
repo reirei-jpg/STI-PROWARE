@@ -75,6 +75,7 @@ class StudentOrderController extends Controller
                     '!=',
                     Order::FULFILLMENT_CANCELLED,
                 )
+                ->excludingExpiredPreorders()
                 ->count();
 
         $paid =
@@ -250,6 +251,14 @@ class StudentOrderController extends Controller
 
                             'order_type' => $order
                                 ->order_type,
+
+                            /*
+                            | Every item is a preorder that expired: nothing
+                            | left to pay for or collect.
+                            */
+
+                            'is_expired_preorder' => $order
+                                ->hasOnlyExpiredPreorders(),
 
                             /*
                             |--------------------------------------------------------------------------

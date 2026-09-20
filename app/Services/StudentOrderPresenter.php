@@ -213,6 +213,14 @@ class StudentOrderPresenter
             ];
         }
 
+        if ($order->hasOnlyExpiredPreorders()) {
+            return [
+                'key' => 'expired',
+                'label' => 'Expired',
+                'description' => 'The payment period for this preorder has expired.',
+            ];
+        }
+
         return match (true) {
             $order->fulfillment_status === Order::FULFILLMENT_RELEASED => [
                 'key' => 'released',
@@ -258,6 +266,10 @@ class StudentOrderPresenter
 
         if ($this->isCancelled($order)) {
             return $none('This order has been cancelled.');
+        }
+
+        if ($order->hasOnlyExpiredPreorders()) {
+            return $none('This preorder has expired.');
         }
 
         if ($this->hasPreorderItem($order, OrderItem::PREORDER_STATUS_WAITING)) {
