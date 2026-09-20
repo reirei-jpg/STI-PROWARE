@@ -39,29 +39,23 @@ import {
 const MAX_QUANTITY = 99;
 
 /*
- * The quantity is kept as free text while the student types, so clearing the
- * "1" does not snap straight back before a new number can be entered (same as
- * the website). It is only forced into 1-99 when it is actually needed.
+ * The quantity is what the student typed, never changed behind their back.
+ * If it is empty, zero or too large, a message says so and Add to Cart stays
+ * off until it is fixed. (The box holds at most two digits, so 100+ cannot be
+ * typed; the check is still here as a safety net.)
  */
-function resolveQuantity(raw: string): number {
+function quantityProblem(raw: string): string | null {
     const parsed = parseInt(raw, 10);
 
-    if (Number.isNaN(parsed)) {
-        return 1;
+    if (Number.isNaN(parsed) || parsed < 1) {
+        return 'The quantity must be at least 1.';
     }
 
-    return Math.min(MAX_QUANTITY, Math.max(1, parsed));
-}
-
-/** Digits only; growing past 99 is stopped at once, clearing is allowed. */
-function capQuantityInput(raw: string): string {
-    const digits = raw.replace(/[^0-9]/g, '');
-
-    if (digits === '') {
-        return '';
+    if (parsed > MAX_QUANTITY) {
+        return 'You may add a maximum of 99 units.';
     }
 
-    return parseInt(digits, 10) > MAX_QUANTITY ? String(MAX_QUANTITY) : digits;
+    return null;
 }
 
 function OptionChip({
@@ -181,9 +175,12 @@ export default function ProductPage() {
             return;
         }
 
-        const quantity = resolveQuantity(quantityInput);
+        if (quantityProblem(quantityInput) !== null) {
+            return;
+        }
 
-        setQuantityInput(String(quantity));
+        const quantity = parseInt(quantityInput, 10);
+
         setAdding(true);
         clearMessages();
 
@@ -253,9 +250,12 @@ export default function ProductPage() {
     }
 
     const action = getActionState(product, selectedVariant);
+    const quantityError = quantityProblem(quantityInput);
     const needsProgram = product.variant_mode === 'program_and_size';
     const needsSize = product.variant_mode !== 'standard';
-    const canAdd = action === 'add_to_cart' || action === 'preorder';
+    const canAdd =
+        (action === 'add_to_cart' || action === 'preorder') &&
+        quantityError === null;
 
     const price = selectedVariant
         ? formatPesos(selectedVariant.selling_price)
@@ -470,7 +470,10 @@ export default function ProductPage() {
                                         String(
                                             Math.max(
                                                 1,
-                                                resolveQuantity(quantityInput) - 1,
+                                                (quantityError
+                                                    ? 1
+                                                    : parseInt(quantityInput, 10)) -
+                                                    1,
                                             ),
                                         ),
                                     );
@@ -486,19 +489,14 @@ export default function ProductPage() {
                             <TextInput
                                 value={quantityInput}
                                 onChangeText={(text) => {
-                                    setQuantityInput(capQuantityInput(text));
+                                    setQuantityInput(text.replace(/[^0-9]/g, ''));
                                     clearMessages();
                                 }}
-                                onBlur={() =>
-                                    setQuantityInput(
-                                        String(resolveQuantity(quantityInput)),
-                                    )
-                                }
                                 keyboardType="number-pad"
                                 maxLength={2}
                                 selectTextOnFocus
                                 accessibilityLabel="Quantity"
-                                className="h-11 w-16 rounded-xl border border-slate-200 bg-white text-center font-sans-bold text-lg text-slate-900"
+                                className={`h-11 w-16 rounded-xl border bg-white text-center font-sans-bold text-lg text-slate-900 ${quantityError ? 'border-red-400' : 'border-slate-200'}`}
                             />
 
                             <Pressable
@@ -507,7 +505,10 @@ export default function ProductPage() {
                                         String(
                                             Math.min(
                                                 MAX_QUANTITY,
-                                                resolveQuantity(quantityInput) + 1,
+                                                (quantityError
+                                                    ? 0
+                                                    : parseInt(quantityInput, 10)) +
+                                                    1,
                                             ),
                                         ),
                                     );
@@ -521,6 +522,14 @@ export default function ProductPage() {
                             </Pressable>
                         </View>
                     </View>
+
+                    {quantityError && (
+                        <View className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+                            <Text className="font-sans-semibold text-sm leading-5 text-red-700">
+                                {quantityError}
+                            </Text>
+                        </View>
+                    )}
 
                     {addError && (
                         <View className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
