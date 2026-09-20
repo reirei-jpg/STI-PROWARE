@@ -55,8 +55,9 @@ export default function Login() {
         Alert.alert(screen, 'This screen is coming soon.');
     };
 
+    // Like the website, only the email box turns red when the login fails.
     const borderClass = (field: 'email' | 'password'): string =>
-        error
+        field === 'email' && error
             ? 'border-red-400'
             : focused === field
               ? 'border-brand'
