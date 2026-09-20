@@ -100,7 +100,11 @@ Student cart and checkout (stock reserved) → student payment QR → cashier sc
 3. Platform: Android first.
 4. Push notifications: Firebase (FCM), but built last.
 5. Laravel Sanctum: not needed yet. The user wants to build the app screens first with sample data and add Sanctum (and ask for approval again) when the API is built.
-6. Still open: where the app project lives (recommended: a separate folder `C:\Project\STI-PROWARE-Mobile` with its own git repo, because new top-level folders in this project need approval) and permission to set the user-level `ANDROID_HOME` and `JAVA_HOME`.
+6. The app lives in a `mobile/` folder inside this Laravel repository, with its own `package.json` (the website's ESLint, TypeScript and Vite setup must ignore it).
+7. App name: "STI PROWARE". Logo: `public/images/sti-logo.png`. Note it is actually a JPEG (1045x1072) with a `.png` name, so the app icon must be converted to a real square PNG (1024x1024).
+8. Look: match the web design as closely as possible. Brand blue `#0D6EFD`, page background `#F3F7FA`, slate greys, yellow accent, large rounded cards, Instrument Sans font, Lucide icons. Plan: NativeWind (Tailwind classes), `lucide-react-native`, and the Instrument Sans Google font. The web sidebar becomes bottom tabs on the phone.
+9. Distribution: no Google Play listing. The app is installed directly on the user's own phone (Expo Go while developing, then a self-built APK, which needs no paid developer account). While the backend runs only on the user's PC, the phone must be on the same Wi-Fi; using it elsewhere needs the API hosted online over HTTPS.
+10. Still open: permission to set user-level `ANDROID_HOME` and `JAVA_HOME`, and the Android Studio steps (command-line tools, Pixel 8 virtual phone).
 
 **Agreed order of work:** (1) tool setup and the virtual Android phone, (2) create the Expo project, (3) build the student screens with sample data shaped like the future API, (4) build the `/api/v1` backend with Sanctum, moving scan logic into services, (5) connect the app to the API, (6) Firebase push, security review, release build and Google Play internal testing.
 
