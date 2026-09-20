@@ -119,6 +119,7 @@ export default function Checkout() {
     const [error, setError] = useState<string | null>(null);
     const [placed, setPlaced] = useState<{
         message: string;
+        orderId: number;
         orderNumber: string;
         isPreorder: boolean;
     } | null>(null);
@@ -168,6 +169,7 @@ export default function Checkout() {
 
             setPlaced({
                 message: response.message,
+                orderId: response.data.order.id,
                 orderNumber: response.data.order.order_number,
                 isPreorder: isPreorderOnly,
             });
@@ -230,11 +232,25 @@ export default function Checkout() {
                     </Text>
 
                     <Pressable
-                        onPress={() => router.replace('/')}
+                        onPress={() => {
+                            // Home underneath, so Back from the order page lands there.
+                            router.replace('/');
+                            router.push(`/order/${placed.orderId}`);
+                        }}
                         accessibilityRole="button"
                         className="mt-8 rounded-full bg-brand px-8 py-3"
                     >
                         <Text className="font-sans-bold text-sm text-white">
+                            View my order
+                        </Text>
+                    </Pressable>
+
+                    <Pressable
+                        onPress={() => router.replace('/')}
+                        accessibilityRole="button"
+                        className="mt-3 rounded-full px-8 py-3"
+                    >
+                        <Text className="font-sans-bold text-sm text-brand">
                             Back to Home
                         </Text>
                     </Pressable>
