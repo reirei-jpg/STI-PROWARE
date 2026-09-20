@@ -21,6 +21,40 @@ class OrderCancellationService
     ) {}
 
     /**
+     * A student cancels their own unpaid order, inside the time limit.
+     *
+     * Shared by the website and the mobile app. The caller has already
+     * checked that the order belongs to this student.
+     *
+     * @throws ValidationException
+     */
+    public function cancelByStudent(
+        Request $request,
+        Order $order,
+        User $student,
+        ?string $note = null,
+    ): Order {
+        $order->load('items');
+
+        $blockedReason = $order->studentCancelBlockedReason();
+
+        if ($blockedReason !== null) {
+            throw ValidationException::withMessages([
+                'order' => $blockedReason,
+            ]);
+        }
+
+        return $this->cancel(
+            request: $request,
+            order: $order,
+            actor: $student,
+            reason: Order::CANCEL_REASON_STUDENT_REQUEST,
+            note: $note,
+            requireUnpaid: true,
+        );
+    }
+
+    /**
      * Cancel an order that has not been released yet and give back
      * everything it was holding.
      *

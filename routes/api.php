@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\CartController;
 use App\Http\Controllers\Api\V1\CartItemController;
 use App\Http\Controllers\Api\V1\CatalogController;
 use App\Http\Controllers\Api\V1\CheckoutController;
+use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Middleware\EnsureApiAccountIsUsable;
 use Illuminate\Support\Facades\Route;
 
@@ -59,5 +60,20 @@ Route::prefix('v1')
 
             Route::post('checkout', [CheckoutController::class, 'store'])
                 ->name('checkout.store');
+
+            Route::get('orders', [OrderController::class, 'index'])
+                ->name('orders.index');
+
+            Route::get('orders/{order}', [OrderController::class, 'show'])
+                ->whereNumber('order')
+                ->name('orders.show');
+
+            Route::get('orders/{order}/qr', [OrderController::class, 'qr'])
+                ->whereNumber('order')
+                ->name('orders.qr');
+
+            Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])
+                ->whereNumber('order')
+                ->name('orders.cancel');
         });
     });

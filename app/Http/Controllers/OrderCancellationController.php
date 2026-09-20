@@ -7,7 +7,6 @@ use App\Services\OrderCancellationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 
 class OrderCancellationController extends Controller
 {
@@ -40,23 +39,11 @@ class OrderCancellationController extends Controller
             'note' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $order->load('items');
-
-        $blockedReason = $order->studentCancelBlockedReason();
-
-        if ($blockedReason !== null) {
-            throw ValidationException::withMessages([
-                'order' => $blockedReason,
-            ]);
-        }
-
-        $this->cancellation->cancel(
-            request: $request,
-            order: $order,
-            actor: $user,
-            reason: Order::CANCEL_REASON_STUDENT_REQUEST,
-            note: $validated['note'] ?? null,
-            requireUnpaid: true,
+        $this->cancellation->cancelByStudent(
+            $request,
+            $order,
+            $user,
+            $validated['note'] ?? null,
         );
 
         return redirect()
