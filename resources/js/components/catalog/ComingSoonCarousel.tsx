@@ -28,14 +28,14 @@ export default function ComingSoonCarousel({
         useState(0);
 
     /*
-    | Once the visitor touches or clicks the carousel it stops sliding by
-    | itself, so a slide can never change under their cursor or finger and
-    | cause a wrong click. It starts sliding again the next time the page
-    | is opened.
+    | While the visitor is pressing the carousel (mouse button or finger
+    | down) it does not slide, so a slide can never change under their
+    | cursor or finger and cause a wrong click. It carries on sliding
+    | once they let go.
     */
 
-    const [autoRotate, setAutoRotate] =
-        useState(true);
+    const [isPressed, setIsPressed] =
+        useState(false);
 
     /*
     |--------------------------------------------------------------------------
@@ -59,14 +59,14 @@ export default function ComingSoonCarousel({
     | Automatic Rotation
     |--------------------------------------------------------------------------
     |
-    | Change advertisement every 5 seconds, until the visitor
-    | interacts with the carousel.
+    | Change advertisement every 5 seconds, except while the
+    | visitor is pressing the carousel.
     |
     */
 
     useEffect(() => {
         if (
-            !autoRotate
+            isPressed
             || products.length <= 1
         ) {
             return;
@@ -93,7 +93,7 @@ export default function ComingSoonCarousel({
             );
         };
     }, [
-        autoRotate,
+        isPressed,
         products.length,
     ]);
 
@@ -152,7 +152,16 @@ export default function ComingSoonCarousel({
     return (
         <section
             onPointerDown={() =>
-                setAutoRotate(false)
+                setIsPressed(true)
+            }
+            onPointerUp={() =>
+                setIsPressed(false)
+            }
+            onPointerCancel={() =>
+                setIsPressed(false)
+            }
+            onPointerLeave={() =>
+                setIsPressed(false)
             }
             className="
                 relative

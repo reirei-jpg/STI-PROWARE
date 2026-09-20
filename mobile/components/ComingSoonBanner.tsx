@@ -39,9 +39,10 @@ export default function ComingSoonBanner({
     const scroller = useRef<ScrollView>(null);
     const [index, setIndex] = useState(0);
 
-    // Once the student touches the banner it stops sliding by itself, so a
-    // slide can never change under their finger and cause a wrong tap.
-    const [autoSlide, setAutoSlide] = useState(true);
+    // While a finger is on the banner it does not slide, so a slide can never
+    // change under the finger and cause a wrong tap. It carries on after the
+    // finger is lifted.
+    const [isTouching, setIsTouching] = useState(false);
 
     const count = products.length;
     const imageWidth = Math.round(width * IMAGE_SHARE);
@@ -61,9 +62,10 @@ export default function ComingSoonBanner({
         }
     }, [index, count]);
 
-    // Turn to the next item after 5 seconds, until the banner is touched.
+    // Turn to the next item after 5 seconds (counted again from the moment a
+    // finger is lifted), except while the banner is being touched.
     useEffect(() => {
-        if (!autoSlide || count <= 1) {
+        if (isTouching || count <= 1) {
             return;
         }
 
@@ -71,7 +73,7 @@ export default function ComingSoonBanner({
 
         return () => clearTimeout(timer);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [autoSlide, index, count, width]);
+    }, [isTouching, index, count, width]);
 
     const onSwipeEnd = (
         event: NativeSyntheticEvent<NativeScrollEvent>,
@@ -91,7 +93,9 @@ export default function ComingSoonBanner({
     return (
         <View
             style={{ width, height: CARD_HEIGHT }}
-            onTouchStart={() => setAutoSlide(false)}
+            onTouchStart={() => setIsTouching(true)}
+            onTouchEnd={() => setIsTouching(false)}
+            onTouchCancel={() => setIsTouching(false)}
             className="overflow-hidden rounded-3xl border border-blue-100 bg-white"
         >
             <ScrollView
