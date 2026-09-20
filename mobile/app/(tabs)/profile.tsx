@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
-import { BadgeCheck, LogOut } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { BadgeCheck, KeyRound, LogOut } from 'lucide-react-native';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -106,6 +107,18 @@ export default function Profile() {
                     </Text>
                 </View>
             </View>
+
+            <Pressable
+                onPress={() => router.push('/change-password')}
+                accessibilityRole="button"
+                className="flex-row items-center justify-center gap-2 rounded-full border border-slate-200 bg-white py-4"
+            >
+                <KeyRound size={18} color="#334155" />
+
+                <Text className="font-sans-bold text-base text-slate-700">
+                    Change password
+                </Text>
+            </Pressable>
 
             <Pressable
                 onPress={confirmSignOut}

@@ -71,7 +71,7 @@ function toSessionUser(user: ApiUser): SessionUser {
 type RequestFunction = <T>(
     path: string,
     options?: {
-        method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+        method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
         body?: Record<string, unknown>;
     },
 ) => Promise<T>;
