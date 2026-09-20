@@ -64,7 +64,7 @@ Student cart and checkout (stock reserved) → student payment QR → cashier sc
 - Suite at the end of the session: 313 tests (310 passed, 3 skipped), with `FullOrderCycleTest` excluded.
 
 ## Open items
-1. **`tests/Feature/FullOrderCycleTest.php` is missing from disk.** Avast quarantined it (and a temporary copy) as `IDP.Generic`. I read the file and everything added this session and found no dangerous code, no dependency changes and no downloads. This is most likely a false positive, but Avast's reason could not be read.
+1. **RESOLVED 21 Sep 2026: `tests/Feature/FullOrderCycleTest.php` is back and extended with the admin-monitoring step; the whole suite passes.** (Older note follows.) It was missing from disk. Avast quarantined it (and a temporary copy) as `IDP.Generic`. I read the file and everything added this session and found no dangerous code, no dependency changes and no downloads. This is most likely a false positive, but Avast's reason could not be read.
    - To fix: in Avast, Virus Chest → Restore and add exception; add `C:\Project\STI-PROWARE` and `C:\php-8.4.24-Win32-vs17-x64` to exceptions; then `git restore tests/Feature/FullOrderCycleTest.php`.
    - Then add the admin-monitoring checks (orders list and page, admin sales `today_sales` = `900.00`, audit actions `payment_confirmed`, `ready_for_pickup`, `released`, audit log and dashboard pages open) at the end of the test, run the full suite and commit.
    - Do not commit the deletion of that file.
@@ -179,7 +179,7 @@ Built since then (all committed): bottom tabs with Home/catalog, the product pag
 
 Also built and confirmed by the user on the emulator: My Orders tab, order details with the Payment/Release QR and Cancel Order (`OrderCancellationService::cancelByStudent` is shared with the website). The QR is sent by `GET /api/v1/orders/{order}/qr` as SVG text and painted by the app with react-native-svg, because the PNG version needs PHP's GD extension, which the default PHP here does not have (the website avoids GD by drawing its QR in the browser). Full suite: 416 tests, 413 passed, 3 skipped.
 
-Still to build: preorders (including paying for a ready preorder), profile, notifications, then Firebase push.
+Update 21 Sep 2026: preorders (including paying for a ready preorder), profile with change password, notifications and Firebase push are all built, committed and confirmed by the user on a real phone. See the status section at the end of this document.
 
 Working notes for the mobile app:
 - Run the app builder from `mobile/` with `npx expo start --android --port 8081` WITHOUT `CI=1`. With `CI=1` Metro does not watch files, and the phone keeps showing the old version. If the phone shows a stale screen, force-stop Expo Go and reopen `exp://10.0.2.2:8081`.
@@ -199,3 +199,22 @@ Working notes for the mobile app:
 | `7221c85` | Early-bird slot fix for paid preorders |
 | `bdedae4` | Manila display time for staff pages |
 | `0fd27d0` | Cancellation edge-case fixes, label fixes, midnight-safe test |
+
+## Status at the end of 21 September 2026 (what is done and what is left)
+
+Done, committed and verified (full suite: 476 tests, 473 passed, 3 skipped, no errors, no extension flags needed):
+- Website and API share one set of business rules: sign-in (`AccountAuthenticator`), catalog, cart, checkout, order cancellation, preorder payment and password change are single services used by both.
+- App screens: Login (with a changeable server address), Home with the Coming Soon carousel (one compact card, auto-slides, pauses only while pressed), product page, Cart, Checkout (cash/GCash/Maya), My Orders, order details with Payment/Release QR and Cancel, Preorders with pay-when-ready, Profile with Change Password (wrong current password and reusing the old password are refused), Notifications.
+- Push: Firebase project `sti-proware-7ea1c`; the server sends through a queued job (`FcmClient`); the phone registers its token; verified on a real Realme phone, arrives in 3 to 5 seconds and opens the right screen.
+- Standalone release app installed on the phone, working over Wi-Fi without a cable.
+- Expired preorders are shown as Expired on the website and in the app and cannot be cancelled or paid.
+- The command-line PHP now has `gd` and `mbstring` enabled, so the legacy PNG QR route and the tests run without errors.
+
+Left to do:
+1. Preorder payment test on the phone (planned for 22 Sep): create a Coming Soon product with preorder, place the preorder, receive the stock, pay in the app. Run `php artisan schedule:work` for it.
+2. Try GCash or Maya checkout with a reference number on the phone.
+3. App "Register" and "Forgot password?" screens still say coming soon.
+4. Hosting online (deferred by the user); when hosted, remove the cleartext plugin and use https, and make sure the scheduler and the queue worker run there.
+5. A proper signing key for real distribution of the app.
+6. `league/commonmark` Composer advisories (needs the user's approval to update); 15 moderate `npm audit` warnings in `mobile/`; old lint import-order errors in the website's `Show.tsx` and `Index.tsx`.
+7. Ideas not decided: non-student consumer accounts, Microsoft 365 sign-in (needs STI IT).
