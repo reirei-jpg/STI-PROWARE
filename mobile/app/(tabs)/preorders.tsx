@@ -102,10 +102,13 @@ function PreorderCard({ item }: { item: PreorderItemData }) {
                     )
                 }
                 accessibilityRole="button"
-                className={`items-center rounded-full py-3 ${canPay ? 'bg-brand' : 'border border-slate-200 bg-white'}`}
+                className={`rounded-full py-3 ${canPay ? 'bg-brand' : 'border border-slate-200 bg-white'}`}
             >
+                {/* The label fills the button and centers itself: centering the Text box
+                    instead can make Android wrap it while the custom font is measured. */}
                 <Text
-                    className={`font-sans-bold text-sm ${canPay ? 'text-white' : 'text-slate-700'}`}
+                    numberOfLines={1}
+                    className={`text-center font-sans-bold text-sm ${canPay ? 'text-white' : 'text-slate-700'}`}
                 >
                     {canPay
                         ? 'Proceed to Payment'
