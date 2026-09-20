@@ -17,6 +17,7 @@ import {
     Pressable,
     ScrollView,
     Text,
+    TextInput,
     useWindowDimensions,
     View,
 } from 'react-native';
@@ -36,6 +37,32 @@ import {
 } from '@/lib/product';
 
 const MAX_QUANTITY = 99;
+
+/*
+ * The quantity is kept as free text while the student types, so clearing the
+ * "1" does not snap straight back before a new number can be entered (same as
+ * the website). It is only forced into 1-99 when it is actually needed.
+ */
+function resolveQuantity(raw: string): number {
+    const parsed = parseInt(raw, 10);
+
+    if (Number.isNaN(parsed)) {
+        return 1;
+    }
+
+    return Math.min(MAX_QUANTITY, Math.max(1, parsed));
+}
+
+/** Digits only; growing past 99 is stopped at once, clearing is allowed. */
+function capQuantityInput(raw: string): string {
+    const digits = raw.replace(/[^0-9]/g, '');
+
+    if (digits === '') {
+        return '';
+    }
+
+    return parseInt(digits, 10) > MAX_QUANTITY ? String(MAX_QUANTITY) : digits;
+}
 
 function OptionChip({
     label,
@@ -76,7 +103,7 @@ export default function ProductPage() {
 
     const [program, setProgram] = useState('');
     const [size, setSize] = useState('');
-    const [quantity, setQuantity] = useState(1);
+    const [quantityInput, setQuantityInput] = useState('1');
 
     const [adding, setAdding] = useState(false);
     const [addError, setAddError] = useState<string | null>(null);
@@ -154,6 +181,9 @@ export default function ProductPage() {
             return;
         }
 
+        const quantity = resolveQuantity(quantityInput);
+
+        setQuantityInput(String(quantity));
         setAdding(true);
         clearMessages();
 
@@ -436,7 +466,14 @@ export default function ProductPage() {
                         <View className="flex-row items-center gap-4">
                             <Pressable
                                 onPress={() => {
-                                    setQuantity((value) => Math.max(1, value - 1));
+                                    setQuantityInput(
+                                        String(
+                                            Math.max(
+                                                1,
+                                                resolveQuantity(quantityInput) - 1,
+                                            ),
+                                        ),
+                                    );
                                     clearMessages();
                                 }}
                                 accessibilityRole="button"
@@ -446,14 +483,33 @@ export default function ProductPage() {
                                 <Minus size={18} color="#334155" />
                             </Pressable>
 
-                            <Text className="w-8 text-center font-sans-bold text-lg text-slate-900">
-                                {quantity}
-                            </Text>
+                            <TextInput
+                                value={quantityInput}
+                                onChangeText={(text) => {
+                                    setQuantityInput(capQuantityInput(text));
+                                    clearMessages();
+                                }}
+                                onBlur={() =>
+                                    setQuantityInput(
+                                        String(resolveQuantity(quantityInput)),
+                                    )
+                                }
+                                keyboardType="number-pad"
+                                maxLength={2}
+                                selectTextOnFocus
+                                accessibilityLabel="Quantity"
+                                className="h-11 w-16 rounded-xl border border-slate-200 bg-white text-center font-sans-bold text-lg text-slate-900"
+                            />
 
                             <Pressable
                                 onPress={() => {
-                                    setQuantity((value) =>
-                                        Math.min(MAX_QUANTITY, value + 1),
+                                    setQuantityInput(
+                                        String(
+                                            Math.min(
+                                                MAX_QUANTITY,
+                                                resolveQuantity(quantityInput) + 1,
+                                            ),
+                                        ),
                                     );
                                     clearMessages();
                                 }}
