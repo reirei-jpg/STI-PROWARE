@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\CartItemController;
 use App\Http\Controllers\Api\V1\CatalogController;
 use App\Http\Controllers\Api\V1\CheckoutController;
 use App\Http\Controllers\Api\V1\OrderController;
+use App\Http\Controllers\Api\V1\PreorderController;
 use App\Http\Middleware\EnsureApiAccountIsUsable;
 use Illuminate\Support\Facades\Route;
 
@@ -75,5 +76,12 @@ Route::prefix('v1')
             Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])
                 ->whereNumber('order')
                 ->name('orders.cancel');
+
+            Route::post('orders/{order}/payment', [OrderController::class, 'payment'])
+                ->whereNumber('order')
+                ->name('orders.payment');
+
+            Route::get('preorders', [PreorderController::class, 'index'])
+                ->name('preorders.index');
         });
     });

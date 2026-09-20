@@ -3,15 +3,11 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
-use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderItem;
-use App\Services\NotificationService;
-use App\Services\PaymentMethodValidator;
-use Illuminate\Database\QueryException;
+use App\Services\PreorderPaymentSubmitter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -191,15 +187,16 @@ class PreorderPaymentController extends Controller
      * Attach the student's submitted payment method to a
      * ready preorder order. The cashier confirms it exactly
      * like a normal order from this point on.
+     *
+     * The rules live in PreorderPaymentSubmitter, shared with the
+     * mobile app.
      */
     public function update(
         Request $request,
         Order $order,
-        PaymentMethodValidator $paymentMethodValidator,
-        NotificationService $notificationService,
+        PreorderPaymentSubmitter $preorderPaymentSubmitter,
     ): RedirectResponse {
-        $user =
-            $request->user();
+        $user = $request->user();
 
         abort_unless(
             $user
@@ -207,8 +204,7 @@ class PreorderPaymentController extends Controller
             403,
         );
 
-        $student =
-            $user->student;
+        $student = $user->student;
 
         abort_unless(
             $student,
@@ -223,114 +219,16 @@ class PreorderPaymentController extends Controller
             'You are not allowed to modify this order.',
         );
 
-        $payment =
-            $paymentMethodValidator->validate(
-                $request,
-            );
-
-        try {
-            $saved =
-                DB::transaction(
-                    function () use (
-                        $order,
-                        $payment,
-                    ): ?Order {
-                        $locked =
-                            Order::query()
-                                ->whereKey(
-                                    $order->id,
-                                )
-                                ->lockForUpdate()
-                                ->first();
-
-                        if (
-                            ! $locked
-                            || $locked->payment_method !== null
-                        ) {
-                            return null;
-                        }
-
-                        $stillReady =
-                            $locked->items()
-                                ->where(
-                                    'preorder_status',
-                                    OrderItem::PREORDER_STATUS_READY,
-                                )
-                                ->exists();
-
-                        if (! $stillReady) {
-                            return null;
-                        }
-
-                        $locked->forceFill([
-                            'payment_method' => $payment['payment_method'],
-
-                            'payment_reference' => $payment['payment_reference'],
-                        ])->save();
-
-                        return $locked;
-                    },
-                );
-        } catch (QueryException $exception) {
-            if (
-                str_contains(
-                    $exception->getMessage(),
-                    'orders_payment_reference_unique',
-                )
-            ) {
-                return back()
-                    ->withErrors([
-                        'payment_reference' => 'This payment reference has already been used for another order. Please check your transaction and try again.',
-                    ])
-                    ->withInput();
-            }
-
-            throw $exception;
-        }
+        $saved = $preorderPaymentSubmitter->submit($request, $order, $user);
 
         if (! $saved) {
             return redirect()
-                ->route(
-                    'student.orders.show',
-                    $order,
-                )
-                ->with(
-                    'error',
-                    'This preorder is not currently awaiting a payment method.',
-                );
+                ->route('student.orders.show', $order)
+                ->with('error', PreorderPaymentSubmitter::NOT_AWAITING_MESSAGE);
         }
 
-        $notificationService->cashiers(
-            type: Notification::TYPE_ORDER_PENDING_PAYMENT,
-
-            title: 'Preorder Ready for Payment',
-
-            message: "{$user->name} submitted payment for ready preorder {$saved->order_number} "
-                .'using '
-                .strtoupper($payment['payment_method'])
-                .'. Verify and confirm payment when ready.',
-
-            link: "/cashier/orders/{$saved->id}",
-
-            data: [
-                'order_id' => $saved->id,
-
-                'order_number' => $saved->order_number,
-
-                'payment_method' => $saved->payment_method,
-
-                'total' => $saved->total,
-            ],
-        );
-
         return redirect()
-            ->route(
-                'student.orders.show',
-                $saved,
-            )
-            ->with(
-                'success',
-                'Payment method submitted. Show your Payment QR to the cashier to complete payment.',
-            );
+            ->route('student.orders.show', $saved)
+            ->with('success', PreorderPaymentSubmitter::SUCCESS_MESSAGE);
     }
 }

@@ -66,6 +66,8 @@ class StudentOrderPresenter
             'released_at' => $this->displayTime($order->released_at),
             'cancelled_at' => $this->displayTime($order->cancelled_at),
             'qr' => $this->qr($order),
+            'payment_method_needed' => $this->needsPaymentMethod($order),
+            'payment_due_total' => $this->paymentDueTotal($order),
             'can_cancel' => $blockedReason === null,
             'cancel_blocked_reason' => $blockedReason,
             'cancel_until' => $this->displayTime($order->studentCancelDeadline()),
@@ -86,6 +88,97 @@ class StudentOrderPresenter
                 ->values()
                 ->all(),
         ];
+    }
+
+    /**
+     * One preorder line for the "My Preorders" list.
+     *
+     * @return array<string, mixed>
+     */
+    public function preorderSummary(OrderItem $item): array
+    {
+        $order = $item->order;
+
+        return [
+            'id' => $item->id,
+            'order_id' => $item->order_id,
+            'order_number' => $order->order_number,
+            'preorder_status' => $item->preorder_status,
+            'status' => $this->preorderStatus($item->preorder_status),
+            'awaiting_payment_method' => $item->preorder_status === OrderItem::PREORDER_STATUS_READY
+                && $order->payment_method === null,
+            'quantity' => $item->quantity,
+            'unit_price' => (string) $item->unit_price,
+            'line_total' => (string) $item->line_total,
+            'preorder_ready_at' => $this->displayTime($item->preorder_ready_at),
+            'preorder_payment_deadline_at' => $this->displayTime($item->preorder_payment_deadline_at),
+            'product_name' => $item->product_name,
+            'variant_name' => $item->variant_name,
+            'image_url' => $this->imageUrl($item),
+        ];
+    }
+
+    /**
+     * Where a single preorder stands, in the website's words.
+     *
+     * @return array{key: string, label: string, description: string}
+     */
+    public function preorderStatus(?string $preorderStatus): array
+    {
+        return match ($preorderStatus) {
+            OrderItem::PREORDER_STATUS_READY => [
+                'key' => 'ready',
+                'label' => 'Ready for Payment',
+                'description' => 'Your merchandise is now available. You may proceed with payment.',
+            ],
+            OrderItem::PREORDER_STATUS_PAID => [
+                'key' => 'paid',
+                'label' => 'Paid',
+                'description' => 'Payment has been confirmed. Your merchandise will continue to fulfillment.',
+            ],
+            OrderItem::PREORDER_STATUS_EXPIRED => [
+                'key' => 'expired',
+                'label' => 'Expired',
+                'description' => 'The payment period for this preorder has expired.',
+            ],
+            OrderItem::PREORDER_STATUS_CANCELLED => [
+                'key' => 'cancelled',
+                'label' => 'Cancelled',
+                'description' => 'This preorder was cancelled.',
+            ],
+            default => [
+                'key' => 'waiting',
+                'label' => 'Waiting for Stock',
+                'description' => 'No payment is required yet. We will notify you when stock becomes available.',
+            ],
+        };
+    }
+
+    /**
+     * A ready preorder cannot be paid for until its payment method is
+     * submitted.
+     */
+    public function needsPaymentMethod(Order $order): bool
+    {
+        return ! $this->isCancelled($order)
+            && $order->payment_method === null
+            && $this->hasPreorderItem($order, OrderItem::PREORDER_STATUS_READY);
+    }
+
+    /**
+     * What the student pays now: the ready preorder items, as the website's
+     * payment page shows.
+     */
+    public function paymentDueTotal(Order $order): string
+    {
+        return number_format(
+            (float) $order->items
+                ->where('preorder_status', OrderItem::PREORDER_STATUS_READY)
+                ->sum(fn (OrderItem $item): float => (float) $item->line_total),
+            2,
+            '.',
+            '',
+        );
     }
 
     /**

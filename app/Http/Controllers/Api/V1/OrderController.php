@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Services\OrderCancellationService;
+use App\Services\PreorderPaymentSubmitter;
 use App\Services\StudentOrderPresenter;
 use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\ErrorCorrectionLevel;
@@ -14,6 +15,7 @@ use Endroid\QrCode\Writer\SvgWriter;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
@@ -110,6 +112,32 @@ class OrderController extends Controller
         return response()->json([
             'message' => "Order {$order->order_number} has been cancelled.",
             'data' => $this->presenter->detail($order->fresh()),
+        ]);
+    }
+
+    /**
+     * Submit the payment method for a preorder whose stock is ready. The
+     * fields and messages are the website's own (PaymentMethodValidator and
+     * PreorderPaymentSubmitter).
+     */
+    public function payment(
+        Request $request,
+        Order $order,
+        PreorderPaymentSubmitter $preorderPaymentSubmitter,
+    ): JsonResponse {
+        $this->assertOwnOrder($request, $order);
+
+        $saved = $preorderPaymentSubmitter->submit($request, $order, $request->user());
+
+        if (! $saved) {
+            throw ValidationException::withMessages([
+                'order' => PreorderPaymentSubmitter::NOT_AWAITING_MESSAGE,
+            ]);
+        }
+
+        return response()->json([
+            'message' => PreorderPaymentSubmitter::SUCCESS_MESSAGE,
+            'data' => $this->presenter->detail($saved->fresh()),
         ]);
     }
 
