@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\CartController;
 use App\Http\Controllers\Api\V1\CartItemController;
 use App\Http\Controllers\Api\V1\CatalogController;
 use App\Http\Controllers\Api\V1\CheckoutController;
+use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\PasswordController;
 use App\Http\Controllers\Api\V1\PreorderController;
@@ -88,5 +89,15 @@ Route::prefix('v1')
 
             Route::get('preorders', [PreorderController::class, 'index'])
                 ->name('preorders.index');
+
+            Route::get('notifications', [NotificationController::class, 'index'])
+                ->name('notifications.index');
+
+            Route::patch('notifications/read-all', [NotificationController::class, 'readAll'])
+                ->name('notifications.read-all');
+
+            Route::patch('notifications/{notification}/read', [NotificationController::class, 'read'])
+                ->whereNumber('notification')
+                ->name('notifications.read');
         });
     });
