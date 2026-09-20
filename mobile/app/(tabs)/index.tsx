@@ -1,6 +1,6 @@
-import { router } from 'expo-router';
-import { PackageOpen, Search, X } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { Bell, PackageOpen, Search, X } from 'lucide-react-native';
+import { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
@@ -18,6 +18,7 @@ import ComingSoonCard from '@/components/ComingSoonCard';
 import ProductCard from '@/components/ProductCard';
 import { useAuth } from '@/lib/auth';
 import type { StatusFilter } from '@/lib/catalog';
+import { useNotifications } from '@/lib/notifications-context';
 import { useCatalog } from '@/lib/useCatalog';
 
 const FILTERS: { label: string; value: StatusFilter }[] = [
@@ -38,6 +39,7 @@ export default function Home() {
     const insets = useSafeAreaInsets();
     const { width } = useWindowDimensions();
     const { user } = useAuth();
+    const { unreadCount, refreshUnreadCount } = useNotifications();
 
     const [searchInput, setSearchInput] = useState('');
     const [search, setSearch] = useState('');
@@ -51,6 +53,13 @@ export default function Home() {
     }, [searchInput]);
 
     const catalog = useCatalog(search, status);
+
+    // Keep the bell's count fresh whenever Home is shown.
+    useFocusEffect(
+        useCallback(() => {
+            void refreshUnreadCount();
+        }, [refreshUnreadCount]),
+    );
 
     const cardWidth = Math.floor((width - SIDE_PADDING * 2 - GAP) / 2);
     const carouselWidth = Math.min(280, width - 80);
@@ -195,33 +204,56 @@ export default function Home() {
                     </View>
                 </View>
 
-                <View className="justify-center">
-                    <View className="absolute left-4 z-10">
-                        <Search size={18} color="#64748b" />
+                <View className="flex-row items-center gap-3">
+                    <View className="flex-1 justify-center">
+                        <View className="absolute left-4 z-10">
+                            <Search size={18} color="#64748b" />
+                        </View>
+
+                        <TextInput
+                            value={searchInput}
+                            onChangeText={setSearchInput}
+                            placeholder="Search code, name, or category..."
+                            placeholderTextColor="#94a3b8"
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            returnKeyType="search"
+                            className="w-full rounded-full border border-slate-200 bg-white py-3 pl-12 pr-11 font-sans-medium text-sm text-slate-900"
+                        />
+
+                        {searchInput !== '' && (
+                            <Pressable
+                                onPress={() => setSearchInput('')}
+                                accessibilityRole="button"
+                                accessibilityLabel="Clear search"
+                                hitSlop={12}
+                                className="absolute right-4 z-10"
+                            >
+                                <X size={18} color="#64748b" />
+                            </Pressable>
+                        )}
                     </View>
 
-                    <TextInput
-                        value={searchInput}
-                        onChangeText={setSearchInput}
-                        placeholder="Search code, name, or category..."
-                        placeholderTextColor="#94a3b8"
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        returnKeyType="search"
-                        className="w-full rounded-full border border-slate-200 bg-white py-3 pl-12 pr-11 font-sans-medium text-sm text-slate-900"
-                    />
+                    <Pressable
+                        onPress={() => router.push('/notifications')}
+                        accessibilityRole="button"
+                        accessibilityLabel={
+                            unreadCount > 0
+                                ? `Notifications, ${unreadCount} unread`
+                                : 'Notifications'
+                        }
+                        className="h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white"
+                    >
+                        <Bell size={20} color="#334155" />
 
-                    {searchInput !== '' && (
-                        <Pressable
-                            onPress={() => setSearchInput('')}
-                            accessibilityRole="button"
-                            accessibilityLabel="Clear search"
-                            hitSlop={12}
-                            className="absolute right-4 z-10"
-                        >
-                            <X size={18} color="#64748b" />
-                        </Pressable>
-                    )}
+                        {unreadCount > 0 && (
+                            <View className="absolute -right-1 -top-1 min-w-5 items-center rounded-full bg-red-500 px-1">
+                                <Text className="font-sans-bold text-[11px] text-white">
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                </Text>
+                            </View>
+                        )}
+                    </Pressable>
                 </View>
 
                 <ScrollView

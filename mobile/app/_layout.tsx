@@ -13,6 +13,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { CartProvider } from '@/lib/cart-context';
+import { NotificationsProvider } from '@/lib/notifications-context';
 
 function RootNavigator() {
     const { user, restoring } = useAuth();
@@ -41,6 +42,8 @@ function RootNavigator() {
                 <Stack.Screen name="pay/[id]" />
 
                 <Stack.Screen name="change-password" />
+
+                <Stack.Screen name="notifications" />
             </Stack.Protected>
 
             <Stack.Protected guard={!isSignedIn}>
@@ -68,7 +71,9 @@ export default function RootLayout() {
 
             <AuthProvider>
                 <CartProvider>
-                    <RootNavigator />
+                    <NotificationsProvider>
+                        <RootNavigator />
+                    </NotificationsProvider>
                 </CartProvider>
             </AuthProvider>
         </SafeAreaProvider>
