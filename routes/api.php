@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\CartItemController;
 use App\Http\Controllers\Api\V1\CatalogController;
 use App\Http\Middleware\EnsureApiAccountIsUsable;
 use Illuminate\Support\Facades\Route;
@@ -35,5 +36,12 @@ Route::prefix('v1')
 
             Route::get('catalog', [CatalogController::class, 'index'])
                 ->name('catalog.index');
+
+            Route::get('catalog/{product}', [CatalogController::class, 'show'])
+                ->whereNumber('product')
+                ->name('catalog.show');
+
+            Route::post('cart/items', [CartItemController::class, 'store'])
+                ->name('cart.items.store');
         });
     });

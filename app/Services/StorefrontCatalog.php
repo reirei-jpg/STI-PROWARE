@@ -137,6 +137,100 @@ class StorefrontCatalog
     }
 
     /**
+     * One product in full, for its own page: the card details plus every
+     * active variant with its price and a general stock status.
+     *
+     * Students receive only general stock availability, never exact internal
+     * counts. The website product page and the mobile app share this.
+     *
+     * @return array<string, mixed>
+     */
+    public function detail(Product $product): array
+    {
+        $product->load([
+            'category:id,name',
+            'variants' => fn ($query) => $query
+                ->where('is_active', true)
+                ->orderBy('program')
+                ->orderBy('size')
+                ->orderBy('variant_name')
+                ->with([
+                    'inventory:id,product_variant_id,quantity_on_hand,quantity_reserved,reorder_level',
+                ]),
+        ]);
+
+        $card = $this->presentProduct($product);
+
+        $variants = $product->variants
+            ->map(function ($variant): array {
+                $availableQuantity = $variant->inventory
+                    ? $variant->inventory->available_quantity
+                    : 0;
+
+                return [
+                    'id' => $variant->id,
+                    'sku' => $variant->sku,
+                    'program' => $variant->program,
+                    'size' => $variant->size,
+                    'variant_name' => $variant->variant_name,
+                    'variant_key' => $variant->variant_key,
+                    'selling_price' => $variant->selling_price,
+                    'is_available' => $availableQuantity > 0,
+                    'stock_status' => $availableQuantity > 0
+                        ? 'Available'
+                        : 'Unavailable',
+                ];
+            })
+            ->values();
+
+        return [
+            'id' => $product->id,
+            'code' => $product->code,
+            'name' => $product->name,
+            'description' => $product->description,
+            'base_price' => $product->base_price,
+            'image_url' => $card['image_url'],
+            'variant_mode' => $product->variant_mode,
+            'variant_mode_label' => $card['variant_mode_label'],
+            'availability_status' => $card['availability_status'],
+            'availability_label' => $card['availability_label'],
+            'availability_summary' => $this->availabilitySummary(
+                $product,
+                $card['availability_status'],
+            ),
+            'preorder_enabled' => $product->preorder_enabled,
+            'accepts_preorders' => $product->acceptsPreorders(),
+            'expected_release_date' => $card['expected_release_date'],
+            'category' => $card['category'],
+            'variants' => $variants,
+
+            // Extra details the mobile app shows on the product page.
+            'price_min' => $card['price_min'],
+            'price_max' => $card['price_max'],
+            'stock_urgency' => $card['stock_urgency'],
+            'early_bird' => $card['early_bird'],
+        ];
+    }
+
+    /**
+     * A public-facing summary that never exposes exact stock quantities.
+     */
+    private function availabilitySummary(
+        Product $product,
+        string $effectiveStatus,
+    ): string {
+        if ($effectiveStatus === Product::AVAILABILITY_COMING_SOON) {
+            return $product->acceptsPreorders()
+                ? 'Preorder Available'
+                : 'Coming Soon';
+        }
+
+        return $effectiveStatus === Product::AVAILABILITY_AVAILABLE
+            ? 'Available'
+            : 'Out of Stock';
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function relations(): array

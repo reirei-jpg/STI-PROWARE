@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Filters\ProductFilters;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Services\StorefrontCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Inertia;
@@ -210,11 +211,14 @@ class CatalogController extends Controller
     }
 
     /**
-     * Display one active catalog product with its variants
-     * and public-facing availability information.
+     * Display one product with its variants.
+     *
+     * What is shown lives in StorefrontCatalog::detail() so the mobile app
+     * shows exactly the same product page data.
      */
     public function show(
         Product $product,
+        StorefrontCatalog $catalog,
     ): Response {
         /*
          * Inactive products must not be accessible even when
@@ -225,141 +229,12 @@ class CatalogController extends Controller
             404,
         );
 
-        $product->load([
-            'category:id,name',
-
-            'variants' => function ($query): void {
-                $query
-                    ->where('is_active', true)
-                    ->orderBy('program')
-                    ->orderBy('size')
-                    ->orderBy('variant_name')
-                    ->with([
-                        'inventory:id,product_variant_id,quantity_on_hand,quantity_reserved,reorder_level',
-                    ]);
-            },
-        ]);
-
-        $variants = $product
-            ->variants
-            ->map(
-                function ($variant): array {
-                    $inventory =
-                        $variant->inventory;
-
-                    $availableQuantity =
-                        $inventory
-                            ? $inventory
-                                ->available_quantity
-                            : 0;
-
-                    return [
-                        'id' => $variant->id,
-
-                        'sku' => $variant->sku,
-
-                        'program' => $variant->program,
-
-                        'size' => $variant->size,
-
-                        'variant_name' => $variant->variant_name,
-
-                        'variant_key' => $variant->variant_key,
-
-                        'selling_price' => $variant
-                            ->selling_price,
-
-                        /*
-                         * Students receive only general stock
-                         * availability, not exact internal counts.
-                         */
-                        'is_available' => $availableQuantity > 0,
-
-                        'stock_status' => $this->variantAvailabilityLabel(
-                            $availableQuantity,
-                        ),
-                    ];
-                },
-            )
-            ->values();
-
         return Inertia::render(
             'catalog/Show',
             [
-                'product' => [
-                    'id' => $product->id,
-
-                    'code' => $product->code,
-
-                    'name' => $product->name,
-
-                    'description' => $product->description,
-
-                    'base_price' => $product->base_price,
-
-                    'image_url' => $product->image_path
-                            ? asset(
-                                'storage/'
-                                .$product->image_path,
-                            )
-                            : null,
-
-                    'variant_mode' => $product->variant_mode,
-
-                    'variant_mode_label' => $this->variantModeLabel(
-                        $product->variant_mode,
-                    ),
-
-                    'availability_status' => $this->effectiveAvailabilityStatus(
-                        $product,
-                    ),
-
-                    'availability_label' => $this->effectiveAvailabilityLabel(
-                        $product,
-                    ),
-
-                    'availability_summary' => $this->availabilitySummary(
-                        $product,
-                    ),
-
-                    'preorder_enabled' => $product
-                        ->preorder_enabled,
-
-                    'accepts_preorders' => $product
-                        ->acceptsPreorders(),
-
-                    'expected_release_date' => $product
-                        ->expected_release_date
-                        ? $product
-                            ->expected_release_date
-                            ->format('M d, Y')
-                            : null,
-
-                    'category' => [
-                        'id' => $product
-                            ->category
-                            ->id,
-
-                        'name' => $product
-                            ->category
-                            ->name,
-                    ],
-
-                    'variants' => $variants,
-                ],
+                'product' => $catalog->detail($product),
             ],
         );
-    }
-
-    /**
-     * Return a public-facing label for one exact variant.
-     */
-    private function variantAvailabilityLabel(
-        int $availableQuantity,
-    ): string {
-        return $availableQuantity > 0
-            ? 'Available'
-            : 'Unavailable';
     }
 
     /**
