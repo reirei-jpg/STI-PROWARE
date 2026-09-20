@@ -57,7 +57,7 @@ They only run if Laravel's scheduler is running (`php artisan schedule:work` loc
 Student cart and checkout (stock reserved) → student payment QR → cashier scans and confirms payment (receipts issued, specialists notified) → specialist scans release QR, marks ready, releases (stock deducted) → cashier history and sales, student page, and admin list, order page, sales and audit log all reflect it. Covered by `FullOrderCycleTest` (currently missing, see below) plus an extended admin-monitoring version that passed with 173 checks.
 
 ## How to run things on this machine
-- Run tests and Pint through the PowerShell tool with the extensions loaded, because the default PHP has none: `php -d extension=mbstring -d extension=gd vendor\bin\pest --compact` and `php -d extension=mbstring -d extension=gd vendor\bin\pint --dirty --format agent`.
+- Run tests and Pint with plain `php artisan test --compact` and `vendor\bin\pint --dirty --format agent`. Since 21 Sep 2026 the command-line PHP (`C:\php-8.4.24-Win32-vs17-x64\php.ini`) has `gd` and `mbstring` switched on, so no `-d extension` flags are needed (the original file is kept next to it as `php.ini.bak-before-gd-fix`).
 - Many test files use helpers defined in `tests/Feature/Specialist/ReleaseQrScanTest.php`. Running one file alone can fail with "undefined function"; include that file in the run.
 - After adding pages, run `npm run build` so the Vite manifest includes them.
 - Tests that use "now" near Manila midnight can be flaky; pin them with `travelTo`.
