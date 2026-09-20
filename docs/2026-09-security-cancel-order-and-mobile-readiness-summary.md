@@ -94,11 +94,17 @@ Student cart and checkout (stock reserved) → student payment QR → cashier sc
 
 **Suggested plan:** (1) decisions, (2) tool setup, (3) API foundation with token login using the same lockout rules, (4) student features, (5) staff scanning after moving the scan logic into services, (6) push notifications, security review and release.
 
-**Decisions still needed from the user:**
-1. Approach: React Native (recommended) or a web-wrapper app.
-2. First scope: students only (suggested), or also cashier and specialist scanning.
-3. Platforms: Android first (suggested).
-4. Approval to add Laravel Sanctum (the project rule requires approval for new dependencies).
+**Decisions made by the user (20 September 2026):**
+1. Approach: React Native with Expo.
+2. First scope: students only.
+3. Platform: Android first.
+4. Push notifications: Firebase (FCM), but built last.
+5. Laravel Sanctum: not needed yet. The user wants to build the app screens first with sample data and add Sanctum (and ask for approval again) when the API is built.
+6. Still open: where the app project lives (recommended: a separate folder `C:\Project\STI-PROWARE-Mobile` with its own git repo, because new top-level folders in this project need approval) and permission to set the user-level `ANDROID_HOME` and `JAVA_HOME`.
+
+**Agreed order of work:** (1) tool setup and the virtual Android phone, (2) create the Expo project, (3) build the student screens with sample data shaped like the future API, (4) build the `/api/v1` backend with Sanctum, moving scan logic into services, (5) connect the app to the API, (6) Firebase push, security review, release build and Google Play internal testing.
+
+The Android SDK currently has no command-line tools and no emulator system image, so the user must install those and create a Pixel virtual device in Android Studio (SDK Manager and Device Manager).
 
 ## Commits (this session)
 | Commit | What |
