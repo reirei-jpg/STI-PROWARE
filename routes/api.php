@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CartController;
 use App\Http\Controllers\Api\V1\CartItemController;
 use App\Http\Controllers\Api\V1\CatalogController;
+use App\Http\Controllers\Api\V1\CheckoutController;
 use App\Http\Middleware\EnsureApiAccountIsUsable;
 use Illuminate\Support\Facades\Route;
 
@@ -55,5 +56,8 @@ Route::prefix('v1')
             Route::delete('cart/items/{cartItem}', [CartItemController::class, 'destroy'])
                 ->whereNumber('cartItem')
                 ->name('cart.items.destroy');
+
+            Route::post('checkout', [CheckoutController::class, 'store'])
+                ->name('checkout.store');
         });
     });
