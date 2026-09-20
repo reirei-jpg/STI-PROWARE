@@ -68,8 +68,15 @@ function toSessionUser(user: ApiUser): SessionUser {
     };
 }
 
+type RequestFunction = <T>(
+    path: string,
+    options?: { method?: 'GET' | 'POST'; body?: Record<string, unknown> },
+) => Promise<T>;
+
 type AuthContextValue = {
     user: SessionUser | null;
+    /** Calls the server as the signed-in student; a refused token signs out. */
+    request: RequestFunction;
     /** True until the saved login (if any) has been checked. */
     restoring: boolean;
     signIn: (
@@ -163,9 +170,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }, [token]);
 
+    const request = useCallback<RequestFunction>(
+        async (path, options = {}) => {
+            try {
+                return await apiRequest(path, { ...options, token });
+            } catch (caught) {
+                if (caught instanceof ApiError && caught.status === 401) {
+                    void signOut();
+                }
+
+                throw caught;
+            }
+        },
+        [token, signOut],
+    );
+
     const value = useMemo(
-        () => ({ user, restoring, signIn, signOut }),
-        [user, restoring, signIn, signOut],
+        () => ({ user, request, restoring, signIn, signOut }),
+        [user, request, restoring, signIn, signOut],
     );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -29,7 +29,7 @@ function RootNavigator() {
             }}
         >
             <Stack.Protected guard={isSignedIn}>
-                <Stack.Screen name="index" />
+                <Stack.Screen name="(tabs)" />
             </Stack.Protected>
 
             <Stack.Protected guard={!isSignedIn}>
