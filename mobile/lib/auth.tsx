@@ -80,8 +80,6 @@ type AuthContextValue = {
     user: SessionUser | null;
     /** Calls the server as the signed-in student; a refused token signs out. */
     request: RequestFunction;
-    /** The signed-in token, for loading protected images (such as the order QR). */
-    token: string | null;
     /** True until the saved login (if any) has been checked. */
     restoring: boolean;
     signIn: (
@@ -191,8 +189,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     const value = useMemo(
-        () => ({ user, token, request, restoring, signIn, signOut }),
-        [user, token, request, restoring, signIn, signOut],
+        () => ({ user, request, restoring, signIn, signOut }),
+        [user, request, restoring, signIn, signOut],
     );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -34,11 +34,6 @@ function apiOrderPreorder(User $student, string $preorderStatus): Order
     return $order->fresh('items');
 }
 
-function apiOrderIsPng(string $content): bool
-{
-    return str_starts_with($content, "\x89PNG");
-}
-
 test('the order endpoints need a signed-in student', function () {
     $this->getJson('/api/v1/orders')->assertUnauthorized();
     $this->getJson('/api/v1/orders/1')->assertUnauthorized();
@@ -162,7 +157,7 @@ test('a preorder waiting for stock shows no qr', function () {
         ->assertJsonPath('data.items.0.item_type', 'preorder')
         ->assertJsonPath('data.items.0.preorder_status', 'waiting');
 
-    $this->get("/api/v1/orders/{$order->id}/qr", ['Accept' => 'application/json'])->assertNotFound();
+    $this->getJson("/api/v1/orders/{$order->id}/qr")->assertNotFound();
 });
 
 test('a ready preorder still needs its payment method before a qr shows', function () {
@@ -189,29 +184,31 @@ test('a student cannot open another students order', function () {
     expect($order->fresh()->isCancelled())->toBeFalse();
 });
 
-test('the qr image is a png for an unpaid and a paid order', function () {
+test('the qr is drawn as svg for an unpaid and a paid order, without needing the GD extension', function () {
     $student = makeStudentAccount();
     $unpaid = apiOrderUnpaid($student, makeVariantWithStock(10, 2));
     $paid = makePaidOrderWithItem($student->student, $student, makeVariantWithStock(10, 2), 1);
     apiOrderAs($student);
 
     foreach ([$unpaid, $paid] as $order) {
-        $response = $this->get("/api/v1/orders/{$order->id}/qr");
+        $svg = $this->getJson("/api/v1/orders/{$order->id}/qr")
+            ->assertOk()
+            ->json('data.svg');
 
-        $response->assertOk();
-        expect($response->headers->get('Content-Type'))->toBe('image/png')
-            ->and(apiOrderIsPng($response->getContent()))->toBeTrue();
+        expect($svg)->toStartWith('<svg')
+            ->and($svg)->toContain('viewBox')
+            ->and($svg)->not->toContain('<?xml');
     }
 });
 
-test('there is no qr image for a cancelled order', function () {
+test('there is no qr for a cancelled order', function () {
     $student = makeStudentAccount();
     $order = apiOrderUnpaid($student, makeVariantWithStock(10, 2));
     apiOrderAs($student);
 
     $this->postJson("/api/v1/orders/{$order->id}/cancel")->assertOk();
 
-    $this->get("/api/v1/orders/{$order->id}/qr", ['Accept' => 'application/json'])->assertNotFound();
+    $this->getJson("/api/v1/orders/{$order->id}/qr")->assertNotFound();
 });
 
 test('a student can cancel an unpaid order and the stock is given back', function () {

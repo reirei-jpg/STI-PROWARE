@@ -10,11 +10,10 @@ use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\ErrorCorrectionLevel;
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\RoundBlockSizeMode;
-use Endroid\QrCode\Writer\PngWriter;
+use Endroid\QrCode\Writer\SvgWriter;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 
 class OrderController extends Controller
 {
@@ -54,11 +53,12 @@ class OrderController extends Controller
     }
 
     /**
-     * The QR the student shows at the counter, as a PNG. It holds the same
-     * token as the website's QR, and is only served for the order's owner
-     * while a QR is meant to be shown.
+     * The QR the student shows at the counter, as SVG drawing text the app
+     * paints itself. It holds the same token as the website's QR and is only
+     * served to the order's owner while a QR is meant to be shown. (SVG, not
+     * PNG, because PNG needs PHP's GD extension, which not every server has.)
      */
-    public function qr(Request $request, Order $order): Response
+    public function qr(Request $request, Order $order): JsonResponse
     {
         $this->assertOwnOrder($request, $order);
 
@@ -68,19 +68,24 @@ class OrderController extends Controller
 
         abort_if($token === null, 404, 'No QR code is available for this order.');
 
-        $result = (new PngWriter)->write(new QrCode(
-            data: $token,
-            encoding: new Encoding('UTF-8'),
-            errorCorrectionLevel: ErrorCorrectionLevel::High,
-            size: 320,
-            margin: 12,
-            roundBlockSizeMode: RoundBlockSizeMode::Margin,
-        ));
+        $result = (new SvgWriter)->write(
+            new QrCode(
+                data: $token,
+                encoding: new Encoding('UTF-8'),
+                errorCorrectionLevel: ErrorCorrectionLevel::High,
+                size: 320,
+                margin: 12,
+                roundBlockSizeMode: RoundBlockSizeMode::Margin,
+            ),
+            options: [
+                SvgWriter::WRITER_OPTION_EXCLUDE_XML_DECLARATION => true,
+                SvgWriter::WRITER_OPTION_EXCLUDE_SVG_WIDTH_AND_HEIGHT => true,
+            ],
+        );
 
-        return response($result->getString(), 200, [
-            'Content-Type' => $result->getMimeType(),
-            'Cache-Control' => 'private, no-store, no-cache, must-revalidate',
-        ]);
+        return response()
+            ->json(['data' => ['svg' => $result->getString()]])
+            ->header('Cache-Control', 'private, no-store');
     }
 
     /**

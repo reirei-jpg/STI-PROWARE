@@ -65,6 +65,8 @@ export type OrdersResponse = { data: OrderSummary[] };
 
 export type OrderResponse = { data: OrderDetail };
 
+export type OrderQrResponse = { data: { svg: string } };
+
 export type OrderChangeResponse = { message: string; data: OrderDetail };
 
 /*

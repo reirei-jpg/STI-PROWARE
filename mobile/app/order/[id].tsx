@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, PackageOpen, QrCode } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
+import { SvgXml } from 'react-native-svg';
 import {
     ActivityIndicator,
     Alert,
@@ -15,7 +16,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { API_URL } from '@/lib/config';
 import { formatPesos } from '@/lib/format';
 import {
     paymentMethodName,
@@ -23,6 +23,7 @@ import {
     type OrderChangeResponse,
     type OrderDetail,
     type OrderItemData,
+    type OrderQrResponse,
     type OrderResponse,
 } from '@/lib/orders';
 
@@ -91,7 +92,7 @@ function ItemRow({ item }: { item: OrderItemData }) {
 export default function OrderDetails() {
     const insets = useSafeAreaInsets();
     const { id } = useLocalSearchParams<{ id: string }>();
-    const { request, token } = useAuth();
+    const { request } = useAuth();
 
     const [order, setOrder] = useState<OrderDetail | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -99,6 +100,8 @@ export default function OrderDetails() {
     const [cancelling, setCancelling] = useState(false);
     const [cancelError, setCancelError] = useState<string | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
+    const [qrSvg, setQrSvg] = useState<string | null>(null);
+    const [qrError, setQrError] = useState<string | null>(null);
 
     const load = useCallback(async () => {
         try {
@@ -118,6 +121,38 @@ export default function OrderDetails() {
     useEffect(() => {
         void load();
     }, [load]);
+
+    // The QR is fetched as drawing text and painted by the app. It is loaded
+    // again whenever the kind changes (Payment becomes Release once paid).
+    const qrKind = order?.qr.kind ?? null;
+    const statusKey = order?.status.key ?? null;
+
+    const loadQr = useCallback(async () => {
+        setQrError(null);
+
+        try {
+            const response = await request<OrderQrResponse>(`/orders/${id}/qr`);
+
+            setQrSvg(response.data.svg);
+        } catch (caught) {
+            setQrSvg(null);
+            setQrError(
+                caught instanceof ApiError
+                    ? caught.message
+                    : 'Something went wrong. Please try again.',
+            );
+        }
+    }, [request, id]);
+
+    useEffect(() => {
+        setQrSvg(null);
+
+        if (qrKind) {
+            void loadQr();
+        } else {
+            setQrError(null);
+        }
+    }, [qrKind, statusKey, loadQr]);
 
     const pullToRefresh = async (): Promise<void> => {
         setRefreshing(true);
@@ -324,22 +359,39 @@ export default function OrderDetails() {
                             {order.qr.message}
                         </Text>
 
-                        {order.qr.kind && (
-                            <View className="rounded-2xl bg-white p-3">
-                                {/* The QR is a protected image, so the token is sent with the request. The
-                                    version in the address makes the phone reload it when the QR changes
-                                    from Payment to Release. */}
-                                <Image
-                                    source={{
-                                        uri: `${API_URL}/orders/${order.id}/qr?v=${order.qr.kind}-${order.status.key}`,
-                                        headers: {
-                                            Authorization: `Bearer ${token}`,
-                                        },
-                                    }}
-                                    accessibilityLabel={`${order.qr.kind === 'release' ? 'Release' : 'Payment'} QR for ${order.order_number}`}
-                                    className="h-64 w-64"
-                                    resizeMode="contain"
+                        {order.qr.kind && qrSvg && (
+                            <View
+                                className="rounded-2xl bg-white p-3"
+                                accessibilityLabel={`${order.qr.kind === 'release' ? 'Release' : 'Payment'} QR for ${order.order_number}`}
+                            >
+                                <SvgXml xml={qrSvg} width={256} height={256} />
+                            </View>
+                        )}
+
+                        {order.qr.kind && !qrSvg && !qrError && (
+                            <View className="h-64 w-64 items-center justify-center rounded-2xl bg-white">
+                                <ActivityIndicator
+                                    size="large"
+                                    color="#0D6EFD"
                                 />
+                            </View>
+                        )}
+
+                        {order.qr.kind && qrError && (
+                            <View className="items-center gap-2 rounded-2xl bg-white p-4">
+                                <Text className="text-center font-sans-semibold text-xs leading-5 text-red-700">
+                                    {qrError}
+                                </Text>
+
+                                <Pressable
+                                    onPress={() => void loadQr()}
+                                    accessibilityRole="button"
+                                    className="rounded-full bg-red-600 px-5 py-2"
+                                >
+                                    <Text className="font-sans-bold text-sm text-white">
+                                        Try again
+                                    </Text>
+                                </Pressable>
                             </View>
                         )}
                     </View>
