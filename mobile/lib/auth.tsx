@@ -70,7 +70,10 @@ function toSessionUser(user: ApiUser): SessionUser {
 
 type RequestFunction = <T>(
     path: string,
-    options?: { method?: 'GET' | 'POST'; body?: Record<string, unknown> },
+    options?: {
+        method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+        body?: Record<string, unknown>;
+    },
 ) => Promise<T>;
 
 type AuthContextValue = {

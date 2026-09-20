@@ -26,6 +26,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AvailabilityBadge from '@/components/AvailabilityBadge';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useCart } from '@/lib/cart-context';
 import { formatPesos, formatPriceRange } from '@/lib/format';
 import {
     findSelectedVariant,
@@ -89,6 +90,7 @@ export default function ProductPage() {
     const insets = useSafeAreaInsets();
     const { width } = useWindowDimensions();
     const { request } = useAuth();
+    const { refresh: refreshCart } = useCart();
     const { id } = useLocalSearchParams<{ id: string }>();
 
     const [product, setProduct] = useState<ProductDetail | null>(null);
@@ -194,6 +196,7 @@ export default function ProductPage() {
             });
 
             setAdded(response.data.cart_total_quantity);
+            void refreshCart();
         } catch (caught) {
             setAddError(
                 caught instanceof ApiError
@@ -496,7 +499,7 @@ export default function ProductPage() {
                                 maxLength={2}
                                 selectTextOnFocus
                                 accessibilityLabel="Quantity"
-                                className={`h-11 w-16 rounded-xl border bg-white text-center font-sans-bold text-lg text-slate-900 ${quantityError ? 'border-red-400' : 'border-slate-200'}`}
+                                className={`w-16 rounded-xl border bg-white py-2 text-center font-sans-bold text-lg text-slate-900 ${quantityError ? 'border-red-400' : 'border-slate-200'}`}
                             />
 
                             <Pressable

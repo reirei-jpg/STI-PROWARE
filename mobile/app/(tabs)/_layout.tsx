@@ -7,10 +7,14 @@ import {
     UserRound,
 } from 'lucide-react-native';
 
+import { useCart } from '@/lib/cart-context';
+
 const BRAND_BLUE = '#0D6EFD';
 const INACTIVE = '#94a3b8';
 
 export default function TabsLayout() {
+    const { totalQuantity } = useCart();
+
     return (
         <Tabs
             screenOptions={{
@@ -41,6 +45,7 @@ export default function TabsLayout() {
                 name="cart"
                 options={{
                     title: 'Cart',
+                    tabBarBadge: totalQuantity > 0 ? totalQuantity : undefined,
                     tabBarIcon: ({ color, size }) => (
                         <ShoppingCart color={color} size={size} />
                     ),

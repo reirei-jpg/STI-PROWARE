@@ -12,6 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { CartProvider } from '@/lib/cart-context';
 
 function RootNavigator() {
     const { user, restoring } = useAuth();
@@ -58,7 +59,9 @@ export default function RootLayout() {
             <StatusBar style="dark" />
 
             <AuthProvider>
-                <RootNavigator />
+                <CartProvider>
+                    <RootNavigator />
+                </CartProvider>
             </AuthProvider>
         </SafeAreaProvider>
     );
