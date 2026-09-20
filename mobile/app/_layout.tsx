@@ -14,6 +14,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { CartProvider } from '@/lib/cart-context';
 import { NotificationsProvider } from '@/lib/notifications-context';
+import PushHandler from '@/lib/push';
 
 function RootNavigator() {
     const { user, restoring } = useAuth();
@@ -73,6 +74,8 @@ export default function RootLayout() {
                 <CartProvider>
                     <NotificationsProvider>
                         <RootNavigator />
+
+                        <PushHandler />
                     </NotificationsProvider>
                 </CartProvider>
             </AuthProvider>

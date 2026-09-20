@@ -8,6 +8,7 @@
     "userInterfaceStyle": "light",
     "android": {
       "package": "sti.proware",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#F2DB11",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -24,7 +25,8 @@
       "expo-router",
       "expo-status-bar",
       "expo-font",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-notifications"
     ],
     "scheme": "stiproware"
   }
