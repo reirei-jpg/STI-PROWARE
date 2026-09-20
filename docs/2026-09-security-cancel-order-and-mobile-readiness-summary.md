@@ -121,6 +121,20 @@ What it would need (to discuss when the time comes):
 - On the phone: a Microsoft sign-in flow (for example Expo AuthSession) that returns a PROWARE API token.
 - Keep the existing email and password login working, at least while this is being tried.
 
+## Future idea: accounts for non-students, "random consumers" (noted 20 Sep 2026, not decided, not started)
+
+The user may later let people who are not STI students (ordinary customers) have an account and buy merchandise, in the website and the mobile app. Nothing has been decided; this note only records the intent so new work does not make it harder.
+
+Where the system is student-only today (things to revisit when this is decided):
+- Roles: a user is `student`, `cashier`, `specialist`, `admin` or `super_admin`. There is no customer role. About 17 files check `role === 'student'`.
+- Orders, carts and preorders belong to a `students` record (`student_id`, plus `Student` required for checkout and order pages). A non-student has no such record.
+- The mobile API is students-only on purpose: `EnsureApiAccountIsUsable` requires role `student` and an active student record, `AccountAuthenticator` refuses staff with "The mobile app is for students only", and the shared services (`CartService`, `CheckoutService`, `CheckoutSubmitter`, `StudentOrderPresenter`, `OrderCancellationService::cancelByStudent`, `PreorderPaymentSubmitter`) all take the student user.
+- Registration, email verification, the Microsoft 365 idea above, receipts, sales reports and the audit log all assume a student.
+
+Questions to answer first (not yet asked): a new role or a flag on the student role? Can they see the same catalog and prices, and can they preorder? How do they register and get verified? How are their orders shown to cashiers and in reports? Is the app open to them too?
+
+How to prepare, without building it yet: keep business rules in the shared services (as done so far) rather than in controllers or screens, and avoid adding new `role === 'student'` checks inside those services beyond where the ownership rule is needed.
+
 ## Mobile app: web login rules the app must match (from `FortifyServiceProvider`)
 - The email is trimmed and lowercased before checking. Wrong email or wrong password gives the same message: "Invalid credentials."
 - 5 failed attempts lock the account: "This account has been locked due to too many failed login attempts. Please contact an administrator."
