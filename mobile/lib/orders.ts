@@ -86,6 +86,7 @@ const STATUS_BADGES: Record<string, { badge: string; text: string }> = {
     preparing: { badge: 'bg-blue-100', text: 'text-blue-700' },
     ready_for_pickup: { badge: 'bg-emerald-100', text: 'text-emerald-700' },
     released: { badge: 'bg-emerald-100', text: 'text-emerald-700' },
+    expired: { badge: 'bg-red-100', text: 'text-red-700' },
     cancelled: { badge: 'bg-red-100', text: 'text-red-700' },
 };
 

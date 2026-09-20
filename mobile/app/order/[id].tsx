@@ -371,7 +371,9 @@ export default function OrderDetails() {
                     </View>
                 )}
 
-                {order.status.key !== 'cancelled' && !order.payment_method_needed && (
+                {order.status.key !== 'cancelled' &&
+                    order.status.key !== 'expired' &&
+                    !order.payment_method_needed && (
                     <View className="items-center gap-3 rounded-3xl border border-blue-200 bg-blue-50 p-4">
                         <View className="flex-row items-center gap-2">
                             <QrCode size={18} color="#0D6EFD" />

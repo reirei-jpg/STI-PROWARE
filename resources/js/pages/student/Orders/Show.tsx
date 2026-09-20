@@ -243,6 +243,15 @@ export default function Show({
             order.fulfillment_status ===
                 'cancelled';
 
+        // Every item is a preorder that expired: nothing left to pay for.
+        const isExpired =
+            order.items.length > 0
+            && order.items.every(
+                (item) =>
+                    item.item_type === 'preorder'
+                    && item.preorder_status === 'expired',
+            );
+
         const hasWaitingPreorder =
             order.items.some(
                 (item) =>
@@ -529,7 +538,7 @@ export default function Show({
                 </section>
 
                 {/* QR + Progress */}
-                {!isCancelled && (
+                {!isCancelled && !isExpired && (
                     <section
                         className="
                             grid
@@ -2328,6 +2337,32 @@ function getOverallStatus(
 
             description:
                 'This order has been cancelled and will not continue to fulfillment.',
+
+            badgeClass:
+                'bg-red-100 text-red-700',
+
+            iconClass:
+                'bg-red-100 text-red-700',
+
+            icon:
+                XCircle,
+        };
+    }
+
+    if (
+        order.items.length > 0
+        && order.items.every(
+            (item) =>
+                item.item_type === 'preorder'
+                && item.preorder_status === 'expired',
+        )
+    ) {
+        return {
+            label:
+                'Expired',
+
+            description:
+                'The payment period for this preorder has expired.',
 
             badgeClass:
                 'bg-red-100 text-red-700',

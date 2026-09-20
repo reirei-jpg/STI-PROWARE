@@ -39,6 +39,8 @@ interface StudentOrder {
 
     order_type: string;
 
+    is_expired_preorder: boolean;
+
     payment_status: string;
 
     fulfillment_status: string;
@@ -214,6 +216,7 @@ export default function Index({
                                 order
                                     .payment_status
                                 === 'pending'
+                                && !order.is_expired_preorder
                             );
                         }
 
@@ -2469,6 +2472,22 @@ function getOrderStatus(
 
             description:
                 'This order has been cancelled and will not continue to fulfillment.',
+
+            badgeClass:
+                'bg-red-100 text-red-700',
+
+            icon:
+                XCircle,
+        };
+    }
+
+    if (order.is_expired_preorder) {
+        return {
+            label:
+                'Expired',
+
+            description:
+                'The payment period for this preorder has expired.',
 
             badgeClass:
                 'bg-red-100 text-red-700',
