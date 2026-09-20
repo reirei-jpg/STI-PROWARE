@@ -7,6 +7,7 @@
     "@expo/metro-runtime": "~57.0.16",
     "expo": "~57.0.24",
     "expo-constants": "~57.0.19",
+    "expo-dev-client": "~57.0.19",
     "expo-device": "~57.0.2",
     "expo-font": "~57.0.4",
     "expo-linking": "~57.0.10",
@@ -38,7 +39,7 @@
   },
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
+    "android": "expo run:android",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit"
   },
