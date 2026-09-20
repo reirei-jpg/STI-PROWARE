@@ -10,7 +10,13 @@ import {
 
 import { ApiError } from './api';
 import { useAuth } from './auth';
-import type { CartChangeResponse, CartData, CartResponse } from './cart';
+import type {
+    CartChangeResponse,
+    CartData,
+    CartResponse,
+    CheckoutPayload,
+    CheckoutResponse,
+} from './cart';
 
 type CartContextValue = {
     cart: CartData | null;
@@ -21,6 +27,8 @@ type CartContextValue = {
     refresh: () => Promise<void>;
     updateQuantity: (itemId: number, quantity: number) => Promise<void>;
     removeItem: (itemId: number) => Promise<void>;
+    /** Places the order; throws the server's own message when it is refused. */
+    checkout: (payload: CheckoutPayload) => Promise<CheckoutResponse>;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -88,6 +96,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
         [request],
     );
 
+    const checkout = useCallback(
+        async (payload: CheckoutPayload) => {
+            const response = await request<CheckoutResponse>('/checkout', {
+                method: 'POST',
+                body: payload,
+            });
+
+            setCart(response.data.cart);
+
+            return response;
+        },
+        [request],
+    );
+
     const value = useMemo(
         () => ({
             cart,
@@ -97,8 +119,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
             refresh,
             updateQuantity,
             removeItem,
+            checkout,
         }),
-        [cart, loading, error, refresh, updateQuantity, removeItem],
+        [cart, loading, error, refresh, updateQuantity, removeItem, checkout],
     );
 
     return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

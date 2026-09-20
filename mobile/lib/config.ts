@@ -7,3 +7,6 @@
  */
 export const API_URL: string =
     process.env.EXPO_PUBLIC_API_URL ?? 'http://10.0.2.2:8000/api/v1';
+
+/** The server's own address (no /api/v1), for images such as the payment QR codes. */
+export const SERVER_URL: string = API_URL.replace(/\/api\/v1\/?$/, '');

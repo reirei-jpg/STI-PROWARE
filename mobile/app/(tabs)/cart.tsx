@@ -22,7 +22,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/lib/api';
-import { quantityProblem, type CartItemData } from '@/lib/cart';
+import {
+    checkoutSelectionProblem,
+    quantityProblem,
+    type CartItemData,
+} from '@/lib/cart';
 import { useCart } from '@/lib/cart-context';
 import { formatPesos } from '@/lib/format';
 
@@ -233,6 +237,9 @@ export default function Cart() {
     const [deselected, setDeselected] = useState<Set<number>>(new Set());
     const [refreshing, setRefreshing] = useState(false);
 
+    // Shown only after the student taps Checkout, so it never nags earlier.
+    const [checkoutMessage, setCheckoutMessage] = useState<string | null>(null);
+
     const items = cart?.items ?? [];
     const selectedItems = items.filter((item) => !deselected.has(item.id));
     const selectedTotal = selectedItems.reduce(
@@ -240,7 +247,9 @@ export default function Cart() {
         0,
     );
 
-    const toggle = (id: number): void =>
+    const toggle = (id: number): void => {
+        setCheckoutMessage(null);
+
         setDeselected((current) => {
             const next = new Set(current);
 
@@ -252,8 +261,22 @@ export default function Cart() {
 
             return next;
         });
+    };
 
     const allSelected = items.length > 0 && selectedItems.length === items.length;
+
+    const goToCheckout = (): void => {
+        const problem = checkoutSelectionProblem(selectedItems);
+
+        setCheckoutMessage(problem);
+
+        if (problem === null) {
+            router.push({
+                pathname: '/checkout',
+                params: { items: selectedItems.map((item) => item.id).join(',') },
+            });
+        }
+    };
 
     const pullToRefresh = async (): Promise<void> => {
         setRefreshing(true);
@@ -362,13 +385,14 @@ export default function Cart() {
                 }
             >
                 <Pressable
-                    onPress={() =>
+                    onPress={() => {
+                        setCheckoutMessage(null);
                         setDeselected(
                             allSelected
                                 ? new Set(items.map((item) => item.id))
                                 : new Set(),
-                        )
-                    }
+                        );
+                    }}
                     accessibilityRole="button"
                     className="self-start rounded-full border border-slate-200 bg-white px-4 py-2"
                 >
@@ -398,11 +422,23 @@ export default function Cart() {
                     </Text>
                 </View>
 
-                <View className="items-center rounded-full bg-slate-200 py-4">
-                    <Text className="font-sans-bold text-base text-slate-400">
-                        Checkout - coming soon
+                {checkoutMessage && (
+                    <View className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2">
+                        <Text className="font-sans-semibold text-xs leading-5 text-red-700">
+                            {checkoutMessage}
+                        </Text>
+                    </View>
+                )}
+
+                <Pressable
+                    onPress={goToCheckout}
+                    accessibilityRole="button"
+                    className="items-center rounded-full bg-brand py-4"
+                >
+                    <Text className="font-sans-bold text-base text-white">
+                        Checkout
                     </Text>
-                </View>
+                </Pressable>
             </View>
         </View>
     );
