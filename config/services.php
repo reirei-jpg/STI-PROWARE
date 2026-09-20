@@ -28,6 +28,20 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    /*
+    | Firebase Cloud Messaging: push notifications to the mobile app.
+    |
+    | "credentials" is the service-account JSON downloaded from the Firebase
+    | console (a secret: it lives in storage/app/private, which git ignores).
+    | "ca_bundle" is optional: a certificate file to trust when an antivirus
+    | re-signs HTTPS connections on a development machine.
+    */
+    'fcm' => [
+        'credentials' => env('FCM_CREDENTIALS', storage_path('app/private/firebase-service-account.json')),
+        'ca_bundle' => env('FCM_CA_BUNDLE'),
+        'channel_id' => 'orders',
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

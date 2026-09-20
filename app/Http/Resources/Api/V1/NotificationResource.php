@@ -25,7 +25,7 @@ class NotificationResource extends JsonResource
             'type' => $this->type,
             'title' => $this->title,
             'message' => $this->message,
-            'order_id' => $this->orderId(),
+            'order_id' => $this->studentOrderId(),
             'is_read' => $this->read_at !== null,
             'created_at' => $this->created_at?->diffForHumans(),
             'created_at_full' => $this->created_at
@@ -33,15 +33,5 @@ class NotificationResource extends JsonResource
                 ->timezone(config('app.display_timezone'))
                 ->format('M d, Y h:i A'),
         ];
-    }
-
-    /**
-     * Student notifications link to /student/orders/{id} (or its receipt).
-     */
-    private function orderId(): ?int
-    {
-        return preg_match('#^/student/orders/(\d+)(?:/|$)#', (string) $this->link, $matches)
-            ? (int) $matches[1]
-            : null;
     }
 }

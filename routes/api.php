@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\CartController;
 use App\Http\Controllers\Api\V1\CartItemController;
 use App\Http\Controllers\Api\V1\CatalogController;
 use App\Http\Controllers\Api\V1\CheckoutController;
+use App\Http\Controllers\Api\V1\DeviceTokenController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\PasswordController;
@@ -39,6 +40,12 @@ Route::prefix('v1')
 
             Route::post('auth/logout', [AuthController::class, 'logout'])
                 ->name('auth.logout');
+
+            Route::put('device-token', [DeviceTokenController::class, 'store'])
+                ->name('device-token.store');
+
+            Route::delete('device-token', [DeviceTokenController::class, 'destroy'])
+                ->name('device-token.destroy');
 
             Route::put('auth/password', [PasswordController::class, 'update'])
                 ->middleware('throttle:6,1')

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Jobs\SendPushNotification;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -63,6 +64,30 @@ class Notification extends Model
         'data',
         'read_at',
     ];
+
+    /**
+     * A new notification also goes to the owner's phones as a push, but only
+     * when they have registered one (so most notifications queue nothing).
+     */
+    protected static function booted(): void
+    {
+        static::created(function (Notification $notification): void {
+            if (DeviceToken::query()->where('user_id', $notification->user_id)->exists()) {
+                SendPushNotification::dispatch($notification->id)->afterCommit();
+            }
+        });
+    }
+
+    /**
+     * The order a student notification is about, taken from its link
+     * (/student/orders/{id}, or its receipt), or null when it is not about one.
+     */
+    public function studentOrderId(): ?int
+    {
+        return preg_match('#^/student/orders/(\d+)(?:/|$)#', (string) $this->link, $matches)
+            ? (int) $matches[1]
+            : null;
+    }
 
     protected function casts(): array
     {
