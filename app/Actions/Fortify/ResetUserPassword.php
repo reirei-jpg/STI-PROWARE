@@ -4,6 +4,7 @@ namespace App\Actions\Fortify;
 
 use App\Concerns\PasswordValidationRules;
 use App\Models\User;
+use App\Services\AccountPasswordChanger;
 use App\Services\AuditLogger;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Fortify\Contracts\ResetsUserPasswords;
@@ -35,5 +36,8 @@ class ResetUserPassword implements ResetsUserPasswords
             subject: $user,
             actor: $user,
         );
+
+        // A forgotten password often means a lost phone: end every app session.
+        app(AccountPasswordChanger::class)->endMobileSessions($user);
     }
 }

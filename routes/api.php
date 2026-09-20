@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\CartItemController;
 use App\Http\Controllers\Api\V1\CatalogController;
 use App\Http\Controllers\Api\V1\CheckoutController;
 use App\Http\Controllers\Api\V1\OrderController;
+use App\Http\Controllers\Api\V1\PasswordController;
 use App\Http\Controllers\Api\V1\PreorderController;
 use App\Http\Middleware\EnsureApiAccountIsUsable;
 use Illuminate\Support\Facades\Route;
@@ -37,6 +38,10 @@ Route::prefix('v1')
 
             Route::post('auth/logout', [AuthController::class, 'logout'])
                 ->name('auth.logout');
+
+            Route::put('auth/password', [PasswordController::class, 'update'])
+                ->middleware('throttle:6,1')
+                ->name('auth.password');
 
             Route::get('catalog', [CatalogController::class, 'index'])
                 ->name('catalog.index');
