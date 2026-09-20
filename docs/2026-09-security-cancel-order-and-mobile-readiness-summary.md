@@ -110,6 +110,28 @@ Student cart and checkout (stock reserved) → student payment QR → cashier sc
 
 The Android SDK currently has no command-line tools and no emulator system image, so the user must install those and create a Pixel virtual device in Android Studio (SDK Manager and Device Manager).
 
+## Future idea: Microsoft 365 sign-in for students (noted, not decided, not started)
+
+The user wants to let students sign in with their STI Microsoft 365 account, like the STI ELMS, so every student already has an account and it is easier to trace who is who. They do not yet know how it would work, and want it implemented later "if all goes well".
+
+What it would need (to discuss when the time comes):
+- STI's IT/tenant administrator must allow an app registration in Microsoft Entra ID and grant consent. It is not known whether STI permits this for a student project. Ask them first.
+- On the server: Laravel Socialite with a Microsoft provider (a new dependency, which needs the user's approval).
+- Matching the Microsoft account's email to an existing `users`/`students` record, and deciding what happens for a Microsoft account with no student record.
+- On the phone: a Microsoft sign-in flow (for example Expo AuthSession) that returns a PROWARE API token.
+- Keep the existing email and password login working, at least while this is being tried.
+
+## Mobile app: web login rules the app must match (from `FortifyServiceProvider`)
+- The email is trimmed and lowercased before checking. Wrong email or wrong password gives the same message: "Invalid credentials."
+- 5 failed attempts lock the account: "This account has been locked due to too many failed login attempts. Please contact an administrator."
+- A disabled account: "This PROWARE account has been disabled. Please contact the administrator."
+- A student account with no student record: "This student account is not properly linked to a student record. Please contact the PROWARE administrator."
+- A student whose record is not `active`: "This student account is currently inactive. Please contact the PROWARE administrator."
+- Accounts with `must_change_password` set must change the password before using the app.
+- The web login has: email, password with a show/hide eye, "Remember me", "Forgot password?", a "Login" button ("Logging in..." while working), and "Student without an account? Register". Students can self-register on the web.
+- For now the app is students only. Staff accounts signing in on the app need an agreed message.
+- The app's login is built first with sample data. A real web account can only sign in after the `/api/v1` login exists (Sanctum, needs the user's approval).
+
 ## Commits (this session)
 | Commit | What |
 |---|---|
