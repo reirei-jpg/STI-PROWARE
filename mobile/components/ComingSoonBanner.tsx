@@ -1,10 +1,4 @@
-import {
-    CalendarDays,
-    ChevronLeft,
-    ChevronRight,
-    Megaphone,
-    Sparkles,
-} from 'lucide-react-native';
+import { CalendarDays, Megaphone, Sparkles } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
     Image,
@@ -18,19 +12,20 @@ import {
 
 import { badgeIsActive, type CatalogProduct } from '@/lib/catalog';
 
-const IMAGE_HEIGHT = 210;
+/** Compact, like the website's strip: the photo on the left, the blue panel on the right. */
+const CARD_HEIGHT = 232;
 
-/** Every slide has the same text panel height, so the banner never changes size. */
-const PANEL_HEIGHT = 318;
+/** The photo takes about 38% of the width, like the website. */
+const IMAGE_SHARE = 0.38;
 
 /** Same rhythm as the website: a new item every 5 seconds. */
 const ROTATE_EVERY_MS = 5000;
 
 /**
- * The website's Coming Soon promotion, made for a phone: one full-width
- * banner at a time with the product photo above a blue panel. It turns to the
- * next upcoming item every 5 seconds (and back to the first after the last),
- * can be swiped, and has arrows and dots like the website.
+ * The website's Coming Soon promotion, made for a phone: a compact strip that
+ * shows one upcoming item at a time. It turns to the next item every 5
+ * seconds (and back to the first after the last), can be swiped, and has dots.
+ * Every slide is the same size.
  */
 export default function ComingSoonBanner({
     products,
@@ -45,6 +40,7 @@ export default function ComingSoonBanner({
     const [index, setIndex] = useState(0);
 
     const count = products.length;
+    const imageWidth = Math.round(width * IMAGE_SHARE);
 
     const goTo = (target: number): void => {
         const next = ((target % count) + count) % count;
@@ -62,7 +58,7 @@ export default function ComingSoonBanner({
     }, [index, count]);
 
     // Turn to the next item after 5 seconds. The wait starts over after every
-    // change, so a swipe or an arrow tap is never undone straight away.
+    // change, so a swipe is never undone straight away.
     useEffect(() => {
         if (count <= 1) {
             return;
@@ -91,7 +87,7 @@ export default function ComingSoonBanner({
 
     return (
         <View
-            style={{ width }}
+            style={{ width, height: CARD_HEIGHT }}
             className="overflow-hidden rounded-3xl border border-blue-100 bg-white"
         >
             <ScrollView
@@ -114,37 +110,38 @@ export default function ComingSoonBanner({
                             onPress={() => onOpen(product)}
                             accessibilityRole="button"
                             accessibilityLabel={product.name}
-                            style={{ width }}
+                            style={{ width, height: CARD_HEIGHT }}
+                            className="flex-row"
                         >
                             <View
-                                style={{ width, height: IMAGE_HEIGHT }}
+                                style={{ width: imageWidth, height: CARD_HEIGHT }}
                                 className="bg-slate-100"
                             >
                                 {product.image_url ? (
                                     <Image
                                         source={{ uri: product.image_url }}
                                         style={{
-                                            width: width - 32,
-                                            height: IMAGE_HEIGHT - 32,
-                                            margin: 16,
+                                            width: imageWidth - 16,
+                                            height: CARD_HEIGHT - 16,
+                                            margin: 8,
                                         }}
                                         resizeMode="contain"
                                     />
                                 ) : (
                                     <View className="flex-1 items-center justify-center bg-blue-50">
-                                        <Megaphone size={52} color="#3b82f6" />
+                                        <Megaphone size={36} color="#3b82f6" />
                                     </View>
                                 )}
 
-                                <View className="absolute left-3.5 top-3.5 rounded-full bg-amber-400 px-3.5 py-1.5">
-                                    <Text className="font-sans-bold text-[11px] uppercase tracking-wide text-slate-900">
+                                <View className="absolute left-2 top-2 rounded-full bg-amber-400 px-2.5 py-1">
+                                    <Text className="font-sans-bold text-[9px] uppercase tracking-wide text-slate-900">
                                         Coming Soon
                                     </Text>
                                 </View>
 
                                 {isNew && (
-                                    <View className="absolute bottom-3.5 left-3.5 rounded-full bg-emerald-600 px-3.5 py-1.5">
-                                        <Text className="font-sans-bold text-[11px] uppercase tracking-wide text-white">
+                                    <View className="absolute bottom-2 left-2 rounded-full bg-emerald-600 px-2.5 py-1">
+                                        <Text className="font-sans-bold text-[9px] uppercase tracking-wide text-white">
                                             New
                                         </Text>
                                     </View>
@@ -152,52 +149,45 @@ export default function ComingSoonBanner({
                             </View>
 
                             <View
-                                style={{ height: PANEL_HEIGHT }}
-                                className="gap-3 overflow-hidden bg-blue-700 px-5 pt-5"
+                                style={{ width: width - imageWidth, height: CARD_HEIGHT }}
+                                className="justify-center gap-1.5 overflow-hidden bg-blue-700 px-3.5 pb-8 pt-3.5"
                             >
-                                <View className="gap-1.5">
-                                    <Text className="font-sans-bold text-[11px] uppercase tracking-[2px] text-yellow-300">
-                                        Upcoming Merchandise
-                                    </Text>
+                                <Text className="font-sans-bold text-[9px] uppercase tracking-[1.5px] text-yellow-300">
+                                    Upcoming Merchandise
+                                </Text>
 
-                                    <Text
-                                        numberOfLines={2}
-                                        className="font-sans-bold text-2xl leading-8 text-white"
-                                    >
-                                        {product.name}
-                                    </Text>
+                                <Text
+                                    numberOfLines={2}
+                                    className="font-sans-bold text-lg leading-6 text-white"
+                                >
+                                    {product.name}
+                                </Text>
 
-                                    <Text
-                                        numberOfLines={2}
-                                        className="font-sans text-sm leading-6 text-blue-100"
-                                    >
-                                        {product.description ??
-                                            'A new STI merchandise item is coming soon.'}
-                                    </Text>
-                                </View>
+                                <Text
+                                    numberOfLines={2}
+                                    className="font-sans text-xs leading-4 text-blue-100"
+                                >
+                                    {product.description ??
+                                        'A new STI merchandise item is coming soon.'}
+                                </Text>
 
-                                <View className="flex-row flex-wrap items-center gap-2">
+                                <View className="flex-row flex-wrap items-center gap-1.5">
                                     {product.accepts_preorders && (
-                                        <View className="rounded-full bg-yellow-400 px-3 py-1.5">
-                                            <Text className="font-sans-bold text-xs text-slate-900">
+                                        <View className="rounded-full bg-yellow-400 px-2 py-1">
+                                            <Text className="font-sans-bold text-[10px] text-slate-900">
                                                 Preorder Available
                                             </Text>
                                         </View>
                                     )}
 
                                     {product.early_bird && (
-                                        <View className="flex-row items-center gap-1.5 rounded-full bg-violet-500 px-3 py-1.5">
-                                            <Sparkles size={13} color="#ffffff" />
+                                        <View className="flex-row items-center gap-1 rounded-full bg-violet-500 px-2 py-1">
+                                            <Sparkles size={10} color="#ffffff" />
 
-                                            <Text className="font-sans-bold text-xs text-white">
+                                            <Text className="font-sans-bold text-[10px] text-white">
                                                 {product.early_bird.discount_percent}
                                                 % off ·{' '}
                                                 {product.early_bird.remaining_slots}{' '}
-                                                slot
-                                                {product.early_bird
-                                                    .remaining_slots === 1
-                                                    ? ''
-                                                    : 's'}{' '}
                                                 left
                                             </Text>
                                         </View>
@@ -205,23 +195,18 @@ export default function ComingSoonBanner({
                                 </View>
 
                                 {product.expected_release_date && (
-                                    <View className="flex-row items-center gap-2">
-                                        <CalendarDays size={16} color="#dbeafe" />
+                                    <View className="flex-row items-center gap-1.5">
+                                        <CalendarDays size={12} color="#dbeafe" />
 
-                                        <Text className="font-sans-semibold text-sm text-blue-100">
+                                        <Text
+                                            numberOfLines={1}
+                                            className="flex-1 font-sans-semibold text-[11px] text-blue-100"
+                                        >
                                             Expected release:{' '}
                                             {product.expected_release_date}
                                         </Text>
                                     </View>
                                 )}
-
-                                <View className="mt-1 self-start rounded-xl bg-white px-5 py-2.5">
-                                    <Text className="font-sans-bold text-sm text-blue-700">
-                                        {product.accepts_preorders
-                                            ? 'View Preorder'
-                                            : 'View Product'}
-                                    </Text>
-                                </View>
                             </View>
                         </Pressable>
                     );
@@ -229,42 +214,18 @@ export default function ComingSoonBanner({
             </ScrollView>
 
             {count > 1 && (
-                <>
-                    <Pressable
-                        onPress={() => goTo(index - 1)}
-                        accessibilityRole="button"
-                        accessibilityLabel="Previous coming soon item"
-                        hitSlop={8}
-                        style={{ top: IMAGE_HEIGHT / 2 - 18 }}
-                        className="absolute left-2.5 h-9 w-9 items-center justify-center rounded-full bg-white/90"
-                    >
-                        <ChevronLeft size={20} color="#334155" />
-                    </Pressable>
-
-                    <Pressable
-                        onPress={() => goTo(index + 1)}
-                        accessibilityRole="button"
-                        accessibilityLabel="Next coming soon item"
-                        hitSlop={8}
-                        style={{ top: IMAGE_HEIGHT / 2 - 18 }}
-                        className="absolute right-2.5 h-9 w-9 items-center justify-center rounded-full bg-white/90"
-                    >
-                        <ChevronRight size={20} color="#334155" />
-                    </Pressable>
-
-                    <View
-                        style={{ top: IMAGE_HEIGHT - 34, alignSelf: 'center' }}
-                        className="absolute flex-row items-center gap-2 rounded-full bg-black/20 px-3 py-2"
-                        pointerEvents="none"
-                    >
-                        {products.map((product, position) => (
-                            <View
-                                key={product.id}
-                                className={`h-2 rounded-full ${position === index ? 'w-5 bg-white' : 'w-2 bg-white/60'}`}
-                            />
-                        ))}
-                    </View>
-                </>
+                <View
+                    style={{ right: 14, bottom: 10 }}
+                    className="absolute flex-row items-center gap-1.5 rounded-full bg-black/20 px-2.5 py-1.5"
+                    pointerEvents="none"
+                >
+                    {products.map((product, position) => (
+                        <View
+                            key={product.id}
+                            className={`h-1.5 rounded-full ${position === index ? 'w-4 bg-white' : 'w-1.5 bg-white/60'}`}
+                        />
+                    ))}
+                </View>
             )}
         </View>
     );
