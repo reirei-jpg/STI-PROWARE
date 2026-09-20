@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import ComingSoonCard from '@/components/ComingSoonCard';
+import ComingSoonBanner from '@/components/ComingSoonBanner';
 import ProductCard from '@/components/ProductCard';
 import { useAuth } from '@/lib/auth';
 import type { StatusFilter } from '@/lib/catalog';
@@ -28,7 +28,7 @@ const FILTERS: { label: string; value: StatusFilter }[] = [
     { label: 'Out of Stock', value: 'out_of_stock' },
 ];
 
-const SIDE_PADDING = 20;
+const SIDE_PADDING = 16;
 const GAP = 12;
 
 function openProduct(id: number): void {
@@ -62,7 +62,6 @@ export default function Home() {
     );
 
     const cardWidth = Math.floor((width - SIDE_PADDING * 2 - GAP) / 2);
-    const carouselWidth = Math.min(280, width - 80);
 
     // Like the website: with the Coming Soon filter on, the carousel is the
     // result and the grid stays empty.
@@ -78,43 +77,11 @@ export default function Home() {
     const listHeader = (
         <View style={{ paddingHorizontal: SIDE_PADDING }} className="gap-5 pb-1">
             {catalog.comingSoon.length > 0 && (
-                <View className="gap-3">
-                    <View>
-                        <Text className="font-sans-bold text-xl text-slate-900">
-                            Coming Soon
-                        </Text>
-
-                        <Text className="font-sans text-sm text-slate-500">
-                            Upcoming merchandise you can preorder
-                        </Text>
-                    </View>
-
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={{ gap: GAP }}
-                        style={{ marginHorizontal: -SIDE_PADDING }}
-                        contentInset={{ left: SIDE_PADDING, right: SIDE_PADDING }}
-                    >
-                        <View style={{ width: SIDE_PADDING - GAP }} />
-
-                        {catalog.comingSoon.map((product) => (
-                            <Pressable
-                                key={product.id}
-                                onPress={() => openProduct(product.id)}
-                                accessibilityRole="button"
-                                accessibilityLabel={product.name}
-                            >
-                                <ComingSoonCard
-                                    product={product}
-                                    width={carouselWidth}
-                                />
-                            </Pressable>
-                        ))}
-
-                        <View style={{ width: SIDE_PADDING - GAP }} />
-                    </ScrollView>
-                </View>
+                <ComingSoonBanner
+                    products={catalog.comingSoon}
+                    width={width - SIDE_PADDING * 2}
+                    onOpen={(product) => openProduct(product.id)}
+                />
             )}
 
             {!catalog.loading && !catalog.error && (

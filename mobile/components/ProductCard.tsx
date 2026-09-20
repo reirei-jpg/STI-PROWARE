@@ -5,9 +5,20 @@ import AvailabilityBadge from '@/components/AvailabilityBadge';
 import { badgeIsActive, type CatalogProduct } from '@/lib/catalog';
 import { formatPriceRange } from '@/lib/format';
 
+/** Every card has the same text area height, so a row of cards is always even. */
+const TEXT_AREA_HEIGHT = 196;
+
+/** The height of a card of this width, for lists that want to know it. */
+export function productCardHeight(width: number): number {
+    return width + TEXT_AREA_HEIGHT;
+}
+
 /**
  * One product in the grid, with the same information and rules as the
  * website's product card (badges, low stock, early bird).
+ *
+ * All cards are exactly the same size: the name always takes two lines of
+ * room, and one fixed slot shows the most important notice.
  */
 export default function ProductCard({
     product,
@@ -32,9 +43,12 @@ export default function ProductCard({
         product.restocked_badge_duration_days,
     );
 
+    const showsSummary =
+        product.availability_summary !== product.availability_label;
+
     return (
         <View
-            style={{ width }}
+            style={{ width, height: productCardHeight(width) }}
             className="overflow-hidden rounded-3xl border border-slate-100 bg-white"
         >
             <View>
@@ -50,16 +64,16 @@ export default function ProductCard({
                         style={{ width, height: width }}
                         className="items-center justify-center bg-slate-100"
                     >
-                        <PackageOpen size={36} color="#94a3b8" />
+                        <PackageOpen size={40} color="#94a3b8" />
                     </View>
                 )}
 
                 {isOutOfStock && (
                     <View className="absolute inset-0 items-center justify-center bg-slate-900/30">
                         <View className="flex-row items-center gap-1.5 rounded-full bg-white px-3 py-1.5">
-                            <Ban size={13} color="#1e293b" />
+                            <Ban size={14} color="#1e293b" />
 
-                            <Text className="font-sans-bold text-[11px] text-slate-800">
+                            <Text className="font-sans-bold text-xs text-slate-800">
                                 Unavailable
                             </Text>
                         </View>
@@ -98,67 +112,78 @@ export default function ProductCard({
                 )}
             </View>
 
-            <View className="gap-1.5 p-3">
+            <View
+                style={{ height: TEXT_AREA_HEIGHT }}
+                className="gap-1.5 overflow-hidden p-3.5"
+            >
                 <Text
                     numberOfLines={1}
-                    className="font-sans-semibold text-[10px] uppercase tracking-wide text-blue-600"
+                    className="font-sans-semibold text-[11px] uppercase tracking-wide text-blue-600"
                 >
                     {product.code}
                 </Text>
 
-                <Text
-                    numberOfLines={2}
-                    className="font-sans-bold text-sm leading-5 text-slate-900"
-                >
-                    {product.name}
-                </Text>
+                {/* Always two lines of room, so one-line and two-line names line up. */}
+                <View style={{ height: 40 }}>
+                    <Text
+                        numberOfLines={2}
+                        className="font-sans-bold text-[15px] leading-5 text-slate-900"
+                    >
+                        {product.name}
+                    </Text>
+                </View>
 
                 <Text
                     numberOfLines={1}
-                    className="font-sans-medium text-xs text-slate-500"
+                    className="font-sans-medium text-[13px] text-slate-500"
                 >
                     {product.category.name}
                 </Text>
 
-                <Text className="mt-1 font-sans-bold text-base text-slate-900">
+                <Text
+                    numberOfLines={1}
+                    className="font-sans-bold text-lg leading-6 text-slate-900"
+                >
                     {formatPriceRange(product.price_min, product.price_max)}
                 </Text>
 
-                {product.availability_summary !== product.availability_label && (
-                    <Text className="font-sans-semibold text-xs text-slate-600">
-                        {product.availability_summary}
-                    </Text>
-                )}
+                {/* One fixed slot for the most important notice. */}
+                <View style={{ height: 26 }} className="justify-center">
+                    {product.stock_urgency === 'low_stock' ? (
+                        <View className="flex-row items-center gap-1.5 self-start rounded-xl border border-orange-200 bg-orange-50 px-2.5 py-1">
+                            <TriangleAlert size={13} color="#c2410c" />
 
-                {product.stock_urgency === 'low_stock' && (
-                    <View className="flex-row items-center gap-1.5 rounded-xl border border-orange-200 bg-orange-50 px-2.5 py-1.5">
-                        <TriangleAlert size={13} color="#c2410c" />
+                            <Text className="font-sans-bold text-[11px] text-orange-700">
+                                Only a few left
+                            </Text>
+                        </View>
+                    ) : product.early_bird ? (
+                        <View className="flex-row items-center gap-1.5 self-start rounded-xl border border-violet-200 bg-violet-50 px-2.5 py-1">
+                            <Sparkles size={13} color="#6d28d9" />
 
-                        <Text className="font-sans-bold text-[11px] text-orange-700">
-                            Only a few left
-                        </Text>
-                    </View>
-                )}
+                            <Text
+                                numberOfLines={1}
+                                className="font-sans-bold text-[11px] text-violet-700"
+                            >
+                                {product.early_bird.discount_percent}% early bird
+                                {' - '}
+                                {product.early_bird.remaining_slots} left
+                            </Text>
+                        </View>
+                    ) : null}
+                </View>
 
-                {product.early_bird && (
-                    <View className="flex-row items-center gap-1.5 rounded-xl border border-violet-200 bg-violet-50 px-2.5 py-1.5">
-                        <Sparkles size={13} color="#6d28d9" />
-
-                        <Text className="flex-1 font-sans-bold text-[11px] text-violet-700">
-                            {product.early_bird.discount_percent}% early bird
-                            {' - '}
-                            {product.early_bird.remaining_slots} slot
-                            {product.early_bird.remaining_slots === 1
-                                ? ''
-                                : 's'}{' '}
-                            left
-                        </Text>
-                    </View>
-                )}
-
-                <Text className="font-sans-medium text-[11px] text-slate-400">
-                    {product.variants_count}{' '}
-                    {product.variants_count === 1 ? 'variant' : 'variants'}
+                <Text
+                    numberOfLines={1}
+                    className={`text-xs ${showsSummary ? 'font-sans-semibold text-slate-600' : 'font-sans-medium text-slate-400'}`}
+                >
+                    {showsSummary
+                        ? product.availability_summary
+                        : `${product.variants_count} ${
+                              product.variants_count === 1
+                                  ? 'variant'
+                                  : 'variants'
+                          }`}
                 </Text>
             </View>
         </View>
