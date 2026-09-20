@@ -77,3 +77,22 @@ test('correct password must be provided to update password', function () {
         ->assertSessionHasErrors('current_password')
         ->assertRedirect(route('security.edit'));
 });
+
+test('the new password must be different from the current password', function () {
+    $user = User::factory()->create();
+
+    $response = $this
+        ->actingAs($user)
+        ->from(route('security.edit'))
+        ->put(route('user-password.update'), [
+            'current_password' => 'password',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
+
+    $response
+        ->assertSessionHasErrors(['password' => 'Your new password must be different from your current password.'])
+        ->assertRedirect(route('security.edit'));
+
+    expect(Hash::check('password', $user->refresh()->password))->toBeTrue();
+});

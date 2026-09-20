@@ -19,7 +19,20 @@ class PasswordUpdateRequest extends FormRequest
     {
         return [
             'current_password' => $this->currentPasswordRules(),
-            'password' => $this->passwordRules(),
+            'password' => [
+                ...$this->passwordRules(),
+                'different:current_password',
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'password.different' => 'Your new password must be different from your current password.',
         ];
     }
 }

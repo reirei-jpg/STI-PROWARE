@@ -164,3 +164,18 @@ test('resetting a forgotten password signs every phone out', function () {
     expect($student->tokens()->count())->toBe(0)
         ->and(Hash::check('reset-password-123', $student->fresh()->password))->toBeTrue();
 });
+
+test('the new password must be different from the current one', function () {
+    [$student, $phone] = apiPasswordTwoPhones();
+
+    $this->withToken($phone)
+        ->putJson('/api/v1/auth/password', apiPasswordPayload([
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]))
+        ->assertUnprocessable()
+        ->assertJsonPath('errors.password.0', 'Your new password must be different from your current password.');
+
+    expect(Hash::check('password', $student->fresh()->password))->toBeTrue()
+        ->and($student->tokens()->count())->toBe(2);
+});
