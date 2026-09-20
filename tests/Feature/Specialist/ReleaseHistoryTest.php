@@ -4,6 +4,10 @@ use App\Models\Order;
 use Carbon\CarbonImmutable;
 
 test('the summary counts reflect total, today, and this-week releases', function () {
+    // Pinned to a Wednesday noon in Manila: the week starts at a different
+    // moment in Manila and in UTC, so this test failed for 8 hours every Monday.
+    $this->travelTo(CarbonImmutable::parse('2026-09-16 12:00:00', 'Asia/Manila'));
+
     $specialist = makeSpecialist();
     $studentUser = makeStudentAccount();
     $variant = makeVariantWithStock(10, 0);

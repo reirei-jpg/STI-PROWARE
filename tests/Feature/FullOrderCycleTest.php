@@ -393,4 +393,59 @@ test('one full order cycle works end to end: cart -> checkout -> payment -> rele
             ->component('cashier/Orders/Index')
             ->where('orders', []),
         );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Step 11: The Admin Can Monitor The Finished Transaction
+    |--------------------------------------------------------------------------
+    |
+    | The admin never touches the order, but everything the cashier and
+    | the specialist did must be visible to them.
+    */
+
+    // Orders list and the order's own page.
+    $this->actingAs($admin)
+        ->get('/admin/orders')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('admin/Orders/Index')
+            ->where('orders.data.0.id', $order->id),
+        );
+
+    $this->actingAs($admin)
+        ->get("/admin/orders/{$order->id}")
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('admin/Orders/Show')
+            ->where('order.id', $order->id)
+            ->where('order.payment_status', Order::PAYMENT_PAID)
+            ->where('order.fulfillment_status', Order::FULFILLMENT_RELEASED),
+        );
+
+    // Admin sales include the sale.
+    $this->actingAs($admin)
+        ->get('/admin/sales')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('admin/Sales/Index')
+            ->where('summary.today_sales', '900.00'),
+        );
+
+    // Every step left an audit trail entry, once.
+    foreach (['payment_confirmed', 'ready_for_pickup', 'released'] as $action) {
+        expect(
+            AuditLog::query()->where('action', $action)->count(),
+        )->toBe(1, "Expected exactly one audit log entry for {$action}.");
+    }
+
+    // The audit log page and the admin dashboard open for the admin.
+    $this->actingAs($admin)
+        ->get('/admin/audit-logs')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->component('admin/AuditLogs/Index'));
+
+    $this->actingAs($admin)
+        ->get('/admin/dashboard')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->component('admin/Dashboard'));
 });
