@@ -7,7 +7,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "android": {
-      "package": "ph.sti.proware",
+      "package": "sti.proware",
       "adaptiveIcon": {
         "backgroundColor": "#F2DB11",
         "foregroundImage": "./assets/android-icon-foreground.png",
