@@ -84,7 +84,7 @@ export default function ComingSoonCarousel({
                             % products.length,
                     );
                 },
-                5000,
+                15000,
             );
 
         return () => {

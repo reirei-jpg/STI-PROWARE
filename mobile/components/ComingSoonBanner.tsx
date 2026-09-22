@@ -18,8 +18,8 @@ const CARD_HEIGHT = 232;
 /** The photo takes about 38% of the width, like the website. */
 const IMAGE_SHARE = 0.38;
 
-/** Same rhythm as the website: a new item every 5 seconds. */
-const ROTATE_EVERY_MS = 5000;
+/** Same rhythm as the website: a new item every 15 seconds. */
+const ROTATE_EVERY_MS = 15000;
 
 /**
  * The website's Coming Soon promotion, made for a phone: a compact strip that
