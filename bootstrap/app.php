@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AddSecurityHeaders;
 use App\Http\Middleware\ForcePasswordChange;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -47,6 +48,19 @@ return Application::configure(
                     'appearance',
                     'sidebar_state',
                 ],
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Security Headers
+            |--------------------------------------------------------------------------
+            |
+            | Applied globally (append, not web-only) so the API the mobile
+            | app talks to gets them too, not just the website.
+            */
+
+            $middleware->append(
+                AddSecurityHeaders::class,
             );
 
             /*
