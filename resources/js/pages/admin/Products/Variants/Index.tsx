@@ -13,6 +13,7 @@ import {
     Link,
     router,
     useForm,
+    usePage,
 } from '@inertiajs/react';
 
 import {
@@ -22,11 +23,25 @@ import {
 } from 'react';
 
 import AdminLayout from '@/layouts/AdminLayout';
+import SpecialistLayout from '@/layouts/SpecialistLayout';
 
 import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal';
 import ActionNotification from '@/components/action-feedback/ActionNotification';
 import ActionProcessingButton from '@/components/action-feedback/ActionProcessingButton';
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
+
+interface SharedPageProps {
+    [key: string]: unknown;
+
+    auth?: {
+        user?: {
+            id: number;
+            name: string;
+            email: string;
+            role: string;
+        };
+    };
+}
 
 type VariantMode =
     | 'program_and_size'
@@ -137,6 +152,9 @@ export default function Index({
     programOptions,
     sizeOptions,
 }: PageProps) {
+    const page =
+        usePage<SharedPageProps>();
+
     const form =
         useForm<VariantForm>({
             program: '',
@@ -157,6 +175,16 @@ const [
     statusVariant,
     setStatusVariant,
 ] = useState<Variant | null>(null);
+
+const [
+    priceVariant,
+    setPriceVariant,
+] = useState<Variant | null>(null);
+
+const [
+    priceValue,
+    setPriceValue,
+] = useState('');
 
 const [
     processingVariantId,
@@ -309,8 +337,72 @@ const {
                     );
                 };
 
+    /*
+    |--------------------------------------------------------------------------
+    | Edit Price
+    |--------------------------------------------------------------------------
+    */
+
+    const [priceError, setPriceError] = useState('');
+
+    const openEditPrice = (variant: Variant): void => {
+        if (processingVariantId !== null) {
+            return;
+        }
+
+        setPriceError('');
+        setPriceValue(variant.price_override ?? '');
+        setPriceVariant(variant);
+    };
+
+    const confirmEditPrice = (): void => {
+        if (!priceVariant || processingVariantId !== null) {
+            return;
+        }
+
+        const variant = priceVariant;
+
+        setProcessingVariantId(variant.id);
+        setPriceError('');
+
+        router.patch(
+            `/admin/products/${product.id}/variants/${variant.id}/price`,
+            {
+                price_override: priceValue.trim() === '' ? null : priceValue,
+            },
+            {
+                preserveScroll: true,
+
+                onSuccess: () => {
+                    setPriceVariant(null);
+
+                    showSuccess('Variant price updated successfully.');
+                },
+
+                onError: (errors) => {
+                    setPriceError(
+                        errors.price_override
+                            ?? 'The variant price could not be updated. Please try again.',
+                    );
+                },
+
+                onFinish: () => {
+                    setProcessingVariantId(null);
+                },
+            },
+        );
+    };
+
+    const currentRole =
+        page.props.auth?.user?.role ?? null;
+
+    const Layout =
+        currentRole === 'specialist'
+            ? SpecialistLayout
+            : AdminLayout;
+
     return (
-        <AdminLayout>
+        <Layout>
             <Head
                 title={
                     `Variants - ${product.name}`
@@ -627,6 +719,11 @@ const {
                                                             variant,
                                                         )
                                                     }
+                                                    onEditPrice={() =>
+                                                        openEditPrice(
+                                                            variant,
+                                                        )
+                                                    }
                                                     processing={
                                                         processingVariantId ===
                                                         variant.id
@@ -911,7 +1008,7 @@ const {
 
                                 {/* PRICE */}
                                 <FormFieldContainer
-                                    label="Price Override"
+                                    label="Variant Price"
                                     optional
                                     error={
                                         form
@@ -919,6 +1016,13 @@ const {
                                             .price_override
                                     }
                                 >
+                                    <p className="mb-2 text-xs leading-5 text-slate-500">
+                                        Leave blank to use the product&apos;s
+                                        own price of {formatCurrency(product.base_price)}.
+                                        Only fill this in if this specific
+                                        variant should cost differently.
+                                    </p>
+
                                     <input
                                         type="number"
                                         min="0"
@@ -1092,7 +1196,142 @@ const {
                 onConfirm={confirmToggleStatus}
             />
 
+            {priceVariant && (
+                <div
+                    className="
+                        fixed
+                        inset-0
+                        z-[100]
+                        flex
+                        items-center
+                        justify-center
+                        bg-slate-950/40
+                        px-4
+                        backdrop-blur-sm
+                    "
+                >
+                    <div
+                        className="
+                            w-full
+                            max-w-md
+                            rounded-3xl
+                            bg-white
+                            shadow-2xl
+                        "
+                    >
+                        <div
+                            className="
+                                border-b
+                                border-slate-100
+                                px-6
+                                py-5
+                            "
+                        >
+                            <h2
+                                className="
+                                    text-lg
+                                    font-black
+                                    text-slate-900
+                                "
+                            >
+                                Edit Variant Price
+                            </h2>
 
+                            <p
+                                className="
+                                    mt-1
+                                    text-sm
+                                    leading-6
+                                    text-slate-500
+                                "
+                            >
+                                {priceVariant.variant_name} for {product.name}.
+                                Leave this blank to use the product&apos;s own
+                                price of {formatCurrency(product.base_price)}.
+                            </p>
+                        </div>
+
+                        <div className="px-6 py-5">
+                            <label className="text-sm font-bold text-slate-700">
+                                Price (optional)
+                            </label>
+
+                            <input
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                autoFocus
+                                placeholder={`Base: ${formatCurrency(product.base_price)}`}
+                                value={priceValue}
+                                onChange={(event) => {
+                                    setPriceValue(event.target.value);
+                                    setPriceError('');
+                                }}
+                                className={inputClass(
+                                    priceError !== '',
+                                )}
+                            />
+
+                            {priceError && (
+                                <p className="mt-2 text-sm font-semibold text-red-600">
+                                    {priceError}
+                                </p>
+                            )}
+                        </div>
+
+                        <div
+                            className="
+                                flex
+                                justify-end
+                                gap-3
+                                border-t
+                                border-slate-100
+                                px-6
+                                py-5
+                            "
+                        >
+                            <button
+                                type="button"
+                                disabled={
+                                    processingVariantId === priceVariant.id
+                                }
+                                onClick={() => setPriceVariant(null)}
+                                className="
+                                    rounded-xl
+                                    border
+                                    border-slate-200
+                                    bg-white
+                                    px-4
+                                    py-2.5
+                                    text-sm
+                                    font-bold
+                                    text-slate-600
+                                    transition
+                                    hover:bg-slate-50
+                                    disabled:cursor-not-allowed
+                                    disabled:opacity-50
+                                "
+                            >
+                                Cancel
+                            </button>
+
+                            <ActionProcessingButton
+                                processing={
+                                    processingVariantId === priceVariant.id
+                                }
+                                idleText="Save Price"
+                                processingText="Saving..."
+                                onClick={confirmEditPrice}
+                                className="
+                                    bg-blue-600
+                                    text-white
+                                    hover:bg-blue-700
+                                "
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
 
                     {notification && (
                         <ActionNotification
@@ -1102,7 +1341,7 @@ const {
                         />
                     )}
             
-        </AdminLayout>
+        </Layout>
     );
 }
 
@@ -1110,11 +1349,13 @@ const VariantRow = ({
     variant,
     basePrice,
     onToggle,
+    onEditPrice,
     processing,
 }: {
     variant: Variant;
     basePrice: string;
     onToggle: () => void;
+    onEditPrice: () => void;
     processing: boolean;
 }) => {
     const inventory =
@@ -1194,28 +1435,77 @@ const VariantRow = ({
                         {variant.sku}
                     </p>
 
-                    <p
+                    <div
                         className="
                             mt-2
-                            text-xs
-                            text-slate-500
+                            flex
+                            flex-wrap
+                            items-center
+                            gap-2
                         "
                     >
-                        Price:{' '}
-
-                        <strong
+                        <p
                             className="
-                                text-slate-800
+                                text-xs
+                                text-slate-500
                             "
                         >
-                            {formatCurrency(
-                                variant
-                                    .price_override
-                                ??
-                                basePrice,
-                            )}
-                        </strong>
-                    </p>
+                            Price:{' '}
+
+                            <strong
+                                className="
+                                    text-slate-800
+                                "
+                            >
+                                {formatCurrency(
+                                    variant
+                                        .price_override
+                                    ??
+                                    basePrice,
+                                )}
+                            </strong>
+                        </p>
+
+                        <span
+                            className={`
+                                rounded-full
+                                px-2
+                                py-0.5
+                                text-[10px]
+                                font-black
+                                uppercase
+                                ${
+                                    variant.price_override
+                                        ? 'bg-amber-100 text-amber-700'
+                                        : 'bg-slate-100 text-slate-500'
+                                }
+                            `}
+                        >
+                            {variant.price_override
+                                ? 'Custom price'
+                                : 'Base price'}
+                        </span>
+
+                        <button
+                            type="button"
+                            onClick={onEditPrice}
+                            disabled={processing}
+                            className="
+                                text-xs
+                                font-bold
+                                text-blue-600
+                                underline
+                                decoration-dotted
+                                underline-offset-2
+                                transition
+                                hover:text-blue-700
+                                disabled:cursor-not-allowed
+                                disabled:opacity-50
+                            "
+                        >
+                            Edit price
+                        </button>
+                    </div>
                 </div>
 
                 <div

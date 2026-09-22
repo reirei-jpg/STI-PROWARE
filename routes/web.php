@@ -193,6 +193,54 @@ Route::middleware([
 
         /*
         |--------------------------------------------------------------------------
+        | Shared Product Variant Management
+        |--------------------------------------------------------------------------
+        |
+        | Admin and Specialist can view, add and reprice product variants.
+        | A Specialist is the one usually setting these up while receiving
+        | new merchandise, so they need the same screen Admin already has,
+        | not a separate one.
+        */
+
+        Route::prefix('admin')
+            ->name('admin.')
+            ->middleware('role:super_admin,admin,specialist')
+            ->group(function () {
+                Route::get(
+                    '/products/{product}/variants',
+                    [
+                        ProductVariantController::class,
+                        'index',
+                    ],
+                )->name('products.variants.index');
+
+                Route::post(
+                    '/products/{product}/variants',
+                    [
+                        ProductVariantController::class,
+                        'store',
+                    ],
+                )->name('products.variants.store');
+
+                Route::patch(
+                    '/products/{product}/variants/{variant}/status',
+                    [
+                        ProductVariantController::class,
+                        'toggleStatus',
+                    ],
+                )->name('products.variants.status');
+
+                Route::patch(
+                    '/products/{product}/variants/{variant}/price',
+                    [
+                        ProductVariantController::class,
+                        'updatePrice',
+                    ],
+                )->name('products.variants.price');
+            });
+
+        /*
+        |--------------------------------------------------------------------------
         | Student Shopping Cart
         |--------------------------------------------------------------------------
         */
@@ -933,51 +981,6 @@ Route::middleware([
                     'products.store',
                 );
 
-                /*
-                |--------------------------------------------------------------------------
-                | Product Variant Management
-                |--------------------------------------------------------------------------
-                |
-                | GET:
-                | /admin/products/{product}/variants
-                |
-                | POST:
-                | /admin/products/{product}/variants
-                |
-                | PATCH:
-                | /admin/products/{product}/variants/{variant}/status
-                |
-                */
-
-                Route::get(
-                    '/products/{product}/variants',
-                    [
-                        ProductVariantController::class,
-                        'index',
-                    ],
-                )->name(
-                    'products.variants.index',
-                );
-
-                Route::post(
-                    '/products/{product}/variants',
-                    [
-                        ProductVariantController::class,
-                        'store',
-                    ],
-                )->name(
-                    'products.variants.store',
-                );
-
-                Route::patch(
-                    '/products/{product}/variants/{variant}/status',
-                    [
-                        ProductVariantController::class,
-                        'toggleStatus',
-                    ],
-                )->name(
-                    'products.variants.status',
-                );
             });
 
         /*

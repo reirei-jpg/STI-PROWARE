@@ -18,6 +18,18 @@ use Inertia\Response;
 class ProductVariantController extends Controller
 {
     /**
+     * Admin and Specialist both manage product variants: Specialist is
+     * usually the one setting these up while receiving new merchandise.
+     *
+     * @var array<int, string>
+     */
+    private const MANAGER_ROLES = [
+        'super_admin',
+        'admin',
+        'specialist',
+    ];
+
+    /**
      * Display all variants belonging to a product.
      */
     public function index(
@@ -28,7 +40,7 @@ class ProductVariantController extends Controller
 
         abort_unless(
             $user
-                && $user->isAdminLevel(),
+                && in_array($user->role, self::MANAGER_ROLES, true),
             403,
         );
 
@@ -191,7 +203,7 @@ class ProductVariantController extends Controller
 
         abort_unless(
             $user
-                && $user->isAdminLevel(),
+                && in_array($user->role, self::MANAGER_ROLES, true),
             403,
         );
 
@@ -614,7 +626,7 @@ class ProductVariantController extends Controller
 
         abort_unless(
             $user
-                && $user->isAdminLevel(),
+                && in_array($user->role, self::MANAGER_ROLES, true),
             403,
         );
 
@@ -692,6 +704,86 @@ class ProductVariantController extends Controller
             $variant->is_active
                 ? 'Variant activated successfully.'
                 : 'Variant deactivated successfully.',
+        );
+    }
+
+    /**
+     * Change what one variant sells for, or clear it back to the product's
+     * own price. Every change is written to the audit log with who made
+     * it and the old and new price, since this affects what students pay.
+     */
+    public function updatePrice(
+        Request $request,
+        Product $product,
+        ProductVariant $variant,
+    ): RedirectResponse {
+        $user = $request->user();
+
+        abort_unless(
+            $user
+                && in_array($user->role, self::MANAGER_ROLES, true),
+            403,
+        );
+
+        abort_unless(
+            $variant->product_id === $product->id,
+            404,
+        );
+
+        $validated = $request->validate([
+            'price_override' => [
+                'nullable',
+                'numeric',
+                'min:0.01',
+                'max:99999999.99',
+            ],
+        ], [
+            'price_override.min' => 'The variant price must be greater than zero.',
+            'price_override.max' => 'The variant price is too large.',
+        ]);
+
+        $oldPrice = $variant->price_override;
+
+        $newPrice = isset($validated['price_override'])
+            ? number_format((float) $validated['price_override'], 2, '.', '')
+            : null;
+
+        $variant->update([
+            'price_override' => $newPrice,
+        ]);
+
+        $describePrice = fn (?string $price): string => $price === null
+            ? "the product's own price (₱{$product->base_price})"
+            : "₱{$price}";
+
+        AuditLogger::log(
+            request: $request,
+
+            action: 'variant_price_updated',
+
+            module: 'products',
+
+            description: "Changed the price of {$variant->variant_name} for "
+                ."{$product->code} — {$product->name} from "
+                .$describePrice($oldPrice)
+                .' to '
+                .$describePrice($newPrice)
+                .'.',
+
+            subject: $variant,
+
+            oldValues: [
+                'price_override' => $oldPrice,
+            ],
+
+            newValues: [
+                'price_override' => $newPrice,
+            ],
+        );
+
+        return back()->with(
+            'success',
+            'Variant price updated successfully.',
         );
     }
 
