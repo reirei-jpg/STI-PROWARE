@@ -2505,7 +2505,7 @@ const confirmPreorderConfiguration = (): void => {
                     <input
                         type="number"
                         min="0.01"
-                        max="99999999.99"
+                        max="10000"
                         step="0.01"
                         value={
                             registerProductForm
@@ -2518,7 +2518,7 @@ const confirmPreorderConfiguration = (): void => {
                                     clampNumberInput(
                                         event.target
                                             .value,
-                                        99999999.99,
+                                        10000,
                                     ),
                                 )
                         }

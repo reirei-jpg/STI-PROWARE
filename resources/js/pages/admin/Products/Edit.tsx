@@ -1031,7 +1031,7 @@ export default function Edit({
                                     <input
                                         type="number"
                                         min="0.01"
-                                        max="99999999.99"
+                                        max="10000"
                                         step="0.01"
                                         value={
                                             form.data
@@ -1046,7 +1046,7 @@ export default function Edit({
                                                     event
                                                         .target
                                                         .value,
-                                                    99999999.99,
+                                                    10000,
                                                 ),
                                             )
                                         }

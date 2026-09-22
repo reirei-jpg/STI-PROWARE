@@ -94,7 +94,7 @@ class ReceiveStockRequest extends FormRequest
                 'nullable',
                 'numeric',
                 'min:0',
-                'max:99999999.99',
+                'max:10000',
             ],
 
             'supplier_reference_number' => [

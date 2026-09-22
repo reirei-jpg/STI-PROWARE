@@ -2713,7 +2713,7 @@ return;
                                 <input
                                     type="number"
                                     min={0}
-                                    max="99999999.99"
+                                    max="10000"
                                     step="0.01"
                                     value={
                                         addItemForm
@@ -2733,7 +2733,7 @@ return;
                                                         event
                                                             .target
                                                             .value,
-                                                        99999999.99,
+                                                        10000,
                                                     ),
                                             }),
                                         )
@@ -3004,7 +3004,7 @@ return;
                                 <input
                                     type="number"
                                     min={0}
-                                    max="99999999.99"
+                                    max="10000"
                                     step="0.01"
                                     value={
                                         editItemForm
@@ -3026,7 +3026,7 @@ return;
                                                                 event
                                                                     .target
                                                                     .value,
-                                                                99999999.99,
+                                                                10000,
                                                             ),
                                                     }
                                                     : current,

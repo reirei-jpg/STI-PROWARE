@@ -893,7 +893,7 @@ class PurchaseOrderController extends Controller
                     'nullable',
                     'numeric',
                     'min:0',
-                    'max:99999999.99',
+                    'max:10000',
                 ],
             ]);
 
@@ -1394,7 +1394,7 @@ class PurchaseOrderController extends Controller
                     'nullable',
                     'numeric',
                     'min:0',
-                    'max:99999999.99',
+                    'max:10000',
                 ],
             ]);
 
@@ -1606,7 +1606,7 @@ class PurchaseOrderController extends Controller
                     'nullable',
                     'numeric',
                     'min:0',
-                    'max:99999999.99',
+                    'max:10000',
                 ],
 
                 'manual_name' => [

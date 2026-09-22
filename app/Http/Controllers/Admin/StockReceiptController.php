@@ -1859,7 +1859,7 @@ class StockReceiptController extends Controller
                 'required',
                 'numeric',
                 'min:0.01',
-                'max:99999999.99',
+                'max:10000',
                 'decimal:0,2',
             ],
             'image' => [

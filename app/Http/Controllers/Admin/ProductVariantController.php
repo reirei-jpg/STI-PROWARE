@@ -248,7 +248,7 @@ class ProductVariantController extends Controller
                         'nullable',
                         'numeric',
                         'min:0.01',
-                        'max:99999999.99',
+                        'max:10000',
                     ],
 
                     'reorder_level' => [
@@ -735,7 +735,7 @@ class ProductVariantController extends Controller
                 'nullable',
                 'numeric',
                 'min:0.01',
-                'max:99999999.99',
+                'max:10000',
             ],
         ], [
             'price_override.min' => 'The variant price must be greater than zero.',

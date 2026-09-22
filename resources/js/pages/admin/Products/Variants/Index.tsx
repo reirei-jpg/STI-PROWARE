@@ -1034,7 +1034,7 @@ const {
                                     <input
                                         type="number"
                                         min="0.01"
-                                        max="99999999.99"
+                                        max="10000"
                                         step="0.01"
                                         value={
                                             form
@@ -1050,7 +1050,7 @@ const {
                                                     event
                                                         .target
                                                         .value,
-                                                    99999999.99,
+                                                    10000,
                                                 ),
                                             );
 
@@ -1275,7 +1275,7 @@ const {
                             <input
                                 type="number"
                                 min="0.01"
-                                max="99999999.99"
+                                max="10000"
                                 step="0.01"
                                 autoFocus
                                 placeholder={`Base: ${formatCurrency(product.base_price)}`}
@@ -1284,7 +1284,7 @@ const {
                                     setPriceValue(
                                         clampNumberInput(
                                             event.target.value,
-                                            99999999.99,
+                                            10000,
                                         ),
                                     );
                                     setPriceError('');
@@ -1295,7 +1295,7 @@ const {
                             />
 
                             <p className="mt-1 text-xs text-slate-500">
-                                Between ₱0.01 and ₱99,999,999.99.
+                                Between ₱0.01 and ₱10,000.
                             </p>
 
                             {priceError && (
