@@ -87,6 +87,19 @@ class PreorderConfigurationController extends Controller
         |--------------------------------------------------------------------------
         */
 
+        /*
+        |--------------------------------------------------------------------------
+        | Preorder Capacity Cannot Exceed What Was Actually Ordered
+        |--------------------------------------------------------------------------
+        |
+        | This item's own purchase-order quantity is the real ceiling: PROWARE
+        | can never promise more preorder units than it actually ordered from
+        | the supplier. Both the total capacity and the per-student limit are
+        | capped at that same number.
+        */
+
+        $quantityOrdered = (int) $purchaseOrderItem->quantity_ordered;
+
         $validated = $request->validate([
             'preorder_enabled' => [
                 'required',
@@ -113,18 +126,32 @@ class PreorderConfigurationController extends Controller
                 'nullable',
                 'integer',
                 'min:1',
+                "max:{$quantityOrdered}",
             ],
 
             'preorder_capacity' => [
                 'nullable',
                 'integer',
                 'min:1',
+                "max:{$quantityOrdered}",
             ],
+
+            /*
+            |--------------------------------------------------------------------------
+            | Payment Deadline
+            |--------------------------------------------------------------------------
+            |
+            | At least 3 days (72 hours), so a student who reserved an
+            | early-bird discount slot has fair time to pay before losing it.
+            | At most 30 days, so an unpaid "ready" preorder cannot sit
+            | forever and block that stock from everyone else.
+            */
 
             'preorder_payment_deadline_hours' => [
                 'nullable',
                 'integer',
-                'min:1',
+                'min:72',
+                'max:720',
             ],
 
             'preorder_early_bird_slots' => [
@@ -140,11 +167,27 @@ class PreorderConfigurationController extends Controller
                 'max:100',
             ],
 
+            /*
+             * How long the "New" badge shows once the product actually
+             * becomes available, capped at 90 days so it stays a
+             * temporary indicator rather than a permanent one.
+             */
             'new_badge_duration_days' => [
                 'nullable',
                 'integer',
                 'min:1',
+                'max:90',
             ],
+        ], [
+            'preorder_capacity.max' => "The preorder capacity cannot exceed the {$quantityOrdered} unit(s) ordered from the supplier.",
+
+            'preorder_limit_per_student.max' => "The per-student preorder limit cannot exceed the {$quantityOrdered} unit(s) ordered from the supplier.",
+
+            'preorder_payment_deadline_hours.min' => 'The payment deadline must be at least 3 days (72 hours), so students have fair time to pay.',
+
+            'preorder_payment_deadline_hours.max' => 'The payment deadline cannot exceed 30 days (720 hours).',
+
+            'new_badge_duration_days.max' => 'The "New" badge duration cannot exceed 90 days.',
         ]);
 
         /*

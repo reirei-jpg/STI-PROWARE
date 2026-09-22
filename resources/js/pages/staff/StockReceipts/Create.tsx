@@ -220,7 +220,7 @@ const preorderConfigForm =
         preorder_ends_at: '',
         preorder_limit_per_student: '1',
         preorder_capacity: '',
-        preorder_payment_deadline_hours: '48',
+        preorder_payment_deadline_hours: '72',
         preorder_early_bird_slots: '',
         preorder_early_bird_discount_percent: '',
         new_badge_duration_days: '7',
@@ -1756,6 +1756,7 @@ const confirmPreorderConfiguration = (): void => {
                 <input
                     type="number"
                     min="1"
+                    max={selectedPurchaseOrderItem.quantity_ordered}
                     value={preorderConfigForm.data.preorder_limit_per_student}
                     onChange={(event) =>
                         preorderConfigForm.setData(
@@ -1765,6 +1766,10 @@ const confirmPreorderConfiguration = (): void => {
                     }
                     className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-violet-500"
                 />
+
+                <p className="mt-1 text-xs text-slate-500">
+                    Maximum {selectedPurchaseOrderItem.quantity_ordered} unit(s) — that's how many you ordered from the supplier.
+                </p>
             </div>
 
             <div>
@@ -1853,6 +1858,7 @@ const confirmPreorderConfiguration = (): void => {
                 <input
                     type="number"
                     min="1"
+                    max={selectedPurchaseOrderItem.quantity_ordered}
                     value={preorderConfigForm.data.preorder_capacity}
                     onChange={(event) =>
                         preorderConfigForm.setData(
@@ -1862,6 +1868,10 @@ const confirmPreorderConfiguration = (): void => {
                     }
                     className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-violet-500"
                 />
+
+                <p className="mt-1 text-xs text-slate-500">
+                    Maximum {selectedPurchaseOrderItem.quantity_ordered} unit(s) — that's how many you ordered from the supplier.
+                </p>
             </div>
 
             <div>
@@ -1871,7 +1881,8 @@ const confirmPreorderConfiguration = (): void => {
 
                 <input
                     type="number"
-                    min="1"
+                    min="72"
+                    max="720"
                     value={
                         preorderConfigForm.data
                             .preorder_payment_deadline_hours
@@ -1884,6 +1895,10 @@ const confirmPreorderConfiguration = (): void => {
                     }
                     className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-violet-500"
                 />
+
+                <p className="mt-1 text-xs text-slate-500">
+                    Between 72 (3 days) and 720 (30 days) hours.
+                </p>
             </div>
 
             <div>
@@ -1940,6 +1955,7 @@ const confirmPreorderConfiguration = (): void => {
                 <input
                     type="number"
                     min="1"
+                    max="90"
                     value={
                         preorderConfigForm.data
                             .new_badge_duration_days
