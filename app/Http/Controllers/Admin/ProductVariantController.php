@@ -67,14 +67,14 @@ class ProductVariantController extends Controller
                         $product->is_active,
 
                     'category' => [
-                    'id' => $product
-                        ->category
-                        ?->id,
+                        'id' => $product
+                            ->category
+                            ?->id,
 
-                    'name' => $product
-                        ->category
-                        ?->name
-                        ?? 'Uncategorized',
+                        'name' => $product
+                            ->category
+                            ?->name
+                            ?? 'Uncategorized',
                     ],
 
                     'variants' => $product
@@ -236,6 +236,7 @@ class ProductVariantController extends Controller
                         'nullable',
                         'numeric',
                         'min:0',
+                        'max:99999999.99',
                     ],
 
                     'reorder_level' => [

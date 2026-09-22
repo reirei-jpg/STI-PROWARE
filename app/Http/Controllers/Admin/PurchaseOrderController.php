@@ -893,6 +893,7 @@ class PurchaseOrderController extends Controller
                     'nullable',
                     'numeric',
                     'min:0',
+                    'max:99999999.99',
                 ],
             ]);
 
@@ -1386,12 +1387,14 @@ class PurchaseOrderController extends Controller
                     'required',
                     'integer',
                     'min:1',
+                    'max:1000000',
                 ],
 
                 'unit_cost' => [
                     'nullable',
                     'numeric',
                     'min:0',
+                    'max:99999999.99',
                 ],
             ]);
 
@@ -1596,12 +1599,14 @@ class PurchaseOrderController extends Controller
                     'required',
                     'integer',
                     'min:1',
+                    'max:1000000',
                 ],
 
                 'unit_cost' => [
                     'nullable',
                     'numeric',
                     'min:0',
+                    'max:99999999.99',
                 ],
 
                 'manual_name' => [

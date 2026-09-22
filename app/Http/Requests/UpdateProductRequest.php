@@ -45,7 +45,9 @@ class UpdateProductRequest extends FormRequest
             'base_price' => [
                 'required',
                 'numeric',
-                'min:0',
+                'min:0.01',
+                'max:99999999.99',
+                'decimal:0,2',
             ],
 
             'availability_status' => [
@@ -83,13 +85,14 @@ class UpdateProductRequest extends FormRequest
                 'nullable',
                 'integer',
                 'min:1',
-                'max:99',
+                'max:1000',
             ],
 
             'preorder_capacity' => [
                 'nullable',
                 'integer',
                 'min:1',
+                'max:1000000',
             ],
 
             'image' => [
@@ -232,6 +235,34 @@ class UpdateProductRequest extends FormRequest
                             ->add(
                                 'preorder_capacity',
                                 'Set the total preorder capacity.',
+                            );
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Per-Student Limit Cannot Exceed Capacity
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $limitPerStudent = $this->input(
+                        'preorder_limit_per_student',
+                    );
+
+                    $capacity = $this->input(
+                        'preorder_capacity',
+                    );
+
+                    if (
+                        is_numeric($limitPerStudent)
+                        && is_numeric($capacity)
+                        && (int) $limitPerStudent
+                            > (int) $capacity
+                    ) {
+                        $validator
+                            ->errors()
+                            ->add(
+                                'preorder_limit_per_student',
+                                'The per-student preorder limit cannot exceed the total preorder capacity.',
                             );
                     }
                 }

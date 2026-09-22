@@ -1858,7 +1858,9 @@ class StockReceiptController extends Controller
             'base_price' => [
                 'required',
                 'numeric',
-                'min:0',
+                'min:0.01',
+                'max:99999999.99',
+                'decimal:0,2',
             ],
             'image' => [
                 'required',
