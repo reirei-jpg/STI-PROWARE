@@ -28,6 +28,7 @@ import ActionNotification from '@/components/action-feedback/ActionNotification'
 import ActionProcessingButton from '@/components/action-feedback/ActionProcessingButton';
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
 import AdminLayout from '@/layouts/AdminLayout';
+import { clampNumberInput } from '@/lib/utils';
 
 /*
 |--------------------------------------------------------------------------
@@ -2224,9 +2225,12 @@ const confirmCreatePurchaseOrder =
                                             event,
                                         ) =>
                                             setEditQuantity(
-                                                event
-                                                    .target
-                                                    .value,
+                                                clampNumberInput(
+                                                    event
+                                                        .target
+                                                        .value,
+                                                    1000000,
+                                                ),
                                             )
                                         }
                                         className={inputClass}
@@ -2250,9 +2254,12 @@ const confirmCreatePurchaseOrder =
                                             event,
                                         ) =>
                                             setEditUnitCost(
-                                                event
-                                                    .target
-                                                    .value,
+                                                clampNumberInput(
+                                                    event
+                                                        .target
+                                                        .value,
+                                                    99999999.99,
+                                                ),
                                             )
                                         }
                                         placeholder="Optional"
@@ -2462,8 +2469,11 @@ function QuantityCostInputs({
                         event,
                     ) =>
                         setQuantity(
-                            event.target
-                                .value,
+                            clampNumberInput(
+                                event.target
+                                    .value,
+                                1000000,
+                            ),
                         )
                     }
                     className={inputClass}
@@ -2487,8 +2497,11 @@ function QuantityCostInputs({
                         event,
                     ) =>
                         setUnitCost(
-                            event.target
-                                .value,
+                            clampNumberInput(
+                                event.target
+                                    .value,
+                                99999999.99,
+                            ),
                         )
                     }
                     placeholder="Optional"

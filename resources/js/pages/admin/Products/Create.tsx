@@ -32,6 +32,7 @@ import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal'
 import ActionNotification from '@/components/action-feedback/ActionNotification';
 import ActionProcessingButton from '@/components/action-feedback/ActionProcessingButton';
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
+import { clampNumberInput } from '@/lib/utils';
 
 type VariantMode =
     | 'program_and_size'
@@ -983,9 +984,12 @@ export default function Create({
                                     ) =>
                                         form.setData(
                                             'base_price',
-                                            event
-                                                .target
-                                                .value,
+                                            clampNumberInput(
+                                                event
+                                                    .target
+                                                    .value,
+                                                99999999.99,
+                                            ),
                                         )
                                     }
                                     placeholder="650.00"
@@ -1418,9 +1422,12 @@ export default function Create({
                                                     ) =>
                                                         form.setData(
                                                             'preorder_limit_per_student',
-                                                            event
-                                                                .target
-                                                                .value,
+                                                            clampNumberInput(
+                                                                event
+                                                                    .target
+                                                                    .value,
+                                                                1000,
+                                                            ),
                                                         )
                                                     }
                                                     className={
@@ -1457,9 +1464,12 @@ export default function Create({
                                                     ) =>
                                                         form.setData(
                                                             'preorder_capacity',
-                                                            event
-                                                                .target
-                                                                .value,
+                                                            clampNumberInput(
+                                                                event
+                                                                    .target
+                                                                    .value,
+                                                                1000000,
+                                                            ),
                                                         )
                                                     }
                                                     className={

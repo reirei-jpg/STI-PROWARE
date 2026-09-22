@@ -37,6 +37,7 @@ import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal'
 import ActionNotification from '@/components/action-feedback/ActionNotification';
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
 import AdminLayout from '@/layouts/AdminLayout';
+import { clampNumberInput } from '@/lib/utils';
 
 
 type ItemType =
@@ -2691,9 +2692,12 @@ return;
                                                 ...current,
 
                                                 quantity_ordered:
-                                                    event
-                                                        .target
-                                                        .value,
+                                                    clampNumberInput(
+                                                        event
+                                                            .target
+                                                            .value,
+                                                        1000000,
+                                                    ),
                                             }),
                                         )
                                     }
@@ -2725,9 +2729,12 @@ return;
                                                 ...current,
 
                                                 unit_cost:
-                                                    event
-                                                        .target
-                                                        .value,
+                                                    clampNumberInput(
+                                                        event
+                                                            .target
+                                                            .value,
+                                                        99999999.99,
+                                                    ),
                                             }),
                                         )
                                     }
@@ -2975,9 +2982,12 @@ return;
                                                         ...current,
 
                                                         quantity_ordered:
-                                                            event
-                                                                .target
-                                                                .value,
+                                                            clampNumberInput(
+                                                                event
+                                                                    .target
+                                                                    .value,
+                                                                1000000,
+                                                            ),
                                                     }
                                                     : current,
                                         )
@@ -3012,9 +3022,12 @@ return;
                                                         ...current,
 
                                                         unit_cost:
-                                                            event
-                                                                .target
-                                                                .value,
+                                                            clampNumberInput(
+                                                                event
+                                                                    .target
+                                                                    .value,
+                                                                99999999.99,
+                                                            ),
                                                     }
                                                     : current,
                                         )

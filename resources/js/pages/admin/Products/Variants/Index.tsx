@@ -30,6 +30,7 @@ import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal'
 import ActionNotification from '@/components/action-feedback/ActionNotification';
 import ActionProcessingButton from '@/components/action-feedback/ActionProcessingButton';
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
+import { clampNumberInput } from '@/lib/utils';
 
 interface SharedPageProps {
     [key: string]: unknown;
@@ -1045,9 +1046,12 @@ const {
                                         ) => {
                                             form.setData(
                                                 'price_override',
-                                                event
-                                                    .target
-                                                    .value,
+                                                clampNumberInput(
+                                                    event
+                                                        .target
+                                                        .value,
+                                                    99999999.99,
+                                                ),
                                             );
 
                                             form.clearErrors(
@@ -1098,6 +1102,7 @@ const {
                                     <input
                                         type="number"
                                         min="0"
+                                        max="999999"
                                         step="1"
                                         value={
                                             form
@@ -1109,9 +1114,12 @@ const {
                                         ) => {
                                             form.setData(
                                                 'reorder_level',
-                                                event
-                                                    .target
-                                                    .value,
+                                                clampNumberInput(
+                                                    event
+                                                        .target
+                                                        .value,
+                                                    999999,
+                                                ),
                                             );
 
                                             form.clearErrors(
@@ -1273,7 +1281,12 @@ const {
                                 placeholder={`Base: ${formatCurrency(product.base_price)}`}
                                 value={priceValue}
                                 onChange={(event) => {
-                                    setPriceValue(event.target.value);
+                                    setPriceValue(
+                                        clampNumberInput(
+                                            event.target.value,
+                                            99999999.99,
+                                        ),
+                                    );
                                     setPriceError('');
                                 }}
                                 className={inputClass(

@@ -29,6 +29,7 @@ import specialist from '@/routes/specialist';
 
 import AdminLayout from '@/layouts/AdminLayout';
 import SpecialistLayout from '@/layouts/SpecialistLayout';
+import { clampNumberInput } from '@/lib/utils';
 
 import type {
     ReceiveStockFormData,
@@ -1761,7 +1762,10 @@ const confirmPreorderConfiguration = (): void => {
                     onChange={(event) =>
                         preorderConfigForm.setData(
                             'preorder_limit_per_student',
-                            event.target.value,
+                            clampNumberInput(
+                                event.target.value,
+                                selectedPurchaseOrderItem.quantity_ordered,
+                            ),
                         )
                     }
                     className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-violet-500"
@@ -1863,7 +1867,10 @@ const confirmPreorderConfiguration = (): void => {
                     onChange={(event) =>
                         preorderConfigForm.setData(
                             'preorder_capacity',
-                            event.target.value,
+                            clampNumberInput(
+                                event.target.value,
+                                selectedPurchaseOrderItem.quantity_ordered,
+                            ),
                         )
                     }
                     className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-violet-500"
@@ -1890,7 +1897,10 @@ const confirmPreorderConfiguration = (): void => {
                     onChange={(event) =>
                         preorderConfigForm.setData(
                             'preorder_payment_deadline_hours',
-                            event.target.value,
+                            clampNumberInput(
+                                event.target.value,
+                                720,
+                            ),
                         )
                     }
                     className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-violet-500"
@@ -1940,7 +1950,10 @@ const confirmPreorderConfiguration = (): void => {
                     onChange={(event) =>
                         preorderConfigForm.setData(
                             'preorder_early_bird_discount_percent',
-                            event.target.value,
+                            clampNumberInput(
+                                event.target.value,
+                                100,
+                            ),
                         )
                     }
                     className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-violet-500"
@@ -1963,7 +1976,10 @@ const confirmPreorderConfiguration = (): void => {
                     onChange={(event) =>
                         preorderConfigForm.setData(
                             'new_badge_duration_days',
-                            event.target.value,
+                            clampNumberInput(
+                                event.target.value,
+                                90,
+                            ),
                         )
                     }
                     className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-violet-500"
@@ -2499,8 +2515,11 @@ const confirmPreorderConfiguration = (): void => {
                             registerProductForm
                                 .setData(
                                     'base_price',
-                                    event.target
-                                        .value,
+                                    clampNumberInput(
+                                        event.target
+                                            .value,
+                                        99999999.99,
+                                    ),
                                 )
                         }
                         placeholder="0.00"

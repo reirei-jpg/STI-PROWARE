@@ -27,6 +27,7 @@ import SpecialistLayout from '@/layouts/SpecialistLayout';
 import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal';
 import ActionNotification from '@/components/action-feedback/ActionNotification';
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
+import { clampNumberInput } from '@/lib/utils';
 
 /*
 |--------------------------------------------------------------------------
@@ -825,10 +826,16 @@ export default function Index({ inventories, summary, filters }: Props) {
                             <input
                                 type="number"
                                 min={0}
+                                max={999999}
                                 step={1}
                                 value={reorderLevel}
                                 onChange={(event) =>
-                                    setReorderLevel(event.target.value)
+                                    setReorderLevel(
+                                        clampNumberInput(
+                                            event.target.value,
+                                            999999,
+                                        ),
+                                    )
                                 }
                                 className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
                             />
