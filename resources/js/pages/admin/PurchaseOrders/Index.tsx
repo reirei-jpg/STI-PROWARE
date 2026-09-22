@@ -54,6 +54,14 @@ interface PurchaseOrder {
     status: string;
 
     /*
+     * The first item's name, and how many more when there is more
+     * than one, e.g. "Golden Jacket +4 more" — so a purchase order
+     * stays recognizable at a glance without opening it.
+     */
+    item_summary?:
+        string | null;
+
+    /*
     |--------------------------------------------------------------------------
     | Current Controller Sum Fields
     |--------------------------------------------------------------------------
@@ -821,6 +829,22 @@ export default function Index({
                                                                     purchaseOrder.po_number
                                                                 }
                                                             </p>
+
+                                                            {purchaseOrder
+                                                                .item_summary && (
+                                                                <p
+                                                                    className="
+                                                                        mt-1
+                                                                        text-xs
+                                                                        font-semibold
+                                                                        text-slate-600
+                                                                    "
+                                                                >
+                                                                    {
+                                                                        purchaseOrder.item_summary
+                                                                    }
+                                                                </p>
+                                                            )}
 
                                                             <p
                                                                 className="

@@ -1248,6 +1248,17 @@ const confirmPreorderConfiguration = (): void => {
                                                         {
                                                             purchaseOrder.supplier_name
                                                         }
+
+                                                        {(() => {
+                                                            const summary =
+                                                                getPurchaseOrderItemSummary(
+                                                                    purchaseOrder.items,
+                                                                );
+
+                                                            return summary
+                                                                ? ` (${summary})`
+                                                                : '';
+                                                        })()}
                                                     </option>
                                                 ),
                                             )}
@@ -3242,6 +3253,41 @@ function getPurchaseOrderItemName(
     }
 
     return `${baseName} — ${variant}`;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Purchase Order Item Summary
+|--------------------------------------------------------------------------
+|
+| So a purchase order with several products is still recognizable at a
+| glance in a dropdown: the first item's name, then how many more, e.g.
+| "Golden Jacket +4 more".
+*/
+
+function getPurchaseOrderItemSummary(
+    items: {
+        product_name:
+            string | null;
+
+        manual_name:
+            string | null;
+    }[],
+): string | null {
+    if (items.length === 0) {
+        return null;
+    }
+
+    const firstName =
+        items[0].product_name ??
+        items[0].manual_name ??
+        'Item';
+
+    if (items.length === 1) {
+        return firstName;
+    }
+
+    return `${firstName} +${items.length - 1} more`;
 }
 
 /*

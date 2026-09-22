@@ -84,6 +84,11 @@ class PurchaseOrderController extends Controller
                 )
                 ->with([
                     'creator:id,name',
+
+                    'items' => fn ($itemQuery) => $itemQuery
+                        ->whereNull('archived_at')
+                        ->with('productVariant.product:id,name')
+                        ->orderBy('id'),
                 ])
                 ->withSum(
                     [
@@ -103,7 +108,13 @@ class PurchaseOrderController extends Controller
                 )
                 ->latest()
                 ->paginate(15)
-                ->withQueryString();
+                ->withQueryString()
+                ->through(function (PurchaseOrder $purchaseOrder): array {
+                    return [
+                        ...$purchaseOrder->toArray(),
+                        'item_summary' => $this->itemSummary($purchaseOrder),
+                    ];
+                });
 
         return Inertia::render(
             'admin/PurchaseOrders/Index',
@@ -2784,5 +2795,31 @@ class PurchaseOrderController extends Controller
             'success',
             'Purchase order restored successfully.',
         );
+    }
+
+    /**
+     * A short, human-readable summary of what's in a purchase order, so it
+     * stays recognizable in a list without opening it, e.g. "Golden Jacket"
+     * or "Golden Jacket +4 more" when it has several products.
+     */
+    private function itemSummary(PurchaseOrder $purchaseOrder): ?string
+    {
+        $items = $purchaseOrder->items;
+
+        if ($items->isEmpty()) {
+            return null;
+        }
+
+        $firstName = $items->first()->productVariant?->product?->name
+            ?? $items->first()->manual_name
+            ?? 'Item';
+
+        if ($items->count() === 1) {
+            return $firstName;
+        }
+
+        $remaining = $items->count() - 1;
+
+        return "{$firstName} +{$remaining} more";
     }
 }
