@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\PreorderExpirationService;
+use App\Services\PreorderWindowGraduationService;
 use App\Services\UnclaimedOrderReminderService;
 use App\Services\UnpaidOrderExpirationService;
 use Illuminate\Support\Facades\Schedule;
@@ -13,6 +14,15 @@ Schedule::call(function () {
     ->everyMinute()
     ->withoutOverlapping()
     ->description('Expire overdue preorders and advance FIFO waiting list');
+
+Schedule::call(function () {
+    app(PreorderWindowGraduationService::class)
+        ->graduateClosedWindows();
+})
+    ->name('preorder-window-graduation')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->description('Move a product out of Coming Soon once its preorder window closes, and start its New badge if stock arrived');
 
 Schedule::call(function () {
     app(UnpaidOrderExpirationService::class)
