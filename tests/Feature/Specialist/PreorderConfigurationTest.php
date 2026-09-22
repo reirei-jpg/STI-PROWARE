@@ -170,6 +170,70 @@ test('the NEW badge duration cannot exceed 90 days', function () {
     $response->assertSessionHasErrors('new_badge_duration_days');
 });
 
+test('early-bird slots require a preorder capacity to also be set', function () {
+    $specialist = createSpecialistUser();
+    $item = createNewMerchandisePurchaseOrderItem($specialist, quantityOrdered: 10);
+
+    $response = $this
+        ->actingAs($specialist)
+        ->from('/staff/stock-receipts/create')
+        ->patch(
+            "/specialist/purchase-order-items/{$item->id}/preorder-configuration",
+            preorderConfigPayload([
+                'preorder_capacity' => null,
+                'preorder_early_bird_slots' => 3,
+                'preorder_early_bird_discount_percent' => 10,
+            ]),
+        );
+
+    $response->assertSessionHasErrors('preorder_capacity');
+
+    expect($item->fresh()->productVariant->product->preorder_early_bird_slots)->toBeNull();
+});
+
+test('early-bird slots cannot exceed the preorder capacity', function () {
+    $specialist = createSpecialistUser();
+    $item = createNewMerchandisePurchaseOrderItem($specialist, quantityOrdered: 10);
+
+    $response = $this
+        ->actingAs($specialist)
+        ->from('/staff/stock-receipts/create')
+        ->patch(
+            "/specialist/purchase-order-items/{$item->id}/preorder-configuration",
+            preorderConfigPayload([
+                'preorder_capacity' => 5,
+                'preorder_early_bird_slots' => 6,
+                'preorder_early_bird_discount_percent' => 10,
+            ]),
+        );
+
+    $response->assertSessionHasErrors('preorder_early_bird_slots');
+});
+
+test('a valid early-bird configuration paired with a capacity is saved', function () {
+    $specialist = createSpecialistUser();
+    $item = createNewMerchandisePurchaseOrderItem($specialist, quantityOrdered: 10);
+
+    $response = $this
+        ->actingAs($specialist)
+        ->from('/staff/stock-receipts/create')
+        ->patch(
+            "/specialist/purchase-order-items/{$item->id}/preorder-configuration",
+            preorderConfigPayload([
+                'preorder_capacity' => 10,
+                'preorder_early_bird_slots' => 3,
+                'preorder_early_bird_discount_percent' => 10,
+            ]),
+        );
+
+    $response->assertSessionHasNoErrors();
+
+    $product = $item->fresh()->productVariant->product;
+
+    expect($product->preorder_early_bird_slots)->toBe(3)
+        ->and((float) $product->preorder_early_bird_discount_percent)->toBe(10.0);
+});
+
 test('a fully valid preorder configuration within every bound is saved', function () {
     $specialist = createSpecialistUser();
     $item = createNewMerchandisePurchaseOrderItem($specialist, quantityOrdered: 20);

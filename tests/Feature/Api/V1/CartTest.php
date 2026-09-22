@@ -138,7 +138,7 @@ test('a preorder quantity respects the per-student limit', function () {
 
     $this->patchJson("/api/v1/cart/items/{$item->id}", ['quantity' => 3])
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['quantity' => 'This product allows a maximum of 2 preorder unit(s) per student.']);
+        ->assertJsonValidationErrors(['quantity' => 'This product allows a maximum of 2 preorder unit(s) per student for this batch.']);
 });
 
 test('removing an item returns the refreshed cart', function () {

@@ -110,7 +110,7 @@ test('a preorder quantity respects the per-student limit', function () {
 
     $this->actingAs($student)
         ->patch("/cart/items/{$item->id}", ['quantity' => 3])
-        ->assertSessionHasErrors(['quantity' => 'This product allows a maximum of 2 preorder unit(s) per student.']);
+        ->assertSessionHasErrors(['quantity' => 'This product allows a maximum of 2 preorder unit(s) per student for this batch.']);
 
     expect($item->fresh()->quantity)->toBe(2);
 });

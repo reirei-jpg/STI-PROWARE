@@ -218,5 +218,5 @@ test('a preorder item respects the per-student preorder limit', function () {
 
     $this->postJson('/api/v1/cart/items', ['product_variant_id' => $variant->id, 'quantity' => 1])
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['quantity' => 'You already have 2 preorder unit(s) of BSIT - M in your cart. This product allows a maximum of 2 unit(s) per student. You may add up to 0 more unit(s).']);
+        ->assertJsonValidationErrors(['quantity' => 'You already have 2 preorder unit(s) of BSIT - M in your cart. This product allows a maximum of 2 unit(s) per student for this batch. You may add up to 0 more unit(s).']);
 });

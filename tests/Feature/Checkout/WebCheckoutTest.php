@@ -254,6 +254,114 @@ test('a preorder checkout needs no payment and does not notify the cashiers', fu
         ->and(Notification::query()->where('user_id', $cashier->id)->count())->toBe(0);
 });
 
+test('preorder checkout enforces the total capacity across students', function () {
+    $variant = webCheckoutPreorderVariant();
+    $variant->product->forceFill(['preorder_capacity' => 3])->save();
+
+    $studentA = makeStudentAccount();
+    $itemA = webCheckoutFill($studentA, $variant, 3);
+
+    $this->actingAs($studentA)->post('/checkout', [
+        'confirmed' => true,
+        'item_ids' => [$itemA->id],
+    ])->assertSessionHasNoErrors();
+
+    expect(Order::query()->count())->toBe(1);
+
+    /*
+     * Insert the second student's cart item directly, bypassing
+     * CartService's own best-effort check, to prove CheckoutService's
+     * authoritative, locked check blocks the over-capacity preorder
+     * entirely on its own.
+     */
+    $studentB = makeStudentAccount();
+    $cartB = Cart::create([
+        'student_id' => $studentB->student->id,
+        'created_by' => $studentB->id,
+        'source' => Cart::SOURCE_STUDENT_APP,
+        'status' => Cart::STATUS_ACTIVE,
+    ]);
+    $itemB = CartItem::create([
+        'cart_id' => $cartB->id,
+        'product_variant_id' => $variant->id,
+        'item_type' => CartItem::TYPE_PREORDER,
+        'quantity' => 1,
+        'unit_price' => $variant->selling_price,
+    ]);
+
+    $this->actingAs($studentB)->post('/checkout', [
+        'confirmed' => true,
+        'item_ids' => [$itemB->id],
+    ])->assertSessionHasErrors([
+        'cart' => "Only 0 preorder slot(s) remain for {$variant->product->name}. Please reduce your quantity.",
+    ]);
+
+    expect(Order::query()->count())->toBe(1);
+});
+
+test('preorder checkout enforces the per-student limit across separate orders', function () {
+    $variant = webCheckoutPreorderVariant(); // preorder_limit_per_student = 5
+    $student = makeStudentAccount();
+
+    $firstItem = webCheckoutFill($student, $variant, 3);
+    $this->actingAs($student)->post('/checkout', [
+        'confirmed' => true,
+        'item_ids' => [$firstItem->id],
+    ])->assertSessionHasNoErrors();
+
+    expect(Order::query()->count())->toBe(1);
+
+    $cart = Cart::create([
+        'student_id' => $student->student->id,
+        'created_by' => $student->id,
+        'source' => Cart::SOURCE_STUDENT_APP,
+        'status' => Cart::STATUS_ACTIVE,
+    ]);
+    $secondItem = CartItem::create([
+        'cart_id' => $cart->id,
+        'product_variant_id' => $variant->id,
+        'item_type' => CartItem::TYPE_PREORDER,
+        'quantity' => 3,
+        'unit_price' => $variant->selling_price,
+    ]);
+
+    $this->actingAs($student)->post('/checkout', [
+        'confirmed' => true,
+        'item_ids' => [$secondItem->id],
+    ])->assertSessionHasErrors([
+        'cart' => "{$variant->product->name} allows a maximum preorder quantity of 5 unit(s) per student for this batch. You already have 3 unit(s), so you may add up to 2 more.",
+    ]);
+
+    expect(Order::query()->count())->toBe(1);
+});
+
+test('the per-student preorder limit resets when a new preorder window opens', function () {
+    $variant = webCheckoutPreorderVariant(); // preorder_limit_per_student = 5
+    $student = makeStudentAccount();
+
+    $firstItem = webCheckoutFill($student, $variant, 5);
+    $this->actingAs($student)->post('/checkout', [
+        'confirmed' => true,
+        'item_ids' => [$firstItem->id],
+    ])->assertSessionHasNoErrors();
+
+    Order::query()->firstOrFail()->forceFill(['created_at' => now()->subDays(30)])->save();
+
+    // A brand-new preorder batch opens for the same product.
+    $variant->product->forceFill([
+        'preorder_starts_at' => now()->subDay(),
+        'preorder_ends_at' => now()->addDays(10),
+    ])->save();
+
+    $secondItem = webCheckoutFill($student, $variant, 5);
+    $this->actingAs($student)->post('/checkout', [
+        'confirmed' => true,
+        'item_ids' => [$secondItem->id],
+    ])->assertSessionHasNoErrors();
+
+    expect(Order::query()->count())->toBe(2);
+});
+
 test('only the selected items are checked out and the rest stay in the cart', function () {
     $student = makeStudentAccount();
     $checkedOut = webCheckoutFill($student, makeVariantWithStock(10, 0), 1);

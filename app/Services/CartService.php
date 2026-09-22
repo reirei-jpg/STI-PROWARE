@@ -179,12 +179,35 @@ class CartService
         }
 
         if ($cartItem->item_type === CartItem::TYPE_PREORDER) {
-            $limit = $variant->product->preorder_limit_per_student;
+            $product = $variant->product;
+            $limit = $product->preorder_limit_per_student;
 
-            if ($limit !== null && $newQuantity > $limit) {
-                throw ValidationException::withMessages([
-                    'quantity' => "This product allows a maximum of {$limit} preorder unit(s) per student.",
-                ]);
+            if ($limit !== null) {
+                $priorQuantity = $user->student
+                    ? $product->studentPreorderQuantityInCurrentWindow($user->student->id)
+                    : 0;
+
+                $remainingForStudent = max(0, $limit - $priorQuantity);
+
+                if ($newQuantity > $remainingForStudent) {
+                    throw ValidationException::withMessages([
+                        'quantity' => "This product allows a maximum of {$limit} preorder unit(s) per student for this batch"
+                            .($priorQuantity > 0 ? " (you already have {$priorQuantity} unit(s) from a previous order)" : '')
+                            .'.',
+                    ]);
+                }
+            }
+
+            $capacity = $product->preorder_capacity;
+
+            if ($capacity !== null) {
+                $remainingCapacity = max(0, $capacity - $product->usedPreorderCapacity());
+
+                if ($newQuantity > $remainingCapacity) {
+                    throw ValidationException::withMessages([
+                        'quantity' => "Only {$remainingCapacity} preorder slot(s) remain for {$product->name} in total.",
+                    ]);
+                }
             }
         }
 
@@ -316,6 +339,7 @@ class CartService
                     itemType: $itemType,
                     requestedTotalQuantity: $newQuantity,
                     currentCartQuantity: $currentCartQuantity,
+                    student: $student,
                 );
 
                 if ($existingItem) {
@@ -467,6 +491,7 @@ class CartService
         string $itemType,
         int $requestedTotalQuantity,
         int $currentCartQuantity,
+        ?Student $student = null,
     ): void {
         if (
             $itemType
@@ -505,26 +530,51 @@ class CartService
             $product
                 ->preorder_limit_per_student;
 
-        if (
-            $limit !== null
-            && $requestedTotalQuantity > $limit
-        ) {
-            $remainingAllowed = max(
-                0,
-                $limit
-                - $currentCartQuantity,
-            );
+        if ($limit !== null) {
+            $priorQuantity = $student
+                ? $product->studentPreorderQuantityInCurrentWindow($student->id)
+                : 0;
 
-            throw ValidationException::withMessages([
-                'quantity' => "You already have {$currentCartQuantity} preorder unit(s) of {$variant->variant_name} in your cart. "
-                    ."This product allows a maximum of {$limit} unit(s) per student. "
-                    ."You may add up to {$remainingAllowed} more unit(s).",
-            ]);
+            $remainingForStudent = max(0, $limit - $priorQuantity);
+
+            if ($requestedTotalQuantity > $remainingForStudent) {
+                $remainingAllowed = max(
+                    0,
+                    $remainingForStudent
+                    - $currentCartQuantity,
+                );
+
+                throw ValidationException::withMessages([
+                    'quantity' => "You already have {$currentCartQuantity} preorder unit(s) of {$variant->variant_name} in your cart"
+                        .($priorQuantity > 0 ? " and {$priorQuantity} unit(s) from a previous order" : '')
+                        .". This product allows a maximum of {$limit} unit(s) per student for this batch. "
+                        ."You may add up to {$remainingAllowed} more unit(s).",
+                ]);
+            }
         }
 
         /*
-         * Total preorder capacity will be enforced during
-         * checkout when permanent preorder records exist.
+         * This is a best-effort early check for UX feedback only.
+         * Checkout re-validates capacity and the per-student limit
+         * with a locked, authoritative read of the product row, so
+         * an over-limit cart can never actually be paid for even if
+         * it briefly slips past this cart-level check (e.g. by
+         * mixing several sizes of the same product in one cart).
          */
+        $capacity =
+            $product
+                ->preorder_capacity;
+
+        if ($capacity !== null) {
+            $usedCapacity = $product->usedPreorderCapacity();
+
+            $remainingCapacity = max(0, $capacity - $usedCapacity);
+
+            if ($requestedTotalQuantity > $remainingCapacity) {
+                throw ValidationException::withMessages([
+                    'quantity' => "Only {$remainingCapacity} preorder slot(s) remain for {$product->name} in total.",
+                ]);
+            }
+        }
     }
 }

@@ -124,6 +124,8 @@ class CheckoutService
                 $hasOrderItems = false;
                 $hasPreorderItems = false;
                 $earlyBirdUnitsAllocatedThisCheckout = [];
+                $preorderCapacityAllocatedThisCheckout = [];
+                $studentLimitAllocatedThisCheckout = [];
 
                 foreach ($cartItems as $cartItem) {
                     $variant =
@@ -300,10 +302,12 @@ class CheckoutService
                                         'early_bird_applied',
                                         true,
                                     )
-                                    ->where(
+                                    ->whereNotIn(
                                         'preorder_status',
-                                        '!=',
-                                        OrderItem::PREORDER_STATUS_CANCELLED,
+                                        [
+                                            OrderItem::PREORDER_STATUS_CANCELLED,
+                                            OrderItem::PREORDER_STATUS_EXPIRED,
+                                        ],
                                     )
                                     ->sum('quantity');
 
@@ -364,18 +368,102 @@ class CheckoutService
                             ]);
                         }
 
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Total Preorder Capacity
+                        |--------------------------------------------------------------------------
+                        |
+                        | Counts every student's non-cancelled, non-expired
+                        | preorder quantity for this product against the
+                        | capacity configured from the supplier's order.
+                        */
+
+                        $capacity =
+                            $product
+                                ->preorder_capacity;
+
+                        if ($capacity !== null) {
+                            $usedCapacity =
+                                $product->usedPreorderCapacity();
+
+                            $currentCapacityAllocated =
+                                $preorderCapacityAllocatedThisCheckout[
+                                    $product->id
+                                ] ?? 0;
+
+                            $remainingCapacity =
+                                max(
+                                    0,
+                                    $capacity
+                                        - $usedCapacity
+                                        - $currentCapacityAllocated,
+                                );
+
+                            if (
+                                $cartItem->quantity
+                                > $remainingCapacity
+                            ) {
+                                throw ValidationException::withMessages([
+                                    'cart' => "Only {$remainingCapacity} preorder slot(s) remain for {$product->name}. Please reduce your quantity.",
+                                ]);
+                            }
+
+                            $preorderCapacityAllocatedThisCheckout[
+                                    $product->id
+                                ] =
+                                    $currentCapacityAllocated
+                                    + $cartItem->quantity;
+                        }
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Per-Student Preorder Limit
+                        |--------------------------------------------------------------------------
+                        |
+                        | Cumulative across every preorder this student has
+                        | already placed for this product in the CURRENT
+                        | preorder window (resets when a new batch opens),
+                        | not just the quantity in this checkout.
+                        */
+
                         $limit =
                             $product
                                 ->preorder_limit_per_student;
 
-                        if (
-                            $limit !== null
-                            && $cartItem->quantity
-                                > $limit
-                        ) {
-                            throw ValidationException::withMessages([
-                                'cart' => "{$product->name} allows a maximum preorder quantity of {$limit} unit(s) per student.",
-                            ]);
+                        if ($limit !== null) {
+                            $priorStudentQuantity =
+                                $product->studentPreorderQuantityInCurrentWindow(
+                                    $student->id,
+                                );
+
+                            $currentStudentAllocated =
+                                $studentLimitAllocatedThisCheckout[
+                                    $product->id
+                                ] ?? 0;
+
+                            $remainingForStudent =
+                                max(
+                                    0,
+                                    $limit
+                                        - $priorStudentQuantity
+                                        - $currentStudentAllocated,
+                                );
+
+                            if (
+                                $cartItem->quantity
+                                > $remainingForStudent
+                            ) {
+                                throw ValidationException::withMessages([
+                                    'cart' => "{$product->name} allows a maximum preorder quantity of {$limit} unit(s) per student for this batch. "
+                                        ."You already have {$priorStudentQuantity} unit(s), so you may add up to {$remainingForStudent} more.",
+                                ]);
+                            }
+
+                            $studentLimitAllocatedThisCheckout[
+                                    $product->id
+                                ] =
+                                    $currentStudentAllocated
+                                    + $cartItem->quantity;
                         }
 
                         $validatedItems[] = [

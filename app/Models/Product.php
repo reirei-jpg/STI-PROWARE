@@ -358,6 +358,66 @@ class Product extends Model
 
     /*
     |--------------------------------------------------------------------------
+    | Preorder Capacity Usage
+    |--------------------------------------------------------------------------
+    |
+    | Both helpers below deliberately count WAITING, READY, and PAID
+    | preorder items (not just paid ones) — an unpaid preorder still
+    | holds a slot until it is cancelled or expires. Cancelled and
+    | expired preorder items are excluded because their reserved stock
+    | has already been released back for someone else to claim.
+    */
+
+    /**
+     * Total preorder quantity already claimed against this product,
+     * across every student, counted toward `preorder_capacity`.
+     */
+    public function usedPreorderCapacity(): int
+    {
+        return (int) OrderItem::query()
+            ->whereHas(
+                'productVariant',
+                fn ($query) => $query->where('product_id', $this->id),
+            )
+            ->where('item_type', OrderItem::TYPE_PREORDER)
+            ->whereNotIn('preorder_status', [
+                OrderItem::PREORDER_STATUS_CANCELLED,
+                OrderItem::PREORDER_STATUS_EXPIRED,
+            ])
+            ->sum('quantity');
+    }
+
+    /**
+     * One student's preorder quantity for this product, counted toward
+     * `preorder_limit_per_student`. Scoped to the current preorder
+     * window (orders placed on or after `preorder_starts_at`) so the
+     * per-student limit resets when the product opens a new preorder
+     * batch, rather than acting as a lifetime cap.
+     */
+    public function studentPreorderQuantityInCurrentWindow(int $studentId): int
+    {
+        return (int) OrderItem::query()
+            ->whereHas(
+                'productVariant',
+                fn ($query) => $query->where('product_id', $this->id),
+            )
+            ->where('item_type', OrderItem::TYPE_PREORDER)
+            ->whereNotIn('preorder_status', [
+                OrderItem::PREORDER_STATUS_CANCELLED,
+                OrderItem::PREORDER_STATUS_EXPIRED,
+            ])
+            ->whereHas('order', function ($query) use ($studentId): void {
+                $query->where('student_id', $studentId);
+
+                if ($this->preorder_starts_at !== null) {
+                    $query->where('created_at', '>=', $this->preorder_starts_at);
+                }
+            })
+            ->sum('quantity');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | Availability Label
     |--------------------------------------------------------------------------
     */

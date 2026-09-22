@@ -196,19 +196,25 @@ class PreorderConfigurationController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        if (
-            ! empty($validated['preorder_early_bird_slots'])
-            &&
-            ! empty($validated['preorder_capacity'])
-            &&
-            $validated['preorder_early_bird_slots']
-                > $validated['preorder_capacity']
-        ) {
-            return back()
-                ->withErrors([
-                    'preorder_early_bird_slots' => 'Early-bird slots cannot exceed the preorder capacity.',
-                ])
-                ->withInput();
+        if (! empty($validated['preorder_early_bird_slots'])) {
+            if (empty($validated['preorder_capacity'])) {
+                return back()
+                    ->withErrors([
+                        'preorder_capacity' => 'A preorder capacity is required when early-bird slots are configured.',
+                    ])
+                    ->withInput();
+            }
+
+            if (
+                $validated['preorder_early_bird_slots']
+                    > $validated['preorder_capacity']
+            ) {
+                return back()
+                    ->withErrors([
+                        'preorder_early_bird_slots' => 'Early-bird slots cannot exceed the preorder capacity.',
+                    ])
+                    ->withInput();
+            }
         }
 
         /*
