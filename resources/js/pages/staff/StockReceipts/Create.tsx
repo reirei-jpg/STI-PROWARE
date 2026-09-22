@@ -2488,7 +2488,8 @@ const confirmPreorderConfiguration = (): void => {
 
                     <input
                         type="number"
-                        min="0"
+                        min="0.01"
+                        max="99999999.99"
                         step="0.01"
                         value={
                             registerProductForm

@@ -2215,6 +2215,7 @@ const confirmCreatePurchaseOrder =
                                     <input
                                         type="number"
                                         min={1}
+                                        max={1000000}
                                         step={1}
                                         value={
                                             editQuantity
@@ -2240,6 +2241,7 @@ const confirmCreatePurchaseOrder =
                                     <input
                                         type="number"
                                         min={0}
+                                        max="99999999.99"
                                         step="0.01"
                                         value={
                                             editUnitCost
@@ -2451,6 +2453,7 @@ function QuantityCostInputs({
                 <input
                     type="number"
                     min={1}
+                    max={1000000}
                     step={1}
                     value={
                         quantity
@@ -2475,6 +2478,7 @@ function QuantityCostInputs({
                 <input
                     type="number"
                     min={0}
+                    max="99999999.99"
                     step="0.01"
                     value={
                         unitCost

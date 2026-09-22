@@ -2675,6 +2675,7 @@ return;
                                 <input
                                     type="number"
                                     min={1}
+                                    max={1000000}
                                     step={1}
                                     value={
                                         addItemForm
@@ -2708,6 +2709,7 @@ return;
                                 <input
                                     type="number"
                                     min={0}
+                                    max="99999999.99"
                                     step="0.01"
                                     value={
                                         addItemForm
@@ -2955,6 +2957,7 @@ return;
                                                 .quantity_received,
                                         )
                                     }
+                                    max={1000000}
                                     step={1}
                                     value={
                                         editItemForm
@@ -2991,6 +2994,7 @@ return;
                                 <input
                                     type="number"
                                     min={0}
+                                    max="99999999.99"
                                     step="0.01"
                                     value={
                                         editItemForm

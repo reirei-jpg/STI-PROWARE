@@ -972,6 +972,7 @@ export default function Create({
                                 <input
                                     type="number"
                                     min="0.01"
+                                    max="99999999.99"
                                     step="0.01"
                                     value={
                                         form.data
@@ -1406,6 +1407,7 @@ export default function Create({
                                                 <input
                                                     type="number"
                                                     min="1"
+                                                    max="1000"
                                                     value={
                                                         form
                                                             .data
@@ -1444,6 +1446,7 @@ export default function Create({
                                                 <input
                                                     type="number"
                                                     min="1"
+                                                    max="1000000"
                                                     value={
                                                         form
                                                             .data

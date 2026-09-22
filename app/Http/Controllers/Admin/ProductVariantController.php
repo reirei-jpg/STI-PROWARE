@@ -247,7 +247,7 @@ class ProductVariantController extends Controller
                     'price_override' => [
                         'nullable',
                         'numeric',
-                        'min:0',
+                        'min:0.01',
                         'max:99999999.99',
                     ],
 

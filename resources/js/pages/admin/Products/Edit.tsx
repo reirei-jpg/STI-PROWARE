@@ -1029,7 +1029,8 @@ export default function Edit({
 
                                     <input
                                         type="number"
-                                        min="0"
+                                        min="0.01"
+                                        max="99999999.99"
                                         step="0.01"
                                         value={
                                             form.data
@@ -1551,7 +1552,7 @@ export default function Edit({
                                                 <input
                                                     type="number"
                                                     min="1"
-                                                    max="99"
+                                                    max="1000"
                                                     step="1"
                                                     placeholder="2"
                                                     value={
@@ -1594,6 +1595,7 @@ export default function Edit({
                                                 <input
                                                     type="number"
                                                     min="1"
+                                                    max="1000000"
                                                     step="1"
                                                     placeholder="100"
                                                     value={

@@ -4,6 +4,7 @@ import {
     CheckCircle2,
     CircleOff,
     LoaderCircle,
+    Pencil,
     Plus,
     Shirt,
 } from 'lucide-react';
@@ -1025,7 +1026,8 @@ const {
 
                                     <input
                                         type="number"
-                                        min="0"
+                                        min="0.01"
+                                        max="99999999.99"
                                         step="0.01"
                                         value={
                                             form
@@ -1259,6 +1261,7 @@ const {
                             <input
                                 type="number"
                                 min="0.01"
+                                max="99999999.99"
                                 step="0.01"
                                 autoFocus
                                 placeholder={`Base: ${formatCurrency(product.base_price)}`}
@@ -1271,6 +1274,10 @@ const {
                                     priceError !== '',
                                 )}
                             />
+
+                            <p className="mt-1 text-xs text-slate-500">
+                                Between ₱0.01 and ₱99,999,999.99.
+                            </p>
 
                             {priceError && (
                                 <p className="mt-2 text-sm font-semibold text-red-600">
@@ -1491,19 +1498,26 @@ const VariantRow = ({
                             onClick={onEditPrice}
                             disabled={processing}
                             className="
+                                inline-flex
+                                items-center
+                                gap-1.5
+                                rounded-xl
+                                border
+                                border-blue-200
+                                bg-blue-50
+                                px-3
+                                py-1.5
                                 text-xs
-                                font-bold
-                                text-blue-600
-                                underline
-                                decoration-dotted
-                                underline-offset-2
+                                font-black
+                                text-blue-700
                                 transition
-                                hover:text-blue-700
+                                hover:bg-blue-100
                                 disabled:cursor-not-allowed
                                 disabled:opacity-50
                             "
                         >
-                            Edit price
+                            <Pencil size={13} />
+                            Edit Price
                         </button>
                     </div>
                 </div>
