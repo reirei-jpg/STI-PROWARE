@@ -77,6 +77,17 @@ test('a specialist can also set a variant price, unlike before', function () {
     expect($variant->fresh()->price_override)->toBe('475.00');
 });
 
+test('a specialist can open the variants page itself, not just the price action', function () {
+    [$product] = makeProductWithVariant();
+
+    $specialist = User::factory()->create(['role' => User::ROLE_SPECIALIST]);
+
+    $this
+        ->actingAs($specialist)
+        ->get("/admin/products/{$product->id}/variants")
+        ->assertOk();
+});
+
 test('a cashier cannot set a variant price', function () {
     [$product, $variant] = makeProductWithVariant();
 

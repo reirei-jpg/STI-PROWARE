@@ -419,7 +419,11 @@ const {
             >
                 {/* BACK */}
                 <Link
-                    href="/admin/products"
+                    href={
+                        currentRole === 'specialist'
+                            ? '/staff/inventory'
+                            : '/admin/products'
+                    }
                     className="
                         inline-flex
                         items-center
@@ -435,7 +439,9 @@ const {
                         size={17}
                     />
 
-                    Back to Products
+                    {currentRole === 'specialist'
+                        ? 'Back to Inventory'
+                        : 'Back to Products'}
                 </Link>
 
                 {/* HEADER */}

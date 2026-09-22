@@ -8,6 +8,7 @@ import {
     LoaderCircle,
     Package,
     PackageOpen,
+    Pencil,
     RefreshCcw,
     Search,
     Settings2,
@@ -1385,6 +1386,16 @@ function InventoryPreviewModal({
                                         <p className="font-mono text-xs text-blue-500">
                                             {group.product.code}
                                         </p>
+
+                                        {group.product.id && (
+                                            <Link
+                                                href={`/admin/products/${group.product.id}/variants`}
+                                                className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-2.5 py-1 text-xs font-black text-blue-700 transition hover:bg-blue-100"
+                                            >
+                                                <Pencil size={12} />
+                                                Manage Variants
+                                            </Link>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2 pl-2">
