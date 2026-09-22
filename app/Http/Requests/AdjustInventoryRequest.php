@@ -48,7 +48,7 @@ class AdjustInventoryRequest extends FormRequest
                 'required',
                 'integer',
                 'min:1',
-                'max:1000000',
+                'max:10000',
             ],
 
             /*

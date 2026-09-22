@@ -24,6 +24,7 @@ import ActionNotification from '@/components/action-feedback/ActionNotification'
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
 import AdminLayout from '@/layouts/AdminLayout';
 import SpecialistLayout from '@/layouts/SpecialistLayout';
+import { clampNumberInput } from '@/lib/utils';
 
 /*
 |--------------------------------------------------------------------------
@@ -546,11 +547,15 @@ export default function Movements({
                                     id="adjust_quantity"
                                     type="number"
                                     min={1}
+                                    max={10000}
                                     value={adjustForm.data.quantity}
                                     onChange={(event) =>
                                         adjustForm.setData(
                                             'quantity',
-                                            event.target.value,
+                                            clampNumberInput(
+                                                event.target.value,
+                                                10000,
+                                            ),
                                         )
                                     }
                                     className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 transition outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
