@@ -201,7 +201,7 @@ class HandleInertiaRequests extends Middleware
             */
 
             'auth' => [
-            'user' => $user,
+                'user' => $user,
             ],
 
             /*
