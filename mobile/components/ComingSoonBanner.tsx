@@ -223,16 +223,18 @@ export default function ComingSoonBanner({
 
             {count > 1 && (
                 <View
-                    style={{ right: 14, bottom: 10 }}
-                    className="absolute flex-row items-center gap-1.5 rounded-full bg-black/20 px-2.5 py-1.5"
+                    style={{ bottom: 10, left: 0, right: 0 }}
+                    className="absolute flex-row items-center justify-center"
                     pointerEvents="none"
                 >
-                    {products.map((product, position) => (
-                        <View
-                            key={product.id}
-                            className={`h-1.5 rounded-full ${position === index ? 'w-4 bg-white' : 'w-1.5 bg-white/60'}`}
-                        />
-                    ))}
+                    <View className="flex-row items-center gap-1.5 rounded-full bg-black/20 px-2.5 py-1.5">
+                        {products.map((product, position) => (
+                            <View
+                                key={product.id}
+                                className={`h-1.5 rounded-full ${position === index ? 'w-4 bg-white' : 'w-1.5 bg-white/60'}`}
+                            />
+                        ))}
+                    </View>
                 </View>
             )}
         </View>
