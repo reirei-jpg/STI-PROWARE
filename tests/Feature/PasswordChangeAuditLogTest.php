@@ -11,8 +11,8 @@ test('a self-service password change writes an audit log entry', function () {
     $this->actingAs($user)
         ->put(route('user-password.update'), [
             'current_password' => 'password',
-            'password' => 'new-password',
-            'password_confirmation' => 'new-password',
+            'password' => 'new-password-1',
+            'password_confirmation' => 'new-password-1',
         ])
         ->assertSessionHasNoErrors();
 
@@ -34,8 +34,8 @@ test('the forced first-login password change writes an audit log entry', functio
 
     $this->actingAs($user)
         ->patch('/password/change-required', [
-            'password' => 'brand-new-password',
-            'password_confirmation' => 'brand-new-password',
+            'password' => 'brand-new-password-1',
+            'password_confirmation' => 'brand-new-password-1',
         ])
         ->assertSessionHasNoErrors();
 
@@ -62,8 +62,8 @@ test('a forgot-password reset writes an audit log entry correctly attributed to 
         $this->post(route('password.update'), [
             'token' => $notification->token,
             'email' => $user->email,
-            'password' => 'reset-password',
-            'password_confirmation' => 'reset-password',
+            'password' => 'reset-password-1',
+            'password_confirmation' => 'reset-password-1',
         ])->assertSessionHasNoErrors();
 
         return true;

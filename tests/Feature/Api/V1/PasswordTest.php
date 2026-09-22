@@ -168,14 +168,19 @@ test('resetting a forgotten password signs every phone out', function () {
 test('the new password must be different from the current one', function () {
     [$student, $phone] = apiPasswordTwoPhones();
 
+    // The current password must itself meet the strength rule so that only
+    // the "different from current" rule is what fails here.
+    $student->forceFill(['password' => Hash::make('current-password-1')])->save();
+
     $this->withToken($phone)
         ->putJson('/api/v1/auth/password', apiPasswordPayload([
-            'password' => 'password',
-            'password_confirmation' => 'password',
+            'current_password' => 'current-password-1',
+            'password' => 'current-password-1',
+            'password_confirmation' => 'current-password-1',
         ]))
         ->assertUnprocessable()
         ->assertJsonPath('errors.password.0', 'Your new password must be different from your current password.');
 
-    expect(Hash::check('password', $student->fresh()->password))->toBeTrue()
+    expect(Hash::check('current-password-1', $student->fresh()->password))->toBeTrue()
         ->and($student->tokens()->count())->toBe(2);
 });
