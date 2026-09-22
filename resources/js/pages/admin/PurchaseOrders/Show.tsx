@@ -2676,7 +2676,7 @@ return;
                                 <input
                                     type="number"
                                     min={1}
-                                    max={1000000}
+                                    max={10000}
                                     step={1}
                                     value={
                                         addItemForm
@@ -2696,7 +2696,7 @@ return;
                                                         event
                                                             .target
                                                             .value,
-                                                        1000000,
+                                                        10000,
                                                     ),
                                             }),
                                         )
@@ -2964,7 +2964,7 @@ return;
                                                 .quantity_received,
                                         )
                                     }
-                                    max={1000000}
+                                    max={10000}
                                     step={1}
                                     value={
                                         editItemForm
@@ -2986,7 +2986,7 @@ return;
                                                                 event
                                                                     .target
                                                                     .value,
-                                                                1000000,
+                                                                10000,
                                                             ),
                                                     }
                                                     : current,

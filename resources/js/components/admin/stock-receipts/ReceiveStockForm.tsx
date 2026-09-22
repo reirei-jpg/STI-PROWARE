@@ -13,6 +13,8 @@ import type {
     InertiaFormProps,
 } from '@inertiajs/react';
 
+import { clampNumberInput } from '@/lib/utils';
+
 import type {
     ReceiveStockFormData,
     StockReceiptVariant,
@@ -113,7 +115,7 @@ const hasValidQuantity =
                         min="1"
                         max={
                             maxReceivableQuantity
-                                ?? 1000000
+                                ?? 10000
                         }
                         step="1"
                         inputMode="numeric"
@@ -123,7 +125,11 @@ const hasValidQuantity =
                         onChange={(event) => {
                             form.setData(
                                 'quantity',
-                                event.target.value,
+                                clampNumberInput(
+                                    event.target.value,
+                                    maxReceivableQuantity
+                                        ?? 10000,
+                                ),
                             );
 
                             form.clearErrors(

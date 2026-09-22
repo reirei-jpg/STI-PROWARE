@@ -886,7 +886,7 @@ class PurchaseOrderController extends Controller
                     'required',
                     'integer',
                     'min:1',
-                    'max:1000000',
+                    'max:10000',
                 ],
 
                 'items.*.unit_cost' => [
@@ -1387,7 +1387,7 @@ class PurchaseOrderController extends Controller
                     'required',
                     'integer',
                     'min:1',
-                    'max:1000000',
+                    'max:10000',
                 ],
 
                 'unit_cost' => [
@@ -1599,7 +1599,7 @@ class PurchaseOrderController extends Controller
                     'required',
                     'integer',
                     'min:1',
-                    'max:1000000',
+                    'max:10000',
                 ],
 
                 'unit_cost' => [

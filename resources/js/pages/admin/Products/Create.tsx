@@ -1453,7 +1453,7 @@ export default function Create({
                                                 <input
                                                     type="number"
                                                     min="1"
-                                                    max="1000000"
+                                                    max="10000"
                                                     value={
                                                         form
                                                             .data
@@ -1468,7 +1468,7 @@ export default function Create({
                                                                 event
                                                                     .target
                                                                     .value,
-                                                                1000000,
+                                                                10000,
                                                             ),
                                                         )
                                                     }

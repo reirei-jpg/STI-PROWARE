@@ -2216,7 +2216,7 @@ const confirmCreatePurchaseOrder =
                                     <input
                                         type="number"
                                         min={1}
-                                        max={1000000}
+                                        max={10000}
                                         step={1}
                                         value={
                                             editQuantity
@@ -2229,7 +2229,7 @@ const confirmCreatePurchaseOrder =
                                                     event
                                                         .target
                                                         .value,
-                                                    1000000,
+                                                    10000,
                                                 ),
                                             )
                                         }
@@ -2460,7 +2460,7 @@ function QuantityCostInputs({
                 <input
                     type="number"
                     min={1}
-                    max={1000000}
+                    max={10000}
                     step={1}
                     value={
                         quantity
@@ -2472,7 +2472,7 @@ function QuantityCostInputs({
                             clampNumberInput(
                                 event.target
                                     .value,
-                                1000000,
+                                10000,
                             ),
                         )
                     }

@@ -92,7 +92,7 @@ class UpdateProductRequest extends FormRequest
                 'nullable',
                 'integer',
                 'min:1',
-                'max:1000000',
+                'max:10000',
             ],
 
             'image' => [

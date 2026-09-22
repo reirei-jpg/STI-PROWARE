@@ -1602,7 +1602,7 @@ export default function Edit({
                                                 <input
                                                     type="number"
                                                     min="1"
-                                                    max="1000000"
+                                                    max="10000"
                                                     step="1"
                                                     placeholder="100"
                                                     value={
@@ -1618,7 +1618,7 @@ export default function Edit({
                                                                 event
                                                                     .target
                                                                     .value,
-                                                                1000000,
+                                                                10000,
                                                             ),
                                                         )
                                                     }
