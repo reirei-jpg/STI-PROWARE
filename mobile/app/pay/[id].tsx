@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Image,
+    KeyboardAvoidingView,
+    Platform,
     Pressable,
     ScrollView,
     Text,
@@ -175,7 +177,10 @@ export default function PayPreorder() {
     );
 
     return (
-        <View className="flex-1 bg-page">
+        <KeyboardAvoidingView
+            className="flex-1 bg-page"
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
             {header}
 
             <ScrollView
@@ -295,6 +300,6 @@ export default function PayPreorder() {
                     </Text>
                 </Pressable>
             </View>
-        </View>
+        </KeyboardAvoidingView>
     );
 }

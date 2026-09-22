@@ -9,6 +9,8 @@ import { useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Image,
+    KeyboardAvoidingView,
+    Platform,
     Pressable,
     ScrollView,
     Text,
@@ -251,7 +253,10 @@ export default function Checkout() {
     const canSubmit = confirmed && !submitting;
 
     return (
-        <View className="flex-1 bg-page">
+        <KeyboardAvoidingView
+            className="flex-1 bg-page"
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
             {header}
 
             <ScrollView
@@ -375,6 +380,6 @@ export default function Checkout() {
                     </Text>
                 </Pressable>
             </View>
-        </View>
+        </KeyboardAvoidingView>
     );
 }

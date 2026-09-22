@@ -67,7 +67,7 @@ export default function Login() {
     return (
         <KeyboardAvoidingView
             className="flex-1 bg-page"
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
             <ScrollView
                 keyboardShouldPersistTaps="handled"
