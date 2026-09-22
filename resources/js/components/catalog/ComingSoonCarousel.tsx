@@ -403,6 +403,30 @@ export default function ComingSoonCarousel({
                                 </span>
                             )}
 
+                            {product.accepts_preorders
+                                && product.preorder_days_remaining !== null && (
+                                <span
+                                    className={`
+                                        rounded-full
+                                        px-3
+                                        py-1.5
+                                        text-xs
+                                        font-black
+                                        ${
+                                            product.preorder_days_remaining <= 3
+                                                ? 'bg-red-500 text-white'
+                                                : 'bg-white/20 text-white'
+                                        }
+                                    `}
+                                >
+                                    {product.preorder_days_remaining === 0
+                                        ? 'Last day to preorder'
+                                        : product.preorder_days_remaining === 1
+                                            ? '1 day left to preorder'
+                                            : `${product.preorder_days_remaining} days left to preorder`}
+                                </span>
+                            )}
+
                             {product.expected_release_date && (
                                 <span
                                     className="

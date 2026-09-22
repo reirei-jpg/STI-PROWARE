@@ -55,6 +55,8 @@ export interface CatalogProduct {
 
     preorder_enabled: boolean;
     accepts_preorders: boolean;
+    preorder_ends_at: string | null;
+    preorder_days_remaining: number | null;
     expected_release_date: string | null;
 
     new_badge_duration_days: number | null;

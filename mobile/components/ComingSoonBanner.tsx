@@ -200,6 +200,25 @@ export default function ComingSoonBanner({
                                             </Text>
                                         </View>
                                     )}
+
+                                    {product.accepts_preorders &&
+                                        product.preorder_days_remaining !== null && (
+                                            <View
+                                                className={`rounded-full px-2 py-1 ${
+                                                    product.preorder_days_remaining <= 3
+                                                        ? 'bg-red-500'
+                                                        : 'bg-white/20'
+                                                }`}
+                                            >
+                                                <Text className="font-sans-bold text-[10px] text-white">
+                                                    {product.preorder_days_remaining === 0
+                                                        ? 'Last day to preorder'
+                                                        : product.preorder_days_remaining === 1
+                                                            ? '1 day left'
+                                                            : `${product.preorder_days_remaining} days left`}
+                                                </Text>
+                                            </View>
+                                        )}
                                 </View>
 
                                 {product.expected_release_date && (
