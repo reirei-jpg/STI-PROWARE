@@ -1,3 +1,13 @@
+
+import {
+    Head,
+    Link,
+    useForm,
+} from '@inertiajs/react';
+import type {
+    LucideIcon,
+} from 'lucide-react';
+
 import {
     ArrowLeft,
     Check,
@@ -8,30 +18,19 @@ import {
     X,
 } from 'lucide-react';
 
-import type {
-    LucideIcon,
-} from 'lucide-react';
-
 import {
-    Head,
-    Link,
-    useForm,
-} from '@inertiajs/react';
-
-import {
-    type ChangeEvent,
-    type FormEvent,
+    createElement,
     useEffect,
     useRef,
     useState,
 } from 'react';
-
-import AdminLayout from '@/layouts/AdminLayout';
+import type { ChangeEvent, FormEvent } from 'react';
 
 import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal';
 import ActionNotification from '@/components/action-feedback/ActionNotification';
 import ActionProcessingButton from '@/components/action-feedback/ActionProcessingButton';
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
+import AdminLayout from '@/layouts/AdminLayout';
 import { clampNumberInput } from '@/lib/utils';
 
 type VariantMode =
@@ -636,6 +635,7 @@ export default function Create({
                         'string'
                     ) {
                         showError(firstError);
+
                         return;
                     }
 
@@ -1773,11 +1773,6 @@ function VariantModeButton({
     onClick:
         () => void;
 }) {
-    const Icon =
-        variantIcon(
-            mode.value,
-        );
-
     return (
         <button
             type="button"
@@ -1798,14 +1793,12 @@ function VariantModeButton({
                 }
             `}
         >
-            <Icon
-                size={22}
-                className={
-                    selected
-                        ? 'text-blue-600'
-                        : 'text-slate-500'
-                }
-            />
+            {createElement(variantIcon(mode.value), {
+                size: 22,
+                className: selected
+                    ? 'text-blue-600'
+                    : 'text-slate-500',
+            })}
 
             <h3 className="mt-4 font-black text-slate-900">
                 {
