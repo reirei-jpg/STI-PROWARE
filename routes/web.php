@@ -588,6 +588,16 @@ Route::middleware([
                 );
 
                 Route::patch(
+                    '/purchase-orders/{purchaseOrder}/expected-delivery-date',
+                    [
+                        PurchaseOrderController::class,
+                        'updateExpectedDeliveryDate',
+                    ],
+                )->name(
+                    'purchase-orders.expected-delivery-date.update',
+                );
+
+                Route::patch(
                     '/purchase-orders/{purchaseOrder}/draft',
                     [
                         PurchaseOrderController::class,

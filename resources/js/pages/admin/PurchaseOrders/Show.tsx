@@ -36,6 +36,7 @@ import {
 import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal';
 import ActionNotification from '@/components/action-feedback/ActionNotification';
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
+import { DatePicker } from '@/components/ui/date-picker';
 import AdminLayout from '@/layouts/AdminLayout';
 import { clampNumberInput } from '@/lib/utils';
 
@@ -82,6 +83,7 @@ interface PurchaseOrder {
     supplier_reference_number: string | null;
 
     expected_delivery_date: string | null;
+    expected_delivery_date_raw: string;
 
     status: string;
     notes: string | null;
@@ -388,6 +390,67 @@ export default function Show({
         !purchaseOrder.is_archived
         && purchaseOrder.status !==
             'completed';
+
+    /*
+    |--------------------------------------------------------------------------
+    | Expected Delivery Date Editing
+    |--------------------------------------------------------------------------
+    */
+
+    const [
+        editingDeliveryDate,
+        setEditingDeliveryDate,
+    ] = useState(false);
+
+    const [
+        deliveryDateValue,
+        setDeliveryDateValue,
+    ] = useState(
+        purchaseOrder.expected_delivery_date_raw,
+    );
+
+    const [
+        savingDeliveryDate,
+        setSavingDeliveryDate,
+    ] = useState(false);
+
+    const openEditDeliveryDate = (): void => {
+        setDeliveryDateValue(
+            purchaseOrder.expected_delivery_date_raw,
+        );
+        setEditingDeliveryDate(true);
+    };
+
+    const cancelEditDeliveryDate = (): void => {
+        setEditingDeliveryDate(false);
+    };
+
+    const saveDeliveryDate = (): void => {
+        setSavingDeliveryDate(true);
+
+        router.patch(
+            `/admin/purchase-orders/${purchaseOrder.id}/expected-delivery-date`,
+            {
+                expected_delivery_date: deliveryDateValue,
+            },
+            {
+                preserveScroll: true,
+
+                onSuccess: () => {
+                    setEditingDeliveryDate(false);
+                    showSuccess('Expected delivery date updated successfully.');
+                },
+
+                onError: () => {
+                    showError('The expected delivery date could not be updated.');
+                },
+
+                onFinish: () => {
+                    setSavingDeliveryDate(false);
+                },
+            },
+        );
+    };
 
     const filteredVariants =
         useMemo(
@@ -2135,13 +2198,100 @@ return;
                                     }
                                 />
 
-                                <DetailRow
-                                    label="Expected Delivery"
-                                    value={
-                                        purchaseOrder.expected_delivery_date
-                                        ?? 'Not set'
-                                    }
-                                />
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">
+                                        Expected Delivery
+                                    </p>
+
+                                    {editingDeliveryDate ? (
+                                        <div className="mt-1.5 space-y-2">
+                                            <DatePicker
+                                                value={deliveryDateValue}
+                                                onChange={setDeliveryDateValue}
+                                                placeholder="No date set"
+                                            />
+
+                                            <div className="flex gap-2">
+                                                <button
+                                                    type="button"
+                                                    disabled={savingDeliveryDate}
+                                                    onClick={saveDeliveryDate}
+                                                    className="
+                                                        rounded-lg
+                                                        bg-blue-600
+                                                        px-3
+                                                        py-1.5
+                                                        text-xs
+                                                        font-black
+                                                        text-white
+                                                        transition
+                                                        hover:bg-blue-700
+                                                        disabled:cursor-not-allowed
+                                                        disabled:opacity-60
+                                                    "
+                                                >
+                                                    {savingDeliveryDate ? 'Saving...' : 'Save'}
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    disabled={savingDeliveryDate}
+                                                    onClick={cancelEditDeliveryDate}
+                                                    className="
+                                                        rounded-lg
+                                                        border
+                                                        border-slate-200
+                                                        bg-white
+                                                        px-3
+                                                        py-1.5
+                                                        text-xs
+                                                        font-black
+                                                        text-slate-600
+                                                        transition
+                                                        hover:bg-slate-50
+                                                        disabled:cursor-not-allowed
+                                                        disabled:opacity-60
+                                                    "
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="mt-1.5 flex items-center justify-between gap-2">
+                                            <p className="break-words text-sm font-bold text-slate-800">
+                                                {purchaseOrder.expected_delivery_date
+                                                    ?? 'Not set'}
+                                            </p>
+
+                                            {canModifyPo && (
+                                                <button
+                                                    type="button"
+                                                    onClick={openEditDeliveryDate}
+                                                    className="
+                                                        inline-flex
+                                                        shrink-0
+                                                        items-center
+                                                        gap-2
+                                                        rounded-xl
+                                                        bg-blue-50
+                                                        px-3
+                                                        py-2
+                                                        text-sm
+                                                        font-black
+                                                        text-blue-700
+                                                        transition
+                                                        hover:bg-blue-100
+                                                    "
+                                                >
+                                                    <Pencil size={15} />
+
+                                                    Edit
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
 
                                 <DetailRow
                                     label="Created By"

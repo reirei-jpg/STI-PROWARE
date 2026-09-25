@@ -693,6 +693,10 @@ class PurchaseOrderController extends Controller
                             'M d, Y',
                         ),
 
+                    'expected_delivery_date_raw' => $purchaseOrder
+                        ->expected_delivery_date
+                        ?->toDateString() ?? '',
+
                     'status' => $purchaseOrder->status,
 
                     'notes' => $purchaseOrder->notes,
@@ -1613,6 +1617,51 @@ class PurchaseOrderController extends Controller
         return redirect()
             ->route('admin.purchase-orders.show', $purchaseOrder)
             ->with('success', 'Purchase order created successfully.');
+    }
+
+    /**
+     * Correct the expected delivery date on an already-ordered purchase
+     * order, e.g. after a mis-click at creation. Available on any PO
+     * that can still otherwise be modified — archived and completed
+     * purchase orders are historical records and are not editable.
+     */
+    public function updateExpectedDeliveryDate(
+        Request $request,
+        PurchaseOrder $purchaseOrder,
+    ): RedirectResponse {
+        $user = $request->user();
+
+        abort_unless($user && $user->isAdminLevel(), 403);
+
+        abort_if(
+            $purchaseOrder->isArchived()
+                || $purchaseOrder->status === PurchaseOrder::STATUS_COMPLETED,
+            404,
+        );
+
+        $validated = $request->validate([
+            'expected_delivery_date' => ['nullable', 'date', 'after_or_equal:today'],
+        ], [
+            'expected_delivery_date.after_or_equal' => 'The expected delivery date cannot be in the past.',
+        ]);
+
+        $oldDate = $purchaseOrder->expected_delivery_date?->toDateString();
+
+        $purchaseOrder->update([
+            'expected_delivery_date' => $validated['expected_delivery_date'] ?? null,
+        ]);
+
+        AuditLogger::log(
+            request: $request,
+            action: 'expected_delivery_date_updated',
+            module: 'purchase_orders',
+            description: "Updated the expected delivery date for purchase order {$purchaseOrder->po_number}.",
+            subject: $purchaseOrder,
+            oldValues: ['expected_delivery_date' => $oldDate],
+            newValues: ['expected_delivery_date' => $validated['expected_delivery_date'] ?? null],
+        );
+
+        return back()->with('success', 'Expected delivery date updated successfully.');
     }
 
     /**
