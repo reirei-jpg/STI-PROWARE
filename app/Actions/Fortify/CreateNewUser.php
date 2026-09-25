@@ -2,21 +2,28 @@
 
 namespace App\Actions\Fortify;
 
-use App\Models\StudentRegistry;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rules\Password;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
-use Laravel\Fortify\Rules\Password;
 
 class CreateNewUser implements CreatesNewUsers
 {
     /**
      * Validate and create a Student account.
+     *
+     * There is no Microsoft 365 / school-roster integration yet, so this
+     * is a manual, self-attested registration: the student's own input
+     * is trusted directly rather than being matched against a
+     * pre-approved list. The school email is still auto-generated
+     * (last name + last six digits of the Student ID + @sti.edu.ph) and
+     * re-derived here server-side, so it can't be forged by submitting
+     * a different value than what the locked frontend field shows.
      *
      * @param  array<string, mixed>  $input
      */
@@ -30,12 +37,31 @@ class CreateNewUser implements CreatesNewUsers
                     'string',
                     'size:11',
                     'regex:/^[0-9]{11}$/',
+                    Rule::unique('students', 'student_id'),
+                ],
+
+                'full_name' => [
+                    'required',
+                    'string',
+                    'max:255',
                 ],
 
                 'last_name' => [
                     'required',
                     'string',
                     'max:100',
+                ],
+
+                'course' => [
+                    'required',
+                    'string',
+                    'max:100',
+                ],
+
+                'year_level' => [
+                    'required',
+                    'string',
+                    'max:20',
                 ],
 
                 'email' => [
@@ -49,7 +75,7 @@ class CreateNewUser implements CreatesNewUsers
                 'password' => [
                     'required',
                     'string',
-                    new Password,
+                    Password::defaults(),
                     'confirmed',
                 ],
 
@@ -64,9 +90,25 @@ class CreateNewUser implements CreatesNewUsers
 
                 'student_id.regex' => 'The Student ID must contain numbers only.',
 
+                'student_id.unique' => 'This Student ID has already been registered.',
+
+                'full_name.required' => 'Your full name is required.',
+
                 'last_name.required' => 'Your last name is required.',
 
+                'course.required' => 'Your course is required.',
+
+                'year_level.required' => 'Your year level is required.',
+
                 'email.unique' => 'An account already exists using this email address.',
+
+                'password.min' => 'Your password must be at least 8 characters.',
+
+                'password.letters' => 'Your password must include at least one letter.',
+
+                'password.numbers' => 'Your password must include at least one number.',
+
+                'password.symbols' => 'Your password must include at least one special character (e.g. ! @ # $).',
 
                 'password.confirmed' => 'The password confirmation does not match.',
 
@@ -79,7 +121,7 @@ class CreateNewUser implements CreatesNewUsers
                 (string) ($input['student_id'] ?? ''),
             );
 
-            $submittedLastName = $this->normalizeLastName(
+            $lastName = $this->normalizeLastName(
                 (string) ($input['last_name'] ?? ''),
             );
 
@@ -89,51 +131,17 @@ class CreateNewUser implements CreatesNewUsers
 
             if (
                 $studentId === ''
-                || $submittedLastName === ''
+                || $lastName === ''
                 || $submittedEmail === ''
+                || strlen($studentId) !== 11
             ) {
                 return;
             }
 
-            $registry = StudentRegistry::query()
-                ->where('student_id', $studentId)
-                ->first();
-
-            if (! $registry) {
-                $validator->errors()->add(
-                    'student_id',
-                    'This Student ID was not found in the approved school registry.',
-                );
-
-                return;
-            }
-
-            if ($registry->status !== 'active') {
-                $validator->errors()->add(
-                    'student_id',
-                    'This Student ID is not currently active.',
-                );
-            }
-
-            if ($registry->claimed_by_user_id !== null) {
-                $validator->errors()->add(
-                    'student_id',
-                    'This Student ID has already been registered.',
-                );
-            }
-
-            $registryLastName = $this->normalizeLastName(
-                $registry->last_name,
+            $expectedEmail = $this->expectedSchoolEmail(
+                $studentId,
+                $lastName,
             );
-
-            if ($submittedLastName !== $registryLastName) {
-                $validator->errors()->add(
-                    'last_name',
-                    'The last name does not match the school record.',
-                );
-            }
-
-            $expectedEmail = $registry->expectedSchoolEmail();
 
             if ($submittedEmail !== $expectedEmail) {
                 $validator->errors()->add(
@@ -141,82 +149,62 @@ class CreateNewUser implements CreatesNewUsers
                     "The expected school email is {$expectedEmail}.",
                 );
             }
-
-            if (
-                strtolower($registry->email)
-                !== $expectedEmail
-            ) {
-                $validator->errors()->add(
-                    'email',
-                    'The school registry email does not follow the required STI email format.',
-                );
-            }
         });
 
-        $validator->validate();
+        $validated = $validator->validate();
 
-        return DB::transaction(function () use ($input): User {
+        return DB::transaction(function () use ($validated): User {
             $studentId = trim(
-                (string) $input['student_id'],
+                (string) $validated['student_id'],
             );
 
-            $registry = StudentRegistry::query()
-                ->where('student_id', $studentId)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            if (! $registry->isAvailableForRegistration()) {
-                throw ValidationException::withMessages([
-                    'student_id' => 'This Student ID is no longer available for registration.',
-                ]);
-            }
-
-            $submittedLastName = $this->normalizeLastName(
-                (string) $input['last_name'],
+            $lastName = $this->normalizeLastName(
+                (string) $validated['last_name'],
             );
 
-            $registryLastName = $this->normalizeLastName(
-                $registry->last_name,
+            $expectedEmail = $this->expectedSchoolEmail(
+                $studentId,
+                $lastName,
             );
-
-            if ($submittedLastName !== $registryLastName) {
-                throw ValidationException::withMessages([
-                    'last_name' => 'The last name does not match the school record.',
-                ]);
-            }
-
-            $submittedEmail = strtolower(
-                trim((string) $input['email']),
-            );
-
-            $expectedEmail = $registry->expectedSchoolEmail();
-
-            if ($submittedEmail !== $expectedEmail) {
-                throw ValidationException::withMessages([
-                    'email' => "The expected school email is {$expectedEmail}.",
-                ]);
-            }
 
             $user = User::create([
-                'name' => $registry->full_name,
-                'email' => $expectedEmail,
-                'password' => Hash::make(
-                    (string) $input['password'],
+                'name' => trim(
+                    (string) $validated['full_name'],
                 ),
+
+                'email' => $expectedEmail,
+
+                'password' => Hash::make(
+                    (string) $validated['password'],
+                ),
+
                 'role' => 'student',
             ]);
 
             $user->student()->create([
-                'student_id' => $registry->student_id,
-                'course' => $registry->course,
-                'year_level' => $registry->year_level,
+                'student_id' => $studentId,
+
+                'course' => trim(
+                    (string) $validated['course'],
+                ),
+
+                'year_level' => trim(
+                    (string) $validated['year_level'],
+                ),
+
                 'status' => 'active',
             ]);
 
-            $registry->update([
-                'claimed_by_user_id' => $user->id,
-                'claimed_at' => now(),
-            ]);
+            /*
+             * Fortify logs the new user in and redirects straight to
+             * /student/dashboard, so this flash message is what lets
+             * the success notification show up there instead of the
+             * registration page just silently disappearing.
+             */
+            Session::flash(
+                'success',
+                "Welcome, {$user->name}! Your student account was created successfully.",
+            );
 
             return $user;
         });
@@ -233,5 +221,14 @@ class CreateNewUser implements CreatesNewUsers
             '',
             $lastName,
         ) ?? '';
+    }
+
+    private function expectedSchoolEmail(
+        string $studentId,
+        string $normalizedLastName,
+    ): string {
+        $lastSixDigits = substr($studentId, -6);
+
+        return "{$normalizedLastName}.{$lastSixDigits}@sti.edu.ph";
     }
 }

@@ -37,12 +37,14 @@ class AppServiceProvider extends ServiceProvider
             app()->isProduction(),
         );
 
-        // At least 8 characters, with both letters and numbers. The same
-        // rule for staff and students, everywhere a password is set:
-        // website settings, forgot-password reset and the mobile app.
+        // At least 8 characters, with letters, numbers, and a special
+        // character. The same rule for staff and students, everywhere a
+        // password is set: website settings, forgot-password reset,
+        // student registration, and the mobile app.
         Password::defaults(fn (): Password => Password::min(8)
             ->letters()
-            ->numbers(),
+            ->numbers()
+            ->symbols(),
         );
     }
 }
