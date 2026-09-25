@@ -152,6 +152,50 @@ test('an existing catalog item can still be added to a purchase order', function
     expect($item->quantity_ordered)->toBe(3);
 });
 
+test('the expected delivery date cannot be in the past', function () {
+    $admin = trimmedFormAdmin();
+
+    $response = $this->actingAs($admin)->post('/admin/purchase-orders', [
+        'supplier_name' => 'Test Supplier',
+        'expected_delivery_date' => now()->subDay()->toDateString(),
+        'items' => [
+            [
+                'source_type' => 'new_inventory',
+                'product_name' => 'Black Boots',
+                'quantity_ordered' => 10,
+            ],
+        ],
+    ]);
+
+    $response->assertSessionHasErrors([
+        'expected_delivery_date' => 'The expected delivery date cannot be in the past.',
+    ]);
+
+    expect(PurchaseOrder::query()->count())->toBe(0);
+});
+
+test('the expected delivery date accepts today and future dates', function () {
+    $admin = trimmedFormAdmin();
+
+    $response = $this->actingAs($admin)->post('/admin/purchase-orders', [
+        'supplier_name' => 'Test Supplier',
+        'expected_delivery_date' => now()->toDateString(),
+        'items' => [
+            [
+                'source_type' => 'new_inventory',
+                'product_name' => 'Black Boots',
+                'quantity_ordered' => 10,
+            ],
+        ],
+    ]);
+
+    $response->assertSessionDoesntHaveErrors();
+
+    expect(
+        PurchaseOrder::query()->latest('id')->first()->expected_delivery_date->toDateString(),
+    )->toBe(now()->toDateString());
+});
+
 test('the purchase order creation page no longer sends category or product configuration data', function () {
     $admin = trimmedFormAdmin();
 

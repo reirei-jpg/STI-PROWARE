@@ -777,6 +777,7 @@ class PurchaseOrderController extends Controller
                 'expected_delivery_date' => [
                     'nullable',
                     'date',
+                    'after_or_equal:today',
                 ],
 
                 'notes' => [
@@ -895,6 +896,8 @@ class PurchaseOrderController extends Controller
                     'min:0',
                     'max:10000',
                 ],
+            ], [
+                'expected_delivery_date.after_or_equal' => 'The expected delivery date cannot be in the past.',
             ]);
 
         /*

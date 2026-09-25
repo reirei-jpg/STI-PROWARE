@@ -1130,6 +1130,11 @@ const confirmCreatePurchaseOrder =
 
                                     <input
                                         type="date"
+                                        min={
+                                            new Date()
+                                                .toISOString()
+                                                .slice(0, 10)
+                                        }
                                         value={
                                             form.data
                                                 .expected_delivery_date
