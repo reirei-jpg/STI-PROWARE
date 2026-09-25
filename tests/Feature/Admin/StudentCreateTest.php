@@ -139,6 +139,35 @@ test('the year level must be numeric when the admin creates a student', function
     expect(Student::query()->count())->toBe(0);
 });
 
+test('a student created by the admin is forced to change their temporary password before reaching the dashboard', function () {
+    $admin = studentCreateAdmin();
+
+    $this->actingAs($admin)->post('/admin/students', validAdminStudentPayload());
+
+    $student = User::where('email', 'delacruz.123456@sti.edu.ph')->first();
+
+    expect($student->must_change_password)->toBeTrue();
+
+    $this->actingAs($student)
+        ->get('/student/dashboard')
+        ->assertRedirect(route('password.change-required'));
+
+    $this->actingAs($student)
+        ->patch('/password/change-required', [
+            'password' => 'Password2@',
+            'password_confirmation' => 'Password2@',
+        ])
+        ->assertRedirect('/student/dashboard');
+
+    $student = $student->fresh();
+
+    expect($student->must_change_password)->toBeFalse();
+
+    $this->actingAs($student)
+        ->get('/student/dashboard')
+        ->assertOk();
+});
+
 test('the year level cannot be 0 when the admin creates a student', function () {
     $admin = studentCreateAdmin();
 
