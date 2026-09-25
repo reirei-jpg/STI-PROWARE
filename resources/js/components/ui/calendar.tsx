@@ -26,24 +26,24 @@ function Calendar({
         months: "flex flex-col sm:flex-row gap-2",
         month: "flex flex-col gap-4",
         month_caption: "flex justify-center pt-1 relative items-center w-full",
-        caption_label: "text-sm font-medium text-slate-900",
+        caption_label: "text-sm font-bold text-slate-900",
         nav: "flex items-center justify-between absolute inset-x-0 top-0",
         button_previous: cn(
           buttonVariants({ variant: "outline" }),
-          "size-7 border-slate-300 bg-white p-0 text-slate-700 opacity-70 hover:bg-slate-100 hover:text-slate-900 hover:opacity-100"
+          "size-7 border-slate-300 bg-white p-0 text-slate-800 opacity-80 hover:bg-slate-100 hover:text-slate-900 hover:opacity-100"
         ),
         button_next: cn(
           buttonVariants({ variant: "outline" }),
-          "size-7 border-slate-300 bg-white p-0 text-slate-700 opacity-70 hover:bg-slate-100 hover:text-slate-900 hover:opacity-100"
+          "size-7 border-slate-300 bg-white p-0 text-slate-800 opacity-80 hover:bg-slate-100 hover:text-slate-900 hover:opacity-100"
         ),
         month_grid: "w-full border-collapse space-x-1",
         weekdays: "flex",
-        weekday: "text-slate-500 rounded-md w-8 font-normal text-[0.8rem]",
+        weekday: "text-slate-600 rounded-md w-8 font-bold text-[0.8rem]",
         week: "flex w-full mt-2",
         day: "size-8 text-center text-sm p-0 relative [&:has([aria-selected])]:bg-blue-50 first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
         day_button: cn(
           buttonVariants({ variant: "ghost" }),
-          "size-8 p-0 font-normal text-slate-700 hover:bg-slate-100 hover:text-slate-900 aria-selected:opacity-100"
+          "size-8 p-0 font-bold text-slate-900 hover:bg-slate-100 hover:text-slate-900 aria-selected:opacity-100"
         ),
         range_end: "day-range-end",
         selected:
