@@ -33,8 +33,8 @@ test('creating a purchase order writes an audit log entry', function () {
         'supplier_name' => 'Acme Supplies',
         'items' => [
             [
-                'source_type' => 'manual',
-                'manual_name' => 'Packing Tape',
+                'source_type' => 'new_inventory',
+                'product_name' => 'Packing Tape',
                 'quantity_ordered' => 20,
             ],
         ],

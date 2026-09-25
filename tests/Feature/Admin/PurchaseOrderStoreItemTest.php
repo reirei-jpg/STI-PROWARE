@@ -24,7 +24,7 @@ function createOrderedPurchaseOrder(User $admin): PurchaseOrder
     ]);
 }
 
-test('adding a manual item without merchandise_origin is rejected', function () {
+test('a manual item needs no merchandise_origin at all — it is always derived server-side', function () {
     $admin = createAdminUser();
     $purchaseOrder = createOrderedPurchaseOrder($admin);
 
@@ -37,11 +37,13 @@ test('adding a manual item without merchandise_origin is rejected', function () 
             'quantity_ordered' => 5,
         ]);
 
-    $response->assertSessionHasErrors('merchandise_origin');
+    $response->assertSessionDoesntHaveErrors();
 
-    $this->assertDatabaseMissing('purchase_order_items', [
+    $this->assertDatabaseHas('purchase_order_items', [
         'purchase_order_id' => $purchaseOrder->id,
         'manual_name' => 'Untitled Manual Item',
+        'merchandise_origin' => PurchaseOrderItem::ORIGIN_NEW,
+        'track_inventory' => true,
     ]);
 });
 
@@ -68,7 +70,7 @@ test('a manual item with origin new is always saved as tracked inventory', funct
     ]);
 });
 
-test('a manual item with origin existing is always saved as non-inventory', function () {
+test('a client trying to force merchandise_origin to existing is ignored — there is no non-inventory item type', function () {
     $admin = createAdminUser();
     $purchaseOrder = createOrderedPurchaseOrder($admin);
 
@@ -76,18 +78,18 @@ test('a manual item with origin existing is always saved as non-inventory', func
         ->actingAs($admin)
         ->post("/admin/purchase-orders/{$purchaseOrder->id}/items", [
             'item_type' => PurchaseOrderItem::TYPE_MANUAL,
+            // A stale or malicious client tries to force a non-inventory item.
             'merchandise_origin' => PurchaseOrderItem::ORIGIN_EXISTING,
             'manual_name' => 'Packing Tape',
             'quantity_ordered' => 3,
-            // A malicious or stale client tries to force this to true.
-            'track_inventory' => true,
+            'track_inventory' => false,
         ]);
 
     $this->assertDatabaseHas('purchase_order_items', [
         'purchase_order_id' => $purchaseOrder->id,
         'manual_name' => 'Packing Tape',
-        'merchandise_origin' => PurchaseOrderItem::ORIGIN_EXISTING,
-        'track_inventory' => false,
+        'merchandise_origin' => PurchaseOrderItem::ORIGIN_NEW,
+        'track_inventory' => true,
     ]);
 });
 

@@ -87,7 +87,7 @@ test('a completely empty item row is silently skipped, not saved as a blank item
         'supplier_name' => 'Supplier',
         'items' => [
             [
-                'source_type' => 'manual',
+                'source_type' => 'new_inventory',
                 // no name, no quantity, nothing identifying at all
             ],
         ],
@@ -178,7 +178,7 @@ test('saving progress on an existing draft replaces its items and keeps it a dra
     $this->actingAs($admin)->postJson('/admin/purchase-orders/draft', [
         'supplier_name' => 'First Pass',
         'items' => [
-            ['source_type' => 'manual', 'manual_name' => 'Old Item', 'quantity_ordered' => 1],
+            ['source_type' => 'new_inventory', 'product_name' => 'Old Item', 'quantity_ordered' => 1],
         ],
     ]);
 

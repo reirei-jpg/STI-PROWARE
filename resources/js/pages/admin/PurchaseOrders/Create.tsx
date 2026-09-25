@@ -40,13 +40,11 @@ import { clampNumberInput } from '@/lib/utils';
 
 type AddMode =
     | 'existing_catalog'
-    | 'new_inventory'
-    | 'manual';
+    | 'new_inventory';
 
 type SourceType =
     | 'existing_catalog'
-    | 'new_inventory'
-    | 'manual';
+    | 'new_inventory';
 
 interface VariantInventory {
     quantity_on_hand: number;
@@ -177,11 +175,8 @@ export default function Create({
 
     /*
     |--------------------------------------------------------------------------
-    | New Inventory / Non-Inventory Item State
+    | New Inventory Item State
     |--------------------------------------------------------------------------
-    |
-    | Shared between the "New Inventory Item" and "Non-Inventory Item"
-    | add modes — only one is visible at a time.
     */
 
     const [
@@ -192,11 +187,6 @@ export default function Create({
     const [
         newProductDescription,
         setNewProductDescription,
-    ] = useState('');
-
-    const [
-        newManualSku,
-        setNewManualSku,
     ] = useState('');
 
     /*
@@ -237,11 +227,6 @@ export default function Create({
     const [
         editProductDescription,
         setEditProductDescription,
-    ] = useState('');
-
-    const [
-        editManualSku,
-        setEditManualSku,
     ] = useState('');
 
     const [
@@ -564,94 +549,12 @@ const {
 
     /*
     |--------------------------------------------------------------------------
-    | Add Non-Inventory Item
-    |--------------------------------------------------------------------------
-    */
-
-    const addManualItem =
-        (): void => {
-            setLocalError(
-                null,
-            );
-
-            const validationError =
-                validateItemBasics({
-                    itemName:
-                        newProductName,
-
-                    quantity,
-
-                    unitCost,
-                });
-
-            if (validationError) {
-                setLocalError(
-                    validationError,
-                );
-
-                return;
-            }
-
-            const parsedQuantity =
-                Number(
-                    quantity,
-                );
-
-            form.setData(
-                'items',
-                [
-                    ...form.data.items,
-                    {
-                        source_type:
-                            'manual',
-
-                        product_variant_id:
-                            null,
-
-                        product_name:
-                            null,
-
-                        product_description:
-                            null,
-
-                        manual_name:
-                            newProductName
-                                .trim(),
-
-                        manual_description:
-                            newProductDescription
-                                .trim()
-                            || null,
-
-                        manual_sku:
-                            newManualSku
-                                .trim()
-                            || null,
-
-                        quantity_ordered:
-                            parsedQuantity,
-
-                        unit_cost:
-                            unitCost.trim(),
-                    },
-                ],
-            );
-
-            resetItemFields();
-        };
-
-    /*
-    |--------------------------------------------------------------------------
     | Reset Item Form
     |--------------------------------------------------------------------------
     */
 
     const resetItemFields =
         (): void => {
-            setNewManualSku(
-                '',
-            );
-
             setNewProductName(
                 '',
             );
@@ -713,26 +616,6 @@ const {
 
                 setEditProductDescription(
                     item.product_description
-                    ?? '',
-                );
-            }
-
-            if (
-                item.source_type ===
-                'manual'
-            ) {
-                setEditProductName(
-                    item.manual_name
-                    ?? '',
-                );
-
-                setEditProductDescription(
-                    item.manual_description
-                    ?? '',
-                );
-
-                setEditManualSku(
-                    item.manual_sku
                     ?? '',
                 );
             }
@@ -803,8 +686,6 @@ const {
             if (
                 currentItem.source_type ===
                     'new_inventory'
-                || currentItem.source_type ===
-                    'manual'
             ) {
                 const validationError =
                     validateItemBasics({
@@ -848,36 +729,6 @@ const {
                         ) {
                             return {
                                 ...item,
-
-                                quantity_ordered:
-                                    parsedQuantity,
-
-                                unit_cost:
-                                    editUnitCost
-                                        .trim(),
-                            };
-                        }
-
-                        if (
-                            item.source_type ===
-                            'manual'
-                        ) {
-                            return {
-                                ...item,
-
-                                manual_name:
-                                    editProductName
-                                        .trim(),
-
-                                manual_description:
-                                    editProductDescription
-                                        .trim()
-                                    || null,
-
-                                manual_sku:
-                                    editManualSku
-                                        .trim()
-                                    || null,
 
                                 quantity_ordered:
                                     parsedQuantity,
@@ -1228,7 +1079,7 @@ const confirmCreatePurchaseOrder =
                                 Purchase Order Items
                             </h2>
 
-                            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <button
                                     type="button"
                                     onClick={() => {
@@ -1285,37 +1136,6 @@ const confirmCreatePurchaseOrder =
                                     )}
                                 >
                                     New Inventory Item
-                                </button>
-
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setAddMode(
-                                            'manual',
-                                        );
-
-                                        setLocalError(
-                                            null,
-                                        );
-
-                                        setSelectedVariantId(
-                                            null,
-                                        );
-
-                                        setQuantity(
-                                            '1',
-                                        );
-
-                                        setUnitCost(
-                                            '',
-                                        );
-                                    }}
-                                    className={modeClass(
-                                        addMode ===
-                                            'manual',
-                                    )}
-                                >
-                                    Non-Inventory Item
                                 </button>
                             </div>
 
@@ -1666,121 +1486,7 @@ const confirmCreatePurchaseOrder =
                                         Add New Inventory Item
                                     </button>
                                 </div>
-                            ) : (
-                                <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                                    <div className="rounded-xl border border-violet-200 bg-violet-50 p-4">
-                                        <p className="text-sm font-black text-violet-900">
-                                            Non-inventory item
-                                        </p>
-
-                                        <p className="mt-1 text-xs leading-5 text-violet-700">
-                                            A one-off purchase — supplies, materials, anything that won&apos;t be tracked as PROWARE stock. It stays on this purchase order only.
-                                        </p>
-                                    </div>
-
-                                    <div className="mt-5 grid gap-5 md:grid-cols-2">
-                                        <div>
-                                            <label className="mb-2 block text-sm font-bold text-slate-700">
-                                                Item Name *
-                                            </label>
-
-                                            <input
-                                                type="text"
-                                                value={
-                                                    newProductName
-                                                }
-                                                onChange={(
-                                                    event,
-                                                ) =>
-                                                    setNewProductName(
-                                                        event
-                                                            .target
-                                                            .value,
-                                                    )
-                                                }
-                                                placeholder="Example: Packing Tape"
-                                                className={inputClass}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="mb-2 block text-sm font-bold text-slate-700">
-                                                Reference / SKU
-                                            </label>
-
-                                            <input
-                                                type="text"
-                                                value={
-                                                    newManualSku
-                                                }
-                                                onChange={(
-                                                    event,
-                                                ) =>
-                                                    setNewManualSku(
-                                                        event
-                                                            .target
-                                                            .value,
-                                                    )
-                                                }
-                                                placeholder="Optional"
-                                                className={inputClass}
-                                            />
-                                        </div>
-
-                                        <div className="md:col-span-2">
-                                            <label className="mb-2 block text-sm font-bold text-slate-700">
-                                                Description
-                                            </label>
-
-                                            <textarea
-                                                value={
-                                                    newProductDescription
-                                                }
-                                                onChange={(
-                                                    event,
-                                                ) =>
-                                                    setNewProductDescription(
-                                                        event
-                                                            .target
-                                                            .value,
-                                                    )
-                                                }
-                                                placeholder="Optional description"
-                                                className={`${inputClass} min-h-24 resize-y`}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <QuantityCostInputs
-                                        quantity={
-                                            quantity
-                                        }
-                                        setQuantity={
-                                            setQuantity
-                                        }
-                                        unitCost={
-                                            unitCost
-                                        }
-                                        setUnitCost={
-                                            setUnitCost
-                                        }
-                                    />
-
-                                    <button
-                                        type="button"
-                                        onClick={
-                                            addManualItem
-                                        }
-                                        className="mt-5 inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-3 text-sm font-black text-white hover:bg-violet-700"
-                                    >
-                                        <Plus
-                                            size={17}
-                                        />
-
-                                        Add Non-Inventory Item
-                                    </button>
-                                </div>
-                            )}
+                            ) : null}
 
                             {localError && (
                                 <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
@@ -1809,7 +1515,7 @@ const confirmCreatePurchaseOrder =
                                 </h2>
 
                                 <p className="mt-1 text-sm text-slate-500">
-                                    Existing catalog merchandise, new inventory products, and non-inventory items can all be included in the same purchase order.
+                                    Existing catalog merchandise and new inventory products can both be included in the same purchase order.
                                 </p>
                             </div>
 
@@ -1836,10 +1542,7 @@ const confirmCreatePurchaseOrder =
                                                 item.source_type ===
                                                 'existing_catalog'
                                                     ? 'Existing Product'
-                                                    : item.source_type ===
-                                                        'new_inventory'
-                                                      ? 'New Inventory Item'
-                                                      : 'Non-Inventory Item';
+                                                    : 'New Inventory Item';
 
                                             const itemTitle =
                                                 item.source_type ===
@@ -1848,10 +1551,7 @@ const confirmCreatePurchaseOrder =
                                                           ?.product
                                                           .name
                                                       ?? 'Catalog Item')
-                                                    : item.source_type ===
-                                                        'new_inventory'
-                                                      ? item.product_name
-                                                      : item.manual_name;
+                                                    : item.product_name;
 
                                             const itemSubtitle =
                                                 item.source_type ===
@@ -1859,11 +1559,7 @@ const confirmCreatePurchaseOrder =
                                                     ? (variant
                                                           ?.variant_name
                                                       ?? '')
-                                                    : item.source_type ===
-                                                        'new_inventory'
-                                                      ? (item.product_description
-                                                        ?? 'No description')
-                                                      : (item.manual_description
+                                                    : (item.product_description
                                                         ?? 'No description');
 
                                             return (
@@ -1910,16 +1606,6 @@ const confirmCreatePurchaseOrder =
                                                                 </p>
                                                             )}
 
-                                                            {item.source_type ===
-                                                                'manual'
-                                                                && item.manual_sku && (
-                                                                <p className="mt-1 text-xs text-slate-400">
-                                                                    Reference:{' '}
-                                                                    {
-                                                                        item.manual_sku
-                                                                    }
-                                                                </p>
-                                                            )}
                                                         </div>
 
                                                         <div className="flex gap-2">
@@ -2196,35 +1882,6 @@ const confirmCreatePurchaseOrder =
                                             />
                                         </div>
 
-                                        {form.data.items[
-                                            editingIndex
-                                        ]?.source_type ===
-                                            'manual' && (
-                                            <div>
-                                                <label className="mb-2 block text-sm font-bold text-slate-700">
-                                                    Reference / SKU
-                                                </label>
-
-                                                <input
-                                                    type="text"
-                                                    value={
-                                                        editManualSku
-                                                    }
-                                                    onChange={(
-                                                        event,
-                                                    ) =>
-                                                        setEditManualSku(
-                                                            event
-                                                                .target
-                                                                .value,
-                                                        )
-                                                    }
-                                                    placeholder="Optional"
-                                                    className={inputClass}
-                                                />
-                                            </div>
-                                        )}
-
                                         <div className="md:col-span-2">
                                             <label className="mb-2 block text-sm font-bold text-slate-700">
                                                 Description
@@ -2381,8 +2038,8 @@ const confirmCreatePurchaseOrder =
 | Item Validation
 |--------------------------------------------------------------------------
 |
-| Shared by the "New Inventory Item" and "Non-Inventory Item" add
-| modes — both only need a name, a quantity, and an optional cost.
+| Used by the "New Inventory Item" add mode, which only needs a name,
+| a quantity, and an optional cost.
 */
 
 function validateItemBasics({

@@ -872,9 +872,6 @@ class PurchaseOrderController extends Controller
                 | new_inventory
                 |     Product does not exist yet. PROWARE creates it automatically.
                 |
-                | manual
-                |     PO-only item. It does not become inventory.
-                |
                 */
 
                 'items.*.source_type' => [
@@ -882,7 +879,6 @@ class PurchaseOrderController extends Controller
                     Rule::in([
                         'existing_catalog',
                         'new_inventory',
-                        'manual',
                     ]),
                 ],
 
@@ -920,30 +916,6 @@ class PurchaseOrderController extends Controller
                     'nullable',
                     'string',
                     'max:5000',
-                ],
-
-                /*
-            |--------------------------------------------------------------------------
-            | Manual / Non-Inventory
-            |--------------------------------------------------------------------------
-            */
-
-                'items.*.manual_name' => [
-                    'nullable',
-                    'string',
-                    'max:255',
-                ],
-
-                'items.*.manual_description' => [
-                    'nullable',
-                    'string',
-                    'max:5000',
-                ],
-
-                'items.*.manual_sku' => [
-                    'nullable',
-                    'string',
-                    'max:255',
                 ],
 
                 /*
@@ -1018,24 +990,6 @@ class PurchaseOrderController extends Controller
                 ]);
             }
 
-            /*
-            |--------------------------------------------------------------------------
-            | Manual / Non-Inventory Item
-            |--------------------------------------------------------------------------
-            */
-
-            if (
-                $sourceType
-                    === 'manual'
-                && blank(
-                    $item['manual_name']
-                    ?? null,
-                )
-            ) {
-                throw ValidationException::withMessages([
-                    "items.{$index}.manual_name" => 'Please enter the item name.',
-                ]);
-            }
         }
 
         /*
@@ -1237,26 +1191,7 @@ class PurchaseOrderController extends Controller
                     'quantity_received' => 0,
                     'unit_cost' => $item['unit_cost'] ?? null,
                 ]);
-
-                continue;
             }
-
-            $purchaseOrder->items()->create([
-                'item_type' => PurchaseOrderItem::TYPE_MANUAL,
-                'merchandise_origin' => PurchaseOrderItem::ORIGIN_EXISTING,
-                'product_variant_id' => null,
-                'manual_name' => trim($item['manual_name']),
-                'manual_description' => filled($item['manual_description'] ?? null)
-                    ? trim($item['manual_description'])
-                    : null,
-                'manual_sku' => filled($item['manual_sku'] ?? null)
-                    ? trim($item['manual_sku'])
-                    : null,
-                'track_inventory' => false,
-                'quantity_ordered' => $item['quantity_ordered'],
-                'quantity_received' => 0,
-                'unit_cost' => $item['unit_cost'] ?? null,
-            ]);
         }
     }
 
@@ -1278,7 +1213,6 @@ class PurchaseOrderController extends Controller
             $hasContent =
                 filled($item['product_variant_id'] ?? null)
                 || filled($item['product_name'] ?? null)
-                || filled($item['manual_name'] ?? null)
                 || filled($item['quantity_ordered'] ?? null);
 
             if (! $hasContent) {
@@ -1316,26 +1250,7 @@ class PurchaseOrderController extends Controller
                     'quantity_received' => 0,
                     'unit_cost' => $item['unit_cost'] ?? null,
                 ]);
-
-                continue;
             }
-
-            $purchaseOrder->items()->create([
-                'item_type' => PurchaseOrderItem::TYPE_MANUAL,
-                'merchandise_origin' => PurchaseOrderItem::ORIGIN_EXISTING,
-                'product_variant_id' => null,
-                'manual_name' => trim($item['manual_name'] ?? '') ?: 'Untitled item',
-                'manual_description' => filled($item['manual_description'] ?? null)
-                    ? trim($item['manual_description'])
-                    : null,
-                'manual_sku' => filled($item['manual_sku'] ?? null)
-                    ? trim($item['manual_sku'])
-                    : null,
-                'track_inventory' => false,
-                'quantity_ordered' => (int) ($item['quantity_ordered'] ?? 0),
-                'quantity_received' => 0,
-                'unit_cost' => $item['unit_cost'] ?? null,
-            ]);
         }
     }
 
@@ -1359,7 +1274,7 @@ class PurchaseOrderController extends Controller
             'items.*.source_type' => [
                 'nullable',
                 'string',
-                Rule::in(['existing_catalog', 'new_inventory', 'manual']),
+                Rule::in(['existing_catalog', 'new_inventory']),
             ],
 
             'items.*.product_variant_id' => [
@@ -1370,9 +1285,6 @@ class PurchaseOrderController extends Controller
 
             'items.*.product_name' => ['nullable', 'string', 'max:255'],
             'items.*.product_description' => ['nullable', 'string', 'max:5000'],
-            'items.*.manual_name' => ['nullable', 'string', 'max:255'],
-            'items.*.manual_description' => ['nullable', 'string', 'max:5000'],
-            'items.*.manual_sku' => ['nullable', 'string', 'max:255'],
             'items.*.quantity_ordered' => ['nullable', 'integer', 'min:0', 'max:10000'],
             'items.*.unit_cost' => ['nullable', 'numeric', 'min:0', 'max:10000'],
         ];
@@ -1535,7 +1447,7 @@ class PurchaseOrderController extends Controller
             'items.*.source_type' => [
                 'required',
                 'string',
-                Rule::in(['existing_catalog', 'new_inventory', 'manual']),
+                Rule::in(['existing_catalog', 'new_inventory']),
             ],
             'items.*.product_variant_id' => [
                 'nullable',
@@ -1544,9 +1456,6 @@ class PurchaseOrderController extends Controller
             ],
             'items.*.product_name' => ['nullable', 'string', 'max:255'],
             'items.*.product_description' => ['nullable', 'string', 'max:5000'],
-            'items.*.manual_name' => ['nullable', 'string', 'max:255'],
-            'items.*.manual_description' => ['nullable', 'string', 'max:5000'],
-            'items.*.manual_sku' => ['nullable', 'string', 'max:255'],
             'items.*.quantity_ordered' => ['required', 'integer', 'min:1', 'max:10000'],
             'items.*.unit_cost' => ['nullable', 'numeric', 'min:0', 'max:10000'],
         ], [
@@ -1565,12 +1474,6 @@ class PurchaseOrderController extends Controller
             if ($sourceType === 'new_inventory' && blank($item['product_name'] ?? null)) {
                 throw ValidationException::withMessages([
                     "items.{$index}.product_name" => 'Please enter the item name.',
-                ]);
-            }
-
-            if ($sourceType === 'manual' && blank($item['manual_name'] ?? null)) {
-                throw ValidationException::withMessages([
-                    "items.{$index}.manual_name" => 'Please enter the item name.',
                 ]);
             }
         }
@@ -1708,20 +1611,6 @@ class PurchaseOrderController extends Controller
                     ]),
                 ],
 
-                'merchandise_origin' => [
-                    Rule::requiredIf(
-                        fn (): bool => $request->input(
-                            'item_type',
-                        )
-                            === PurchaseOrderItem::TYPE_MANUAL,
-                    ),
-                    'nullable',
-                    Rule::in([
-                        PurchaseOrderItem::ORIGIN_EXISTING,
-                        PurchaseOrderItem::ORIGIN_NEW,
-                    ]),
-                ],
-
                 'product_variant_id' => [
                     'nullable',
                     'integer',
@@ -1738,12 +1627,6 @@ class PurchaseOrderController extends Controller
                     'nullable',
                     'string',
                     'max:5000',
-                ],
-
-                'manual_sku' => [
-                    'nullable',
-                    'string',
-                    'max:255',
                 ],
 
                 'quantity_ordered' => [
@@ -1764,36 +1647,27 @@ class PurchaseOrderController extends Controller
         $itemType =
             $validated['item_type'];
 
-        $merchandiseOrigin =
-        $itemType
-            === PurchaseOrderItem::TYPE_CATALOG
-        ? PurchaseOrderItem::ORIGIN_EXISTING
-        : $validated['merchandise_origin'];
-
         /*
         |--------------------------------------------------------------------------
-        | Track Inventory
+        | Merchandise Origin / Track Inventory
         |--------------------------------------------------------------------------
         |
-        | Never trust track_inventory from the client. Derive it the same way
-        | store() derives it when a brand-new Purchase Order is created:
-        |
-        | - Catalog item                  -> always tracked
-        | - Manual item, origin = new     -> intended to become inventory later
-        | - Manual item, origin = existing -> genuinely non-inventory (PO-only)
+        | Never trust either of these from the client — both are always
+        | derived server-side. Every item addable through this endpoint
+        | is intended to become real PROWARE inventory: an existing
+        | catalog variant, or a brand-new product to be registered
+        | during receiving. There is no non-inventory, PO-only item
+        | type here.
         |
         */
 
-        $trackInventory =
-            match (true) {
-                $itemType
-                    === PurchaseOrderItem::TYPE_CATALOG => true,
+        $merchandiseOrigin =
+            $itemType
+                === PurchaseOrderItem::TYPE_CATALOG
+            ? PurchaseOrderItem::ORIGIN_EXISTING
+            : PurchaseOrderItem::ORIGIN_NEW;
 
-                $merchandiseOrigin
-                    === PurchaseOrderItem::ORIGIN_NEW => true,
-
-                default => false,
-            };
+        $trackInventory = true;
 
         if (
             $itemType
