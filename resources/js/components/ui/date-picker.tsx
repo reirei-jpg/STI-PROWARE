@@ -61,7 +61,7 @@ function DatePicker({
         <button
           type="button"
           className={cn(
-            "flex w-full items-center justify-between rounded-xl border border-slate-300 bg-white px-4 py-3 text-left text-sm font-medium text-slate-800 transition outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100",
+            "group flex w-full items-center justify-between rounded-xl border border-slate-300 bg-white py-2 pr-2 pl-4 text-left text-sm font-medium text-slate-800 transition outline-none hover:border-blue-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100",
             !selectedDate && "text-slate-400",
             className
           )}
@@ -76,7 +76,9 @@ function DatePicker({
               : placeholder}
           </span>
 
-          <CalendarIcon className="size-4 shrink-0 text-slate-400" />
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition group-hover:bg-blue-100 group-focus:bg-blue-100">
+            <CalendarIcon className="size-4" />
+          </span>
         </button>
       </PopoverTrigger>
 
