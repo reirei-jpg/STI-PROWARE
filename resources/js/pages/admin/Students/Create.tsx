@@ -106,6 +106,14 @@ export default function Create() {
         form.setData('student_id', numericValue);
     };
 
+    const handleYearLevelChange = (value: string) => {
+        const numericValue = value
+            .replace(/\D/g, '')
+            .slice(0, 2);
+
+        form.setData('year_level', numericValue);
+    };
+
     const submit = (event: FormEvent<HTMLFormElement>): void => {
         event.preventDefault();
 
@@ -199,6 +207,7 @@ export default function Create() {
 
                                 <input
                                     type="text"
+                                    autoComplete="off"
                                     value={form.data.full_name}
                                     onChange={(event) =>
                                         form.setData(
@@ -224,6 +233,7 @@ export default function Create() {
 
                                 <input
                                     type="text"
+                                    autoComplete="off"
                                     inputMode="numeric"
                                     maxLength={11}
                                     value={form.data.student_id}
@@ -251,6 +261,7 @@ export default function Create() {
 
                                     <input
                                         type="text"
+                                        autoComplete="off"
                                         value={form.data.last_name}
                                         onChange={(event) =>
                                             form.setData(
@@ -278,7 +289,8 @@ export default function Create() {
                                 />
 
                                 <input
-                                    type="email"
+                                    type="text"
+                                    autoComplete="off"
                                     value={generatedEmail}
                                     readOnly
                                     placeholder="Fill in Student ID and last name first"
@@ -299,6 +311,7 @@ export default function Create() {
 
                                 <input
                                     type="text"
+                                    autoComplete="off"
                                     value={form.data.course}
                                     onChange={(event) =>
                                         form.setData(
@@ -324,10 +337,12 @@ export default function Create() {
 
                                 <input
                                     type="text"
+                                    autoComplete="off"
+                                    inputMode="numeric"
+                                    maxLength={2}
                                     value={form.data.year_level}
                                     onChange={(event) =>
-                                        form.setData(
-                                            'year_level',
+                                        handleYearLevelChange(
                                             event.target.value,
                                         )
                                     }
@@ -354,6 +369,7 @@ export default function Create() {
                                                 ? 'text'
                                                 : 'password'
                                         }
+                                        autoComplete="new-password"
                                         value={form.data.password}
                                         onChange={(event) =>
                                             form.setData(
@@ -408,6 +424,7 @@ export default function Create() {
                                             ? 'text'
                                             : 'password'
                                     }
+                                    autoComplete="new-password"
                                     value={
                                         form.data
                                             .password_confirmation

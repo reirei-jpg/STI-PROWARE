@@ -91,6 +91,19 @@ test('full name, course, and year level are required', function () {
     $response->assertSessionHasErrors(['full_name', 'course', 'year_level']);
 });
 
+test('the year level must be numeric', function () {
+    $response = $this->post(
+        route('register.store'),
+        validRegistrationPayload([
+            'year_level' => 'first year',
+        ]),
+    );
+
+    $response->assertSessionHasErrors('year_level');
+
+    expect(User::where('name', 'Juan Dela Cruz')->exists())->toBeFalse();
+});
+
 test('registering does not require any StudentRegistry data to exist', function () {
     expect(Student::query()->count())->toBe(0);
 

@@ -279,13 +279,15 @@ export default function Register() {
                                     value={form.data.year_level}
                                     placeholder="1"
                                     autoComplete="off"
+                                    inputMode="numeric"
+                                    maxLength={2}
                                     error={
                                         form.errors.year_level
                                     }
                                     onChange={(value) =>
                                         form.setData(
                                             'year_level',
-                                            value,
+                                            value.replace(/\D/g, '').slice(0, 2),
                                         )
                                     }
                                 />
@@ -308,10 +310,10 @@ export default function Register() {
                                     <input
                                         id="email"
                                         name="email"
-                                        type="email"
+                                        type="text"
                                         value={form.data.email}
                                         readOnly
-                                        autoComplete="email"
+                                        autoComplete="off"
                                         placeholder="dasigan.361070@sti.edu.ph"
                                         className={`
                                             w-full rounded-full border

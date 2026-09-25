@@ -65,7 +65,8 @@ class CreateNewUser implements CreatesNewUsers
                 'year_level' => [
                     'required',
                     'string',
-                    'max:20',
+                    'max:2',
+                    'regex:/^[0-9]{1,2}$/',
                 ],
 
                 'email' => [
@@ -103,6 +104,8 @@ class CreateNewUser implements CreatesNewUsers
                 'course.required' => 'Your course is required.',
 
                 'year_level.required' => 'Your year level is required.',
+
+                'year_level.regex' => 'Your year level must be a number.',
 
                 'email.unique' => 'An account already exists using this email address.',
 

@@ -123,3 +123,18 @@ test('required fields are enforced when the admin creates a student', function (
         'year_level',
     ]);
 });
+
+test('the year level must be numeric when the admin creates a student', function () {
+    $admin = studentCreateAdmin();
+
+    $response = $this->actingAs($admin)->post(
+        '/admin/students',
+        validAdminStudentPayload([
+            'year_level' => 'freshman',
+        ]),
+    );
+
+    $response->assertSessionHasErrors('year_level');
+
+    expect(Student::query()->count())->toBe(0);
+});
