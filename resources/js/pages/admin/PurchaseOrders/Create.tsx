@@ -27,6 +27,7 @@ import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal'
 import ActionNotification from '@/components/action-feedback/ActionNotification';
 import ActionProcessingButton from '@/components/action-feedback/ActionProcessingButton';
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
+import { DatePicker } from '@/components/ui/date-picker';
 import AdminLayout from '@/layouts/AdminLayout';
 import { clampNumberInput } from '@/lib/utils';
 
@@ -1128,28 +1129,20 @@ const confirmCreatePurchaseOrder =
                                         Expected Delivery
                                     </label>
 
-                                    <input
-                                        type="date"
-                                        min={
-                                            new Date()
-                                                .toISOString()
-                                                .slice(0, 10)
-                                        }
+                                    <DatePicker
                                         value={
                                             form.data
                                                 .expected_delivery_date
                                         }
                                         onChange={(
-                                            event,
+                                            value,
                                         ) =>
                                             form.setData(
                                                 'expected_delivery_date',
-                                                event
-                                                    .target
-                                                    .value,
+                                                value,
                                             )
                                         }
-                                        className={inputClass}
+                                        placeholder="Optional"
                                     />
                                 </div>
 
