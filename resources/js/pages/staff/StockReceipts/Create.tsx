@@ -1,3 +1,10 @@
+
+import {
+    Head,
+    Link,
+    useForm,
+    usePage,
+} from '@inertiajs/react';
 import {
     ArrowLeft,
     CalendarDays,
@@ -8,28 +15,22 @@ import {
 } from 'lucide-react';
 
 import {
-    Head,
-    Link,
-    useForm,
-    usePage,
-} from '@inertiajs/react';
-
-import {
-    type FormEvent,
+    
     useEffect,
-    useState,
+    useState
 } from 'react';
+import type {FormEvent} from 'react';
 
-import CurrentStockCard from '@/components/admin/stock-receipts/CurrentStockCard';
-import ReceiveStockForm from '@/components/admin/stock-receipts/ReceiveStockForm';
 import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal';
 import ActionNotification from '@/components/action-feedback/ActionNotification';
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
-import specialist from '@/routes/specialist';
+import CurrentStockCard from '@/components/admin/stock-receipts/CurrentStockCard';
+import ReceiveStockForm from '@/components/admin/stock-receipts/ReceiveStockForm';
 
 import AdminLayout from '@/layouts/AdminLayout';
 import SpecialistLayout from '@/layouts/SpecialistLayout';
 import { clampNumberInput } from '@/lib/utils';
+import specialist from '@/routes/specialist';
 
 import type {
     ReceiveStockFormData,
@@ -130,6 +131,22 @@ const [
             null,
     );
 
+    const [
+        lastFlashSuccess,
+        setLastFlashSuccess,
+    ] = useState<string | null>(
+        page.props.flash?.success ??
+            null,
+    );
+
+    const [
+        lastFlashError,
+        setLastFlashError,
+    ] = useState<string | null>(
+        page.props.flash?.error ??
+            null,
+    );
+
     /*
     |--------------------------------------------------------------------------
     | Form
@@ -194,6 +211,11 @@ const [
     linkProductId,
     setLinkProductId,
 ] = useState('');
+
+const [
+    lastSelectedItemIdForReset,
+    setLastSelectedItemIdForReset,
+] = useState<number | null>(null);
 
 
 /*
@@ -278,9 +300,25 @@ const canConfigurePreorder =
     selectedPurchaseOrderItem.merchandise_origin === 'new' &&
     selectedPurchaseOrderItem.product_variant_id !== null;
 
-useEffect(() => {
-    setLinkProductId('');
+/*
+ * Only this one plain setState call is safe to hoist out of the
+ * effect below and into the render phase — linkVariantForm.reset()
+ * and registerProductForm.setData()/.reset() are Inertia useForm()
+ * internals, not verified safe to call unconditionally during
+ * render, so they stay in the effect.
+ */
+if (
+    (selectedPurchaseOrderItem?.id ?? null)
+        !== lastSelectedItemIdForReset
+) {
+    setLastSelectedItemIdForReset(
+        selectedPurchaseOrderItem?.id ?? null,
+    );
 
+    setLinkProductId('');
+}
+
+useEffect(() => {
     linkVariantForm.reset();
 
     if (
@@ -387,39 +425,35 @@ useEffect(() => {
 
     /*
     |--------------------------------------------------------------------------
-    | Flash Success Message
+    | Flash Success / Error Message
     |--------------------------------------------------------------------------
+    |
+    | Re-synced during render rather than in a useEffect: an Inertia
+    | visit that lands on this same page component (e.g. after saving
+    | something) brings a fresh flash message without remounting, so
+    | the initial useState seed above only covers first load. This is
+    | React's own recommended pattern for adjusting state when a prop
+    | changes — calling setState conditionally, during render, guarded
+    | so it only fires once per new flash value — and it avoids the
+    | extra render pass (and the set-state-in-effect lint error) that
+    | scheduling the same update from inside an effect would cause.
     */
 
-    useEffect(() => {
-        if (
-            page.props.flash
-                ?.success
-        ) {
-            setSuccessMessage(
-                page.props.flash
-                    .success,
-            );
-        }
-    }, [
-        page.props.flash
-            ?.success,
-    ]);
+    if (
+        page.props.flash?.success
+        && page.props.flash.success !== lastFlashSuccess
+    ) {
+        setLastFlashSuccess(page.props.flash.success);
+        setSuccessMessage(page.props.flash.success);
+    }
 
-    useEffect(() => {
-        if (
-            page.props.flash
-                ?.error
-        ) {
-            setErrorMessage(
-                page.props.flash
-                    .error,
-            );
-        }
-    }, [
-        page.props.flash
-            ?.error,
-    ]);
+    if (
+        page.props.flash?.error
+        && page.props.flash.error !== lastFlashError
+    ) {
+        setLastFlashError(page.props.flash.error);
+        setErrorMessage(page.props.flash.error);
+    }
 
     useEffect(() => {
         if (!successMessage) {
@@ -952,6 +986,7 @@ const confirmPreorderConfiguration = (): void => {
                     typeof firstError === 'string'
                 ) {
                     showError(firstError);
+
                     return;
                 }
 
