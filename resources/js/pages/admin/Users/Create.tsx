@@ -325,10 +325,11 @@ const confirmCreate = (): void => {
                                     ) =>
                                         form.setData(
                                             'name',
-                                            event.target.value,
+                                            event.target.value.slice(0, 255),
                                         )
                                     }
                                     placeholder="e.g. Juan Dela Cruz"
+                                    maxLength={255}
                                     autoComplete="name"
                                     className={inputClass}
                                 />
