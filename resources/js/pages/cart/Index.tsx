@@ -1,3 +1,9 @@
+
+import {
+    Head,
+    Link,
+    router,
+} from '@inertiajs/react';
 import {
     ArrowLeft,
     Barcode,
@@ -13,22 +19,16 @@ import {
 } from 'lucide-react';
 
 import {
-    Head,
-    Link,
-    router,
-} from '@inertiajs/react';
-
-import {
     useEffect,
     useState,
 } from 'react';
 
-import CatalogLayout from '@/layouts/CatalogLayout';
 
 
 import ActionNotification from '@/components/action-feedback/ActionNotification';
 import ActionProcessingButton from '@/components/action-feedback/ActionProcessingButton';
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
+import CatalogLayout from '@/layouts/CatalogLayout';
 
 
 
@@ -98,10 +98,46 @@ export default function Index({
         cart !== null
         && cart.items.length > 0;
 
+    const orderItems =
+        cart?.items.filter(
+            (item) => item.item_type === 'order',
+        ) ?? [];
+
+    const preorderItems =
+        cart?.items.filter(
+            (item) => item.item_type === 'preorder',
+        ) ?? [];
+
+    const [
+        activeTab,
+        setActiveTab,
+    ] = useState<'order' | 'preorder'>(
+        () =>
+            orderItems.length > 0
+            || preorderItems.length === 0
+                ? 'order'
+                : 'preorder',
+    );
+
+    const visibleItems =
+        activeTab === 'order'
+            ? orderItems
+            : preorderItems;
+
         const [
             selectedItemIds,
             setSelectedItemIds,
         ] = useState<number[]>([]);
+
+        const switchTab = (
+            tab: 'order' | 'preorder',
+        ) => {
+            setActiveTab(tab);
+
+            // Selections never carry meaning across tabs — order and
+            // preorder items can never be checked out together anyway.
+            setSelectedItemIds([]);
+        };
 
         const toggleSelectedItem = (
             itemId: number,
@@ -294,29 +330,42 @@ return (
 
             {hasItems ? (
                 <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_260px]">
-                    <section className="grid gap-6 md:grid-cols-2 2xl:grid-cols-3">
-                        {cart.items.map(
-                            (item) => (
-                                <CartItemCard
-                                    key={item.id}
-                                    item={item}
-                                    selected={
-                                        selectedItemIds.includes(
-                                            item.id,
-                                        )
-                                    }
-                                    onToggleSelected={() =>
-                                        toggleSelectedItem(
-                                            item.id,
-                                        )
-                                    }
-                                    onRemove={() =>
-                                        setItemToRemove(item)
-                                    }
-                                    onUpdateSuccess={showSuccess}
-                                    onUpdateError={showError}
-                                />
-                            ),
+                    <section>
+                        <CartTabs
+                            activeTab={activeTab}
+                            onSwitchTab={switchTab}
+                            orderCount={orderItems.length}
+                            preorderCount={preorderItems.length}
+                        />
+
+                        {visibleItems.length > 0 ? (
+                            <div className="mt-6 grid gap-6 md:grid-cols-2 2xl:grid-cols-3">
+                                {visibleItems.map(
+                                    (item) => (
+                                        <CartItemCard
+                                            key={item.id}
+                                            item={item}
+                                            selected={
+                                                selectedItemIds.includes(
+                                                    item.id,
+                                                )
+                                            }
+                                            onToggleSelected={() =>
+                                                toggleSelectedItem(
+                                                    item.id,
+                                                )
+                                            }
+                                            onRemove={() =>
+                                                setItemToRemove(item)
+                                            }
+                                            onUpdateSuccess={showSuccess}
+                                            onUpdateError={showError}
+                                        />
+                                    ),
+                                )}
+                            </div>
+                        ) : (
+                            <EmptyTab tab={activeTab} />
                         )}
                     </section>
 
@@ -1160,6 +1209,116 @@ function EmptyCart() {
                 Browse Merchandise
             </Link>
         </section>
+    );
+}
+
+interface CartTabsProps {
+    activeTab: 'order' | 'preorder';
+    onSwitchTab: (tab: 'order' | 'preorder') => void;
+    orderCount: number;
+    preorderCount: number;
+}
+
+function CartTabs({
+    activeTab,
+    onSwitchTab,
+    orderCount,
+    preorderCount,
+}: CartTabsProps) {
+    return (
+        <div className="inline-flex rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+            <button
+                type="button"
+                onClick={() => onSwitchTab('order')}
+                className={`
+                    flex items-center gap-2 rounded-xl px-5 py-2.5
+                    text-sm font-black transition
+                    ${
+                        activeTab === 'order'
+                            ? 'bg-emerald-600 text-white shadow-sm'
+                            : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                    }
+                `}
+            >
+                Orders
+
+                <span
+                    className={`
+                        rounded-full px-2 py-0.5 text-xs
+                        ${
+                            activeTab === 'order'
+                                ? 'bg-white/20'
+                                : 'bg-slate-100'
+                        }
+                    `}
+                >
+                    {orderCount}
+                </span>
+            </button>
+
+            <button
+                type="button"
+                onClick={() => onSwitchTab('preorder')}
+                className={`
+                    flex items-center gap-2 rounded-xl px-5 py-2.5
+                    text-sm font-black transition
+                    ${
+                        activeTab === 'preorder'
+                            ? 'bg-amber-500 text-white shadow-sm'
+                            : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                    }
+                `}
+            >
+                Preorders
+
+                <span
+                    className={`
+                        rounded-full px-2 py-0.5 text-xs
+                        ${
+                            activeTab === 'preorder'
+                                ? 'bg-white/20'
+                                : 'bg-slate-100'
+                        }
+                    `}
+                >
+                    {preorderCount}
+                </span>
+            </button>
+        </div>
+    );
+}
+
+function EmptyTab({
+    tab,
+}: {
+    tab: 'order' | 'preorder';
+}) {
+    return (
+        <div className="mt-6 rounded-3xl border border-slate-200 bg-white px-6 py-14 text-center shadow-sm">
+            {tab === 'order' ? (
+                <ShoppingBag
+                    size={40}
+                    className="mx-auto text-slate-300"
+                />
+            ) : (
+                <Clock3
+                    size={40}
+                    className="mx-auto text-slate-300"
+                />
+            )}
+
+            <h3 className="mt-4 text-lg font-black text-slate-800">
+                {tab === 'order'
+                    ? 'No normal orders in your cart'
+                    : 'No preorders in your cart'}
+            </h3>
+
+            <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">
+                {tab === 'order'
+                    ? "You have preorder items waiting in the Preorders tab, but nothing here that's available right now."
+                    : "You have items available now in the Orders tab, but nothing waiting on a future restock here."}
+            </p>
+        </div>
     );
 }
 
