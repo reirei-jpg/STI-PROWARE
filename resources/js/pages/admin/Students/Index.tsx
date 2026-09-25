@@ -2,6 +2,7 @@ import {
     Head,
     Link,
     router,
+    usePage,
 } from '@inertiajs/react';
 import {
     CheckCircle2,
@@ -10,6 +11,7 @@ import {
     Search,
     UserRound,
     UserRoundCheck,
+    UserRoundPlus,
     UserRoundX,
     Users,
 } from 'lucide-react';
@@ -79,6 +81,15 @@ interface PageProps {
     filters: FilterData;
 }
 
+interface SharedPageProps {
+    [key: string]: unknown;
+
+    flash?: {
+        success?: string;
+        error?: string;
+    };
+}
+
 /*
 |--------------------------------------------------------------------------
 | Page
@@ -101,6 +112,26 @@ export default function Index({
         showError,
         clearNotification,
     } = useActionFeedback();
+
+    const page = usePage<SharedPageProps>();
+
+    const [lastFlashSuccess, setLastFlashSuccess] = useState<
+        string | null
+    >(null);
+
+    /*
+     * Picks up the "Student account created" flash message after a
+     * redirect back here from Create — updated during render (not in
+     * an effect) so it only fires once per new flash value, matching
+     * the pattern used elsewhere in this app.
+     */
+    if (
+        page.props.flash?.success
+        && page.props.flash.success !== lastFlashSuccess
+    ) {
+        setLastFlashSuccess(page.props.flash.success);
+        showSuccess(page.props.flash.success);
+    }
 
     const [confirmTarget, setConfirmTarget] = useState<{
         student: StudentRow;
@@ -198,13 +229,21 @@ export default function Index({
                         </h1>
 
                         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-                            Every account created through student
-                            self-registration. There&apos;s no Microsoft 365
-                            verification yet, so this is where you can review
-                            who has registered and deactivate an account if
-                            something looks wrong.
+                            Every student account — whether they registered
+                            themselves or you created it directly. There&apos;s
+                            no Microsoft 365 verification yet, so this is
+                            where you can review who has an account and
+                            deactivate one if something looks wrong.
                         </p>
                     </div>
+
+                    <Link
+                        href="/admin/students/create"
+                        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white transition hover:bg-blue-700"
+                    >
+                        <UserRoundPlus size={18} />
+                        Create Student Account
+                    </Link>
                 </section>
 
                 {/* Summary */}

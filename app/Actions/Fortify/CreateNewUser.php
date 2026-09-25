@@ -3,17 +3,21 @@
 namespace App\Actions\Fortify;
 
 use App\Models\User;
+use App\Services\StudentSchoolEmailGenerator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
 
 class CreateNewUser implements CreatesNewUsers
 {
+    public function __construct(
+        private readonly StudentSchoolEmailGenerator $emailGenerator,
+    ) {}
+
     /**
      * Validate and create a Student account.
      *
@@ -121,7 +125,7 @@ class CreateNewUser implements CreatesNewUsers
                 (string) ($input['student_id'] ?? ''),
             );
 
-            $lastName = $this->normalizeLastName(
+            $lastName = $this->emailGenerator->normalizeLastName(
                 (string) ($input['last_name'] ?? ''),
             );
 
@@ -138,7 +142,7 @@ class CreateNewUser implements CreatesNewUsers
                 return;
             }
 
-            $expectedEmail = $this->expectedSchoolEmail(
+            $expectedEmail = $this->emailGenerator->generate(
                 $studentId,
                 $lastName,
             );
@@ -158,11 +162,11 @@ class CreateNewUser implements CreatesNewUsers
                 (string) $validated['student_id'],
             );
 
-            $lastName = $this->normalizeLastName(
+            $lastName = $this->emailGenerator->normalizeLastName(
                 (string) $validated['last_name'],
             );
 
-            $expectedEmail = $this->expectedSchoolEmail(
+            $expectedEmail = $this->emailGenerator->generate(
                 $studentId,
                 $lastName,
             );
@@ -208,27 +212,5 @@ class CreateNewUser implements CreatesNewUsers
 
             return $user;
         });
-    }
-
-    private function normalizeLastName(string $lastName): string
-    {
-        $lastName = Str::lower(
-            Str::ascii(trim($lastName)),
-        );
-
-        return preg_replace(
-            '/[^a-z0-9]/',
-            '',
-            $lastName,
-        ) ?? '';
-    }
-
-    private function expectedSchoolEmail(
-        string $studentId,
-        string $normalizedLastName,
-    ): string {
-        $lastSixDigits = substr($studentId, -6);
-
-        return "{$normalizedLastName}.{$lastSixDigits}@sti.edu.ph";
     }
 }

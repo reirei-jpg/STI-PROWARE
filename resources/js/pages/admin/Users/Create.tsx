@@ -1,3 +1,9 @@
+
+import {
+    Head,
+    Link,
+    useForm,
+} from '@inertiajs/react';
 import {
     ArrowLeft,
     BriefcaseBusiness,
@@ -9,21 +15,15 @@ import {
 } from 'lucide-react';
 
 import {
-    Head,
-    Link,
-    useForm,
-} from '@inertiajs/react';
-
-import {
     useState,
 } from 'react';
 
-import AdminLayout from '@/layouts/AdminLayout';
 
 import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal';
 import ActionNotification from '@/components/action-feedback/ActionNotification';
 import ActionProcessingButton from '@/components/action-feedback/ActionProcessingButton';
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
+import AdminLayout from '@/layouts/AdminLayout';
 
 type StaffRole =
     | 'cashier'
@@ -236,9 +236,18 @@ const confirmCreate = (): void => {
                     </p>
 
                     <p className="mt-1 text-xs leading-5 text-amber-700">
-                        Student accounts must continue
-                        using the approved Student
-                        Registry registration process.
+                        Students register themselves at
+                        the Student Registration page, or
+                        you can create an account for one
+                        directly from{' '}
+                        <Link
+                            href="/admin/students/create"
+                            className="font-bold underline underline-offset-2 hover:text-amber-900"
+                        >
+                            Students &rarr; Create Student
+                            Account
+                        </Link>
+                        .
                     </p>
                 </section>
 
