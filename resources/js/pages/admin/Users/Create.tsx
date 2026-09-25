@@ -359,10 +359,12 @@ const confirmCreate = (): void => {
                                     ) =>
                                         form.setData(
                                             'employee_id',
-                                            event.target.value,
+                                            event.target.value.slice(0, 50),
                                         )
                                     }
                                     placeholder="e.g. EMP-0001"
+                                    maxLength={50}
+                                    autoComplete="off"
                                     className={inputClass}
                                 />
                             </InputWrapper>
