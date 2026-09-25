@@ -26,6 +26,7 @@ import ActionNotification from '@/components/action-feedback/ActionNotification'
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
 
 import AdminLayout from '@/layouts/AdminLayout';
+import { clampNumberInput } from '@/lib/utils';
 
 /*
 |--------------------------------------------------------------------------
@@ -111,7 +112,10 @@ export default function Create() {
             .replace(/\D/g, '')
             .slice(0, 2);
 
-        form.setData('year_level', numericValue);
+        form.setData(
+            'year_level',
+            clampNumberInput(numericValue, 10),
+        );
     };
 
     const submit = (event: FormEvent<HTMLFormElement>): void => {

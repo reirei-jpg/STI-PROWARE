@@ -218,9 +218,9 @@ class StudentController extends Controller
 
                 'year_level' => [
                     'required',
-                    'string',
-                    'max:2',
-                    'regex:/^[0-9]{1,2}$/',
+                    'integer',
+                    'min:1',
+                    'max:10',
                 ],
 
                 'password' => [
@@ -237,7 +237,11 @@ class StudentController extends Controller
 
                 'student_id.unique' => 'This Student ID has already been registered.',
 
-                'year_level.regex' => 'The year level must be a number.',
+                'year_level.integer' => 'The year level must be a number.',
+
+                'year_level.min' => 'The year level must be at least 1.',
+
+                'year_level.max' => 'The year level does not look right — please double-check it.',
 
                 'password.min' => 'The password must be at least 8 characters.',
 

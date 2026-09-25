@@ -138,3 +138,18 @@ test('the year level must be numeric when the admin creates a student', function
 
     expect(Student::query()->count())->toBe(0);
 });
+
+test('the year level cannot be 0 when the admin creates a student', function () {
+    $admin = studentCreateAdmin();
+
+    $response = $this->actingAs($admin)->post(
+        '/admin/students',
+        validAdminStudentPayload([
+            'year_level' => '0',
+        ]),
+    );
+
+    $response->assertSessionHasErrors('year_level');
+
+    expect(Student::query()->count())->toBe(0);
+});

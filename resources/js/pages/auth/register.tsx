@@ -22,6 +22,7 @@ import {
 } from 'react';
 import type {FormEvent} from 'react';
 import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal';
+import { clampNumberInput } from '@/lib/utils';
 
 interface RegisterFormData {
     student_id: string;
@@ -287,7 +288,10 @@ export default function Register() {
                                     onChange={(value) =>
                                         form.setData(
                                             'year_level',
-                                            value.replace(/\D/g, '').slice(0, 2),
+                                            clampNumberInput(
+                                                value.replace(/\D/g, '').slice(0, 2),
+                                                10,
+                                            ),
                                         )
                                     }
                                 />
