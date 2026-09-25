@@ -844,7 +844,7 @@ class PurchaseOrderController extends Controller
                 ],
 
                 'expected_delivery_date' => [
-                    'nullable',
+                    'required',
                     'date',
                     'after_or_equal:today',
                 ],
@@ -938,6 +938,7 @@ class PurchaseOrderController extends Controller
                     'max:10000',
                 ],
             ], [
+                'expected_delivery_date.required' => 'Please select the expected delivery date.',
                 'expected_delivery_date.after_or_equal' => 'The expected delivery date cannot be in the past.',
             ]);
 
@@ -1441,7 +1442,7 @@ class PurchaseOrderController extends Controller
         $validated = $request->validate([
             'supplier_name' => ['required', 'string', 'max:255'],
             'supplier_reference_number' => ['nullable', 'string', 'max:255'],
-            'expected_delivery_date' => ['nullable', 'date', 'after_or_equal:today'],
+            'expected_delivery_date' => ['required', 'date', 'after_or_equal:today'],
             'notes' => ['nullable', 'string', 'max:5000'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.source_type' => [
@@ -1459,6 +1460,7 @@ class PurchaseOrderController extends Controller
             'items.*.quantity_ordered' => ['required', 'integer', 'min:1', 'max:10000'],
             'items.*.unit_cost' => ['nullable', 'numeric', 'min:0', 'max:10000'],
         ], [
+            'expected_delivery_date.required' => 'Please select the expected delivery date.',
             'expected_delivery_date.after_or_equal' => 'The expected delivery date cannot be in the past.',
         ]);
 
@@ -1543,15 +1545,16 @@ class PurchaseOrderController extends Controller
         );
 
         $validated = $request->validate([
-            'expected_delivery_date' => ['nullable', 'date', 'after_or_equal:today'],
+            'expected_delivery_date' => ['required', 'date', 'after_or_equal:today'],
         ], [
+            'expected_delivery_date.required' => 'Please select the expected delivery date.',
             'expected_delivery_date.after_or_equal' => 'The expected delivery date cannot be in the past.',
         ]);
 
         $oldDate = $purchaseOrder->expected_delivery_date?->toDateString();
 
         $purchaseOrder->update([
-            'expected_delivery_date' => $validated['expected_delivery_date'] ?? null,
+            'expected_delivery_date' => $validated['expected_delivery_date'],
         ]);
 
         AuditLogger::log(
@@ -1561,7 +1564,7 @@ class PurchaseOrderController extends Controller
             description: "Updated the expected delivery date for purchase order {$purchaseOrder->po_number}.",
             subject: $purchaseOrder,
             oldValues: ['expected_delivery_date' => $oldDate],
-            newValues: ['expected_delivery_date' => $validated['expected_delivery_date'] ?? null],
+            newValues: ['expected_delivery_date' => $validated['expected_delivery_date']],
         );
 
         return back()->with('success', 'Expected delivery date updated successfully.');
