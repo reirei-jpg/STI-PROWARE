@@ -1525,6 +1525,8 @@ const confirmPreorderConfiguration = (): void => {
                                         selectedPurchaseOrderId={form.data.purchase_order_id}
                                         selectedPurchaseOrderItemId={form.data.purchase_order_item_id}
                                         onSelectItem={selectAwaitingItem}
+                                        viewAllHref="/staff/stock-receipts?tab=to_be_received"
+                                        viewAllLabel="View Full To Be Received List"
                                     />
                                 )}
 

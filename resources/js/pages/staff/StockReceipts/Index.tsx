@@ -316,7 +316,14 @@ export default function Index({
     | have permission to open a Purchase Order's own detail page.
     */
 
-    const [activeTab, setActiveTab] = useState<ReceiptTab>('history');
+    const [activeTab, setActiveTab] = useState<ReceiptTab>(
+        () =>
+            (typeof window !== 'undefined'
+            && new URLSearchParams(window.location.search).get('tab') ===
+                'to_be_received'
+                ? 'to_be_received'
+                : 'history'),
+    );
 
     const today = todayDateString();
 

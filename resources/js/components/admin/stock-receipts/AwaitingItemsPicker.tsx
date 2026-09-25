@@ -1,3 +1,4 @@
+import { Link } from '@inertiajs/react';
 import {
     AlertTriangle,
     CalendarClock,
@@ -7,6 +8,7 @@ import {
     Search,
     Sparkles,
 } from 'lucide-react';
+
 
 import { useMemo, useState } from 'react';
 
@@ -126,11 +128,21 @@ export default function AwaitingItemsPicker({
     selectedPurchaseOrderId,
     selectedPurchaseOrderItemId,
     onSelectItem,
+    viewAllHref,
+    viewAllLabel = 'View Full List',
 }: {
     purchaseOrders: StockReceiptPurchaseOrder[];
     selectedPurchaseOrderId: string;
     selectedPurchaseOrderItemId: string;
     onSelectItem: (purchaseOrderId: string, itemId: string) => void;
+    /**
+     * When provided, shows a link in the header to a page with the
+     * same outstanding-PO data laid out for browsing (e.g. the "To Be
+     * Received" tab on Receipt History) — omit it when this picker
+     * already IS that page, to avoid linking to itself.
+     */
+    viewAllHref?: string;
+    viewAllLabel?: string;
 }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -288,21 +300,32 @@ export default function AwaitingItemsPicker({
 
     return (
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div>
-                <p className="text-xs font-black uppercase tracking-wide text-blue-600">
-                    Purchase Order
-                </p>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <p className="text-xs font-black uppercase tracking-wide text-blue-600">
+                        Purchase Order
+                    </p>
 
-                <h2 className="mt-1 text-xl font-black text-slate-900">
-                    What&apos;s Being Delivered?
-                </h2>
+                    <h2 className="mt-1 text-xl font-black text-slate-900">
+                        What&apos;s Being Delivered?
+                    </h2>
 
-                <p className="mt-2 text-sm leading-6 text-slate-500">
-                    The list already includes every upcoming delivery, not
-                    just this month — scroll it, or use the calendar&apos;s
-                    arrows or the shortcut below to jump ahead and see what a
-                    later day looks like.
-                </p>
+                    <p className="mt-2 text-sm leading-6 text-slate-500">
+                        The list already includes every upcoming delivery, not
+                        just this month — scroll it, or use the calendar&apos;s
+                        arrows or the shortcut below to jump ahead and see what a
+                        later day looks like.
+                    </p>
+                </div>
+
+                {viewAllHref && (
+                    <Link
+                        href={viewAllHref}
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-black text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                    >
+                        {viewAllLabel}
+                    </Link>
+                )}
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
