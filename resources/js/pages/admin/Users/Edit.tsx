@@ -410,9 +410,11 @@ const confirmSave = (): void => {
                                         'employee_id',
                                         event
                                             .target
-                                            .value,
+                                            .value
+                                            .slice(0, 15),
                                     )
                                 }
+                                maxLength={15}
                                 className="
                                     mt-2
                                     w-full

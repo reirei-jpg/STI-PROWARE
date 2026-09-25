@@ -116,6 +116,20 @@ test('the staff password must meet the shared password policy', function () {
     expect(User::where('name', 'Juan Dela Cruz')->exists())->toBeFalse();
 });
 
+test('the employee ID cannot be longer than 15 characters', function () {
+    $admin = staffCreateAdmin();
+    $position = staffCreatePosition('cashier');
+
+    $response = $this->actingAs($admin)->post('/admin/users', validStaffPayload([
+        'position_id' => $position->id,
+        'employee_id' => 'EMP-12121212121211',
+    ]));
+
+    $response->assertSessionHasErrors('employee_id');
+
+    expect(User::where('name', 'Juan Dela Cruz')->exists())->toBeFalse();
+});
+
 test('a regular admin cannot create another admin account', function () {
     $admin = staffCreateAdmin();
     $position = staffCreatePosition('admin');

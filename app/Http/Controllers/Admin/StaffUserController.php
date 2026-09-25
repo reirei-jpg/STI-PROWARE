@@ -234,7 +234,7 @@ class StaffUserController extends Controller
                 'employee_id' => [
                     'required',
                     'string',
-                    'max:50',
+                    'max:15',
 
                     Rule::unique(
                         'staffs',
@@ -287,6 +287,8 @@ class StaffUserController extends Controller
                 'employee_id.required' => 'The employee ID is required.',
 
                 'employee_id.unique' => 'This employee ID is already assigned to another staff member.',
+
+                'employee_id.max' => 'The employee ID cannot be longer than 15 characters.',
 
                 'role.required' => 'Please select a PROWARE role.',
 
@@ -799,7 +801,7 @@ class StaffUserController extends Controller
                 'employee_id' => [
                     'required',
                     'string',
-                    'max:50',
+                    'max:15',
 
                     Rule::unique(
                         'staffs',
@@ -861,6 +863,8 @@ class StaffUserController extends Controller
                 'employee_id.required' => 'The employee ID is required.',
 
                 'employee_id.unique' => 'This employee ID is already assigned to another staff member.',
+
+                'employee_id.max' => 'The employee ID cannot be longer than 15 characters.',
 
                 'email.required' => 'The staff email address is required.',
 

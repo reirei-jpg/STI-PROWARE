@@ -360,11 +360,11 @@ const confirmCreate = (): void => {
                                     ) =>
                                         form.setData(
                                             'employee_id',
-                                            event.target.value.slice(0, 50),
+                                            event.target.value.slice(0, 15),
                                         )
                                     }
                                     placeholder="e.g. EMP-0001"
-                                    maxLength={50}
+                                    maxLength={15}
                                     autoComplete="off"
                                     className={inputClass}
                                 />
