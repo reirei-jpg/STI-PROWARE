@@ -7,6 +7,7 @@ use App\Models\Position;
 use App\Models\Staff;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\StaffSchoolEmailGenerator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +19,10 @@ use Inertia\Response;
 
 class StaffUserController extends Controller
 {
+    public function __construct(
+        private readonly StaffSchoolEmailGenerator $emailGenerator,
+    ) {}
+
     /**
      * Show the staff account creation form.
      */
@@ -237,18 +242,6 @@ class StaffUserController extends Controller
                     ),
                 ],
 
-                'email' => [
-                    'required',
-                    'string',
-                    'email',
-                    'max:255',
-
-                    Rule::unique(
-                        'users',
-                        'email',
-                    ),
-                ],
-
                 'role' => [
                     'required',
 
@@ -295,12 +288,6 @@ class StaffUserController extends Controller
 
                 'employee_id.unique' => 'This employee ID is already assigned to another staff member.',
 
-                'email.required' => 'The staff email address is required.',
-
-                'email.email' => 'Please enter a valid email address.',
-
-                'email.unique' => 'An account already exists using this email address.',
-
                 'role.required' => 'Please select a PROWARE role.',
 
                 'role.in' => $admin->isSuperAdmin()
@@ -336,12 +323,28 @@ class StaffUserController extends Controller
             );
 
         $email =
-            strtolower(
-                trim(
-                    (string)
-                    $validated['email'],
-                ),
+            $this->emailGenerator->generate(
+                $name,
+                $employeeId,
             );
+
+        /*
+         * The generated email could, in principle, already be taken —
+         * e.g. two staff members whose full name and Employee ID both
+         * normalize to the same value. Extremely unlikely, but
+         * validated instead of assumed.
+         */
+        if (
+            User::query()
+                ->where('email', $email)
+                ->exists()
+        ) {
+            return back()
+                ->withErrors([
+                    'employee_id' => 'An account already exists with the generated email for this name and Employee ID.',
+                ])
+                ->withInput();
+        }
 
         $role =
             (string)
