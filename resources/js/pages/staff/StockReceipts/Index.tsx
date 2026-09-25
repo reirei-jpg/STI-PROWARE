@@ -686,6 +686,9 @@ export default function Index({
                             onSelectItem={(purchaseOrderId) =>
                                 openPurchaseOrderDetails(purchaseOrderId)
                             }
+                            title="Browse What's Coming"
+                            description="A read-only look at everything still awaiting delivery — click any item to see its full purchase order. Nothing here starts a stock receipt; that only happens from Receive Stock."
+                            itemActionHint="View details"
                         />
                     </>
                 )}

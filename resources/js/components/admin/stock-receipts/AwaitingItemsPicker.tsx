@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import {
     AlertTriangle,
     CalendarClock,
+    ChevronRight,
     Clock4,
     PackageSearch,
     RotateCcw,
@@ -130,6 +131,9 @@ export default function AwaitingItemsPicker({
     onSelectItem,
     viewAllHref,
     viewAllLabel = 'View Full List',
+    title = "What's Being Delivered?",
+    description = "The list already includes every upcoming delivery, not just this month — scroll it, or use the calendar's arrows or the shortcut below to jump ahead and see what a later day looks like.",
+    itemActionHint = 'Click to receive',
 }: {
     purchaseOrders: StockReceiptPurchaseOrder[];
     selectedPurchaseOrderId: string;
@@ -143,6 +147,16 @@ export default function AwaitingItemsPicker({
      */
     viewAllHref?: string;
     viewAllLabel?: string;
+    /**
+     * The heading, description, and the small hint printed on every
+     * card — overridable so this same picker doesn't read as an exact
+     * copy of itself when reused for a different purpose (e.g. a
+     * read-only "check what's coming" view vs. the actual receiving
+     * flow, where clicking a card does something different).
+     */
+    title?: string;
+    description?: string;
+    itemActionHint?: string;
 }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -307,14 +321,11 @@ export default function AwaitingItemsPicker({
                     </p>
 
                     <h2 className="mt-1 text-xl font-black text-slate-900">
-                        What&apos;s Being Delivered?
+                        {title}
                     </h2>
 
                     <p className="mt-2 text-sm leading-6 text-slate-500">
-                        The list already includes every upcoming delivery, not
-                        just this month — scroll it, or use the calendar&apos;s
-                        arrows or the shortcut below to jump ahead and see what a
-                        later day looks like.
+                        {description}
                     </p>
                 </div>
 
@@ -434,6 +445,7 @@ export default function AwaitingItemsPicker({
                                             === item.itemId
                                     }
                                     onSelect={onSelectItem}
+                                    actionHint={itemActionHint}
                                 />
                             ))}
 
@@ -454,6 +466,7 @@ export default function AwaitingItemsPicker({
                                                     === item.itemId
                                             }
                                             onSelect={onSelectItem}
+                                            actionHint={itemActionHint}
                                         />
                                     ))}
                                 </>
@@ -476,10 +489,12 @@ function AwaitingItemCard({
     item,
     selected,
     onSelect,
+    actionHint,
 }: {
     item: AwaitingItem;
     selected: boolean;
     onSelect: (purchaseOrderId: string, itemId: string) => void;
+    actionHint: string;
 }) {
     const dateStyle = item.dateStatus
         ? DATE_STATUS_STYLES[item.dateStatus]
@@ -491,7 +506,7 @@ function AwaitingItemCard({
         <button
             type="button"
             onClick={() => onSelect(item.purchaseOrderId, item.itemId)}
-            className={`w-full rounded-2xl border border-l-4 p-4 text-left transition ${
+            className={`group flex w-full cursor-pointer items-center gap-3 rounded-2xl border border-l-4 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
                 dateStyle?.border ?? 'border-l-slate-300'
             } ${
                 selected
@@ -499,39 +514,49 @@ function AwaitingItemCard({
                     : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/30'
             }`}
         >
-            <div className="flex items-start justify-between gap-3">
-                <p className="font-black text-slate-900">{item.label}</p>
+            <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                    <p className="font-black text-slate-900">{item.label}</p>
 
-                <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-600">
-                    {item.quantityRemaining} left
-                </span>
+                    <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-600">
+                        {item.quantityRemaining} left
+                    </span>
+                </div>
+
+                <p className="mt-1 text-xs font-semibold text-slate-500">
+                    {item.poNumber} — {item.supplierName}
+                </p>
+
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    {item.isNewProduct && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-white">
+                            <Sparkles size={11} />
+                            New Product
+                        </span>
+                    )}
+
+                    {dateStyle && DateIcon && (
+                        <span
+                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${dateStyle.badge}`}
+                        >
+                            <DateIcon size={12} />
+
+                            {dateStyle.text}
+
+                            {item.dateStatus !== 'due_today'
+                                && item.expectedDeliveryDate
+                                && formatDisplayDate(item.expectedDeliveryDate)}
+                        </span>
+                    )}
+                </div>
             </div>
 
-            <p className="mt-1 text-xs font-semibold text-slate-500">
-                {item.poNumber} — {item.supplierName}
-            </p>
+            <div className="flex shrink-0 flex-col items-center gap-1 pl-2 text-slate-300 transition group-hover:text-blue-500">
+                <ChevronRight size={18} />
 
-            <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                {item.isNewProduct && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-white">
-                        <Sparkles size={11} />
-                        New Product
-                    </span>
-                )}
-
-                {dateStyle && DateIcon && (
-                    <span
-                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${dateStyle.badge}`}
-                    >
-                        <DateIcon size={12} />
-
-                        {dateStyle.text}
-
-                        {item.dateStatus !== 'due_today'
-                            && item.expectedDeliveryDate
-                            && formatDisplayDate(item.expectedDeliveryDate)}
-                    </span>
-                )}
+                <span className="text-center text-[10px] leading-tight font-bold text-slate-400 group-hover:text-blue-600">
+                    {actionHint}
+                </span>
             </div>
         </button>
     );
