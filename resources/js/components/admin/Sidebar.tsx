@@ -34,6 +34,24 @@ interface MenuItem {
 export default function Sidebar() {
     const { url } = usePage();
 
+    /*
+    |--------------------------------------------------------------------------
+    | Menu Order
+    |--------------------------------------------------------------------------
+    |
+    | Ordered to follow the admin's actual workflow rather than the
+    | order features were historically added in:
+    |
+    | 1. Dashboard      — landing overview.
+    | 2. Catalog setup  — Categories, then Products, then Inventory.
+    | 3. Procurement    — order stock, then track what came in.
+    | 4. Sales          — student orders, preorders, then performance.
+    | 5. People         — staff, then students.
+    | 6. Oversight      — reports, then the audit trail.
+    | 7. Settings       — configuration, always last.
+    |
+    */
+
     const menus: MenuItem[] = [
         {
             name: 'Dashboard',
@@ -43,16 +61,16 @@ export default function Sidebar() {
         },
 
         {
-            name: 'Products',
-            icon: Shirt,
-            link: '/admin/products',
+            name: 'Categories',
+            icon: ClipboardList,
+            link: '/admin/categories',
             enabled: true,
         },
 
         {
-            name: 'Categories',
-            icon: ClipboardList,
-            link: '/admin/categories',
+            name: 'Products',
+            icon: Shirt,
+            link: '/admin/products',
             enabled: true,
         },
 
@@ -91,6 +109,32 @@ export default function Sidebar() {
 
         /*
         |--------------------------------------------------------------------------
+        | Student Orders
+        |--------------------------------------------------------------------------
+        |
+        | Named specifically "Student Orders" (not just "Orders") so it's
+        | never confused with "Purchase Orders" above — one is what
+        | students bought, the other is what PROWARE ordered from
+        | suppliers.
+        |
+        */
+
+        {
+            name: 'Student Orders',
+            icon: ClipboardList,
+            link: '/admin/orders',
+            enabled: true,
+        },
+
+        {
+            name: 'Waiting List',
+            icon: Clock,
+            link: '/staff/waiting-list',
+            enabled: true,
+        },
+
+        /*
+        |--------------------------------------------------------------------------
         | Sales Monitoring
         |--------------------------------------------------------------------------
         |
@@ -104,34 +148,6 @@ export default function Sidebar() {
             name: 'Sales Monitoring',
             icon: ShoppingCart,
             link: '/admin/sales',
-            enabled: true,
-        },
-
-        {
-            name: 'Orders',
-            icon: ClipboardList,
-            link: '/admin/orders',
-            enabled: true,
-        },
-
-        {
-            name: 'Waiting List',
-            icon: Clock,
-            link: '/staff/waiting-list',
-            enabled: true,
-        },
-
-        {
-            name: 'Reports & Analytics',
-            icon: FileText,
-            link: '/admin/reports',
-            enabled: true,
-        },
-
-        {
-            name: 'Audit Logs',
-            icon: History,
-            link: '/admin/audit-logs',
             enabled: true,
         },
 
@@ -158,6 +174,20 @@ export default function Sidebar() {
             name: 'Students',
             icon: GraduationCap,
             link: '/admin/students',
+            enabled: true,
+        },
+
+        {
+            name: 'Reports & Analytics',
+            icon: FileText,
+            link: '/admin/reports',
+            enabled: true,
+        },
+
+        {
+            name: 'Audit Logs',
+            icon: History,
+            link: '/admin/audit-logs',
             enabled: true,
         },
 
