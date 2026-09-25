@@ -39,7 +39,7 @@ class StudentController extends Controller
         if (
             ! in_array(
                 $status,
-                ['all', 'active', 'inactive'],
+                ['all', 'active', 'inactive', 'registered_today'],
                 true,
             )
         ) {
@@ -70,8 +70,10 @@ class StudentController extends Controller
             );
         }
 
-        if ($status !== 'all') {
+        if ($status === 'active' || $status === 'inactive') {
             $query->where('is_active', $status === 'active');
+        } elseif ($status === 'registered_today') {
+            $query->whereDate('created_at', today());
         }
 
         $students = $query

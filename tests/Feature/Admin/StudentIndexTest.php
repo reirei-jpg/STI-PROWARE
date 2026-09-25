@@ -114,6 +114,23 @@ test('the status filter narrows to active or inactive accounts', function () {
     );
 });
 
+test('the registered-today filter only shows accounts created today', function () {
+    $admin = studentIndexAdmin();
+
+    $today = registeredStudent();
+
+    $older = registeredStudent();
+    $older->forceFill(['created_at' => now()->subDays(3)])->save();
+
+    $response = $this->actingAs($admin)->get('/admin/students?status=registered_today');
+
+    $response->assertInertia(fn ($page) => $page
+        ->has('students.data', 1)
+        ->where('students.data.0.name', $today->name)
+        ->where('summary.registered_today', 1),
+    );
+});
+
 test('an admin can deactivate and reactivate a registered student through the existing generic endpoint', function () {
     $admin = studentIndexAdmin();
     $student = registeredStudent();

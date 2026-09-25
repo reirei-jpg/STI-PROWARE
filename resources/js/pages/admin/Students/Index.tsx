@@ -214,6 +214,8 @@ export default function Index({
                         value={summary.total}
                         description="All self-registered accounts"
                         icon={Users}
+                        active={status === 'all'}
+                        onClick={() => changeStatus('all')}
                     />
 
                     <SummaryCard
@@ -222,6 +224,8 @@ export default function Index({
                         description="Accounts that can currently log in"
                         icon={UserRoundCheck}
                         tone="green"
+                        active={status === 'active'}
+                        onClick={() => changeStatus('active')}
                     />
 
                     <SummaryCard
@@ -230,6 +234,8 @@ export default function Index({
                         description="Deactivated accounts"
                         icon={UserRoundX}
                         tone="red"
+                        active={status === 'inactive'}
+                        onClick={() => changeStatus('inactive')}
                     />
 
                     <SummaryCard
@@ -237,6 +243,8 @@ export default function Index({
                         value={summary.registered_today}
                         description="New accounts created today"
                         icon={GraduationCap}
+                        active={status === 'registered_today'}
+                        onClick={() => changeStatus('registered_today')}
                         tone="blue"
                     />
                 </section>
@@ -431,40 +439,60 @@ function SummaryCard({
     description,
     icon: Icon,
     tone = 'slate',
+    active = false,
+    onClick,
 }: {
     title: string;
     value: number;
     description: string;
     icon: typeof Users;
     tone?: SummaryTone;
+    active?: boolean;
+    onClick?: () => void;
 }) {
     const style = SUMMARY_TONES[tone];
+
+    const content = (
+        <div className="flex items-start justify-between gap-4">
+            <div>
+                <p className="text-xs font-black tracking-wide text-slate-400 uppercase">
+                    {title}
+                </p>
+
+                <p className={`mt-3 text-3xl font-black ${style.value}`}>
+                    {value}
+                </p>
+
+                <p className="mt-2 text-xs leading-5 text-slate-500">
+                    {description}
+                </p>
+            </div>
+
+            <div
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${style.icon}`}
+            >
+                <Icon size={20} />
+            </div>
+        </div>
+    );
+
+    if (onClick) {
+        return (
+            <button
+                type="button"
+                onClick={onClick}
+                className={`rounded-3xl border bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${style.card} ${active ? 'ring-2 ring-blue-500' : ''}`}
+            >
+                {content}
+            </button>
+        );
+    }
 
     return (
         <article
             className={`rounded-3xl border bg-white p-5 shadow-sm ${style.card}`}
         >
-            <div className="flex items-start justify-between gap-4">
-                <div>
-                    <p className="text-xs font-black tracking-wide text-slate-400 uppercase">
-                        {title}
-                    </p>
-
-                    <p className={`mt-3 text-3xl font-black ${style.value}`}>
-                        {value}
-                    </p>
-
-                    <p className="mt-2 text-xs leading-5 text-slate-500">
-                        {description}
-                    </p>
-                </div>
-
-                <div
-                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${style.icon}`}
-                >
-                    <Icon size={20} />
-                </div>
-            </div>
+            {content}
         </article>
     );
 }
