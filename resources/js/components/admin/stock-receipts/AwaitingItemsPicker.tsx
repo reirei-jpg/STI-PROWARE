@@ -226,7 +226,7 @@ export default function AwaitingItemsPicker({
             </div>
 
             <div className="mt-5 grid gap-5 lg:grid-cols-[auto_minmax(0,1fr)]">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-2">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-2 text-slate-700">
                     <Calendar
                         mode="single"
                         selected={
@@ -239,7 +239,7 @@ export default function AwaitingItemsPicker({
                         }}
                         modifiersClassNames={{
                             hasDelivery:
-                                'font-black text-blue-700 after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-blue-600 after:content-[""]',
+                                'relative font-black text-blue-700 after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-blue-600 after:content-[""]',
                             overdue:
                                 'text-red-600 after:bg-red-600',
                         }}
