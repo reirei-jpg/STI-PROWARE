@@ -1,3 +1,9 @@
+
+import {
+    Head,
+    Link,
+    router,
+} from '@inertiajs/react';
 import {
     CheckCircle2,
     ChevronLeft,
@@ -5,17 +11,10 @@ import {
     CircleOff,
     MoreVertical,
     Search,
-    ShieldCheck,
     UserRound,
     Users,
     Plus,
 } from 'lucide-react';
-
-import {
-    Head,
-    Link,
-    router,
-} from '@inertiajs/react';
 
 import {
     useEffect,
@@ -23,18 +22,10 @@ import {
     useState,
 } from 'react';
 
-import AdminLayout from '@/layouts/AdminLayout';
 import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal';
 import ActionNotification from '@/components/action-feedback/ActionNotification';
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
-
-interface StudentInfo {
-    id: number;
-    student_id: string;
-    course: string | null;
-    year_level: string | null;
-    status: string;
-}
+import AdminLayout from '@/layouts/AdminLayout';
 
 interface SupervisorInfo {
     id: number;
@@ -60,7 +51,6 @@ interface SystemUser {
     role: string;
     is_active: boolean;
     is_locked: boolean;
-    student: StudentInfo | null;
     staff: StaffInfo | null;
     created_at: string | null;
 }
@@ -79,19 +69,15 @@ interface PaginatedUsers {
 
 interface UserSummary {
     total: number;
-    students: number;
     cashiers: number;
     specialists: number;
     admins: number;
     active_accounts: number;
     inactive_accounts: number;
-    active_students: number;
-    inactive_students: number;
 }
 
 type RoleFilter =
     | 'all'
-    | 'student'
     | 'cashier'
     | 'specialist'
     | 'admin';
@@ -316,9 +302,11 @@ useEffect(() => {
                         </h1>
 
                         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                            Review and manage Student,
-                            Cashier, Specialist, and
-                            Admin access to PROWARE.
+                            Review and manage Cashier,
+                            Specialist, and Admin access
+                            to PROWARE. Student accounts
+                            are managed separately under
+                            Students.
                         </p>
                     </div>
 
@@ -405,7 +393,7 @@ useEffect(() => {
                         grid
                         gap-3
                         sm:grid-cols-2
-                        lg:grid-cols-4
+                        lg:grid-cols-3
                     "
                 >
                     <SummaryCard
@@ -448,20 +436,6 @@ useEffect(() => {
                             changeStatus('inactive')
                         }
                     />
-
-                    <SummaryCard
-                        label="Students"
-                        value={
-                            summary.students
-                        }
-                        tone="blue"
-                        active={
-                            currentRole === 'student'
-                        }
-                        onClick={() =>
-                            changeRole('student')
-                        }
-                    />
                 </section>
 
                 {/* ROLE FILTERS */}
@@ -487,22 +461,6 @@ useEffect(() => {
                         }
                         onClick={() =>
                             changeRole('all')
-                        }
-                    />
-
-                    <RoleFilterButton
-                        label="Students"
-                        count={
-                            summary.students
-                        }
-                        active={
-                            currentRole ===
-                            'student'
-                        }
-                        onClick={() =>
-                            changeRole(
-                                'student',
-                            )
                         }
                     />
 
@@ -555,91 +513,6 @@ useEffect(() => {
                     />
                 </section>
 
-                {/* STUDENT ELIGIBILITY */}
-                <section
-                    className="
-                        flex
-                        flex-col
-                        gap-4
-                        rounded-2xl
-                        border
-                        border-blue-100
-                        bg-blue-50/60
-                        p-4
-                        sm:flex-row
-                        sm:items-center
-                        sm:justify-between
-                    "
-                >
-                    <div className="flex items-center gap-3">
-                        <div
-                            className="
-                                flex
-                                h-10
-                                w-10
-                                items-center
-                                justify-center
-                                rounded-xl
-                                bg-blue-600
-                                text-white
-                            "
-                        >
-                            <ShieldCheck
-                                size={19}
-                            />
-                        </div>
-
-                        <div>
-                            <p className="font-black text-blue-950">
-                                Student Eligibility
-                            </p>
-
-                            <p className="mt-1 text-xs text-blue-700">
-                                Student school status is
-                                separate from PROWARE
-                                account access.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                        <span
-                            className="
-                                rounded-full
-                                bg-emerald-100
-                                px-3
-                                py-1.5
-                                text-xs
-                                font-black
-                                text-emerald-700
-                            "
-                        >
-                            Active{' '}
-                            {
-                                summary
-                                    .active_students
-                            }
-                        </span>
-
-                        <span
-                            className="
-                                rounded-full
-                                bg-red-100
-                                px-3
-                                py-1.5
-                                text-xs
-                                font-black
-                                text-red-700
-                            "
-                        >
-                            Inactive{' '}
-                            {
-                                summary
-                                    .inactive_students
-                            }
-                        </span>
-                    </div>
-                </section>
 
                 {/* USERS LIST */}
                 <section
@@ -894,34 +767,7 @@ function UserRow({
 
             {/* PROFILE DETAILS */}
             <div>
-                {user.student ? (
-                    <div>
-                        <p className="font-mono text-xs font-black text-blue-600">
-                            {
-                                user.student
-                                    .student_id
-                            }
-                        </p>
-
-                        <p className="mt-1 text-xs text-slate-500">
-                            {user.student
-                                .course
-                                ?? 'Course unavailable'}
-
-                            {user.student
-                                .year_level
-                                ? ` • ${user.student.year_level}`
-                                : ''}
-                        </p>
-
-                        <StudentEligibility
-                            status={
-                                user.student
-                                    .status
-                            }
-                        />
-                    </div>
-                ) : user.staff ? (
+                {user.staff ? (
                     <div>
                         <p className="text-sm font-bold text-slate-700">
                             {user.staff.position
@@ -1466,53 +1312,6 @@ function CompactAccountStatus({
     );
 }
 
-/*
-|--------------------------------------------------------------------------
-| Student Eligibility
-|--------------------------------------------------------------------------
-*/
-
-function StudentEligibility({
-    status,
-}: {
-    status: string;
-}) {
-    const active =
-        status === 'active';
-
-    return (
-        <p
-            className={`
-                mt-2
-                inline-flex
-                items-center
-                gap-1.5
-                text-[11px]
-                font-semibold
-
-                ${
-                    active
-                        ? 'text-emerald-600'
-                        : 'text-red-600'
-                }
-            `}
-        >
-            {active ? (
-                <CheckCircle2
-                    size={13}
-                />
-            ) : (
-                <CircleOff
-                    size={13}
-                />
-            )}
-
-            {active
-                ? 'Eligible student'
-                : 'Student inactive'}
-        </p>
-    );
-}
 
 /*
 |--------------------------------------------------------------------------

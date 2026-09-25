@@ -52,7 +52,6 @@ class UserController extends Controller
 
         $allowedRoles = [
             'all',
-            'student',
             'cashier',
             'specialist',
             'admin',
@@ -96,11 +95,24 @@ class UserController extends Controller
         |--------------------------------------------------------------------------
         */
 
+        /*
+        |--------------------------------------------------------------------------
+        | Employee Management Is Staff Only
+        |--------------------------------------------------------------------------
+        |
+        | Students are excluded here entirely — they have their own
+        | dedicated management page at /admin/students. This page is
+        | Cashier/Specialist/Admin/Super Admin accounts only.
+        */
+
         $query =
             User::query()
+                ->where(
+                    'role',
+                    '!=',
+                    User::ROLE_STUDENT,
+                )
                 ->with([
-                    'student',
-
                     'staff.positionRecord',
 
                     'staff.supervisor.user',
@@ -131,20 +143,6 @@ class UserController extends Controller
                             'email',
                             'ilike',
                             '%'.$search.'%',
-                        )
-                        ->orWhereHas(
-                            'student',
-                            function (
-                                Builder $studentQuery,
-                            ) use (
-                                $search,
-                            ): void {
-                                $studentQuery->where(
-                                    'student_id',
-                                    'ilike',
-                                    '%'.$search.'%',
-                                );
-                            },
                         )
                         ->orWhereHas(
                             'staff',
@@ -218,30 +216,6 @@ class UserController extends Controller
                                 $user->is_active,
 
                             'is_locked' => $user->isLocked(),
-
-                            'student' => $user->student
-                                    ? [
-                                        'id' => $user
-                                            ->student
-                                            ->id,
-
-                                        'student_id' => $user
-                                            ->student
-                                            ->student_id,
-
-                                        'course' => $user
-                                            ->student
-                                            ->course,
-
-                                        'year_level' => $user
-                                            ->student
-                                            ->year_level,
-
-                                        'status' => $user
-                                            ->student
-                                            ->status,
-                                    ]
-                                    : null,
 
                             'staff' => $user->staff
                             ? [
@@ -328,13 +302,7 @@ class UserController extends Controller
 
         $summary = [
             'total' => User::query()
-                ->count(),
-
-            'students' => User::query()
-                ->where(
-                    'role',
-                    'student',
-                )
+                ->where('role', '!=', User::ROLE_STUDENT)
                 ->count(),
 
             'cashiers' => User::query()
@@ -362,6 +330,7 @@ class UserController extends Controller
                 ->count(),
 
             'active_accounts' => User::query()
+                ->where('role', '!=', User::ROLE_STUDENT)
                 ->where(
                     'is_active',
                     true,
@@ -369,45 +338,10 @@ class UserController extends Controller
                 ->count(),
 
             'inactive_accounts' => User::query()
+                ->where('role', '!=', User::ROLE_STUDENT)
                 ->where(
                     'is_active',
                     false,
-                )
-                ->count(),
-
-            'active_students' => User::query()
-                ->where(
-                    'role',
-                    'student',
-                )
-                ->whereHas(
-                    'student',
-                    function (
-                        Builder $query,
-                    ): void {
-                        $query->where(
-                            'status',
-                            'active',
-                        );
-                    },
-                )
-                ->count(),
-
-            'inactive_students' => User::query()
-                ->where(
-                    'role',
-                    'student',
-                )
-                ->whereHas(
-                    'student',
-                    function (
-                        Builder $query,
-                    ): void {
-                        $query->where(
-                            'status',
-                            'inactive',
-                        );
-                    },
                 )
                 ->count(),
         ];
