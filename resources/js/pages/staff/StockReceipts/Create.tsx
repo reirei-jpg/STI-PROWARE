@@ -7,7 +7,6 @@ import {
 } from '@inertiajs/react';
 import {
     ArrowLeft,
-    CalendarDays,
     CheckCircle2,
     LoaderCircle,
     PackagePlus,
@@ -28,6 +27,7 @@ import AwaitingItemsPicker from '@/components/admin/stock-receipts/AwaitingItems
 import CurrentStockCard from '@/components/admin/stock-receipts/CurrentStockCard';
 import ReceiveStockForm from '@/components/admin/stock-receipts/ReceiveStockForm';
 import { DatePicker } from '@/components/ui/date-picker';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
 
 import AdminLayout from '@/layouts/AdminLayout';
 import SpecialistLayout from '@/layouts/SpecialistLayout';
@@ -1894,89 +1894,49 @@ const confirmPreorderConfiguration = (): void => {
             </div>
 
             <div>
-                    <label className="text-sm font-bold text-slate-700">
-                        Preorder Start
-                    </label>
+                <label className="text-sm font-bold text-slate-700">
+                    Preorder Start
+                </label>
 
-                    <div className="mt-2 flex items-center gap-3">
-        <div className="relative flex h-12 w-12 items-center justify-center rounded-xl border border-slate-300 bg-white text-violet-600">
-            <CalendarDays size={20} />
-
-            <input
-                type="datetime-local"
-                min={minPreorderStart}
-                value={
-                    preorderConfigForm.data
-                        .preorder_starts_at
-                }
-                onChange={(event) =>
-                    preorderConfigForm.setData(
-                        'preorder_starts_at',
-                        clampDateTimeLocalInput(
-                            event.target.value,
-                            minPreorderStart,
-                        ),
-                    )
-                }
-                onClick={(event) =>
-                    event.currentTarget.showPicker?.()
-                }
-                className="absolute inset-0 cursor-pointer opacity-0"
-            />
-        </div>
-
-        <span className="text-sm font-semibold text-slate-700">
-            {preorderConfigForm.data.preorder_starts_at
-                ? preorderConfigForm.data.preorder_starts_at.replace(
-                    'T',
-                    ' ',
-                )
-                : 'Select date & time'}
-        </span>
-        </div>
+                <div className="mt-2">
+                    <DateTimePicker
+                        value={
+                            preorderConfigForm.data
+                                .preorder_starts_at
+                        }
+                        onChange={(value) =>
+                            preorderConfigForm.setData(
+                                'preorder_starts_at',
+                                value,
+                            )
+                        }
+                        min={minPreorderStart}
+                        placeholder="Select date & time"
+                    />
+                </div>
             </div>
 
             <div>
-                        <label className="text-sm font-bold text-slate-700">
-                            Preorder End
-                        </label>
+                <label className="text-sm font-bold text-slate-700">
+                    Preorder End
+                </label>
 
-                        <div className="mt-2 flex items-center gap-3">
-            <div className="relative flex h-12 w-12 items-center justify-center rounded-xl border border-slate-300 bg-white text-violet-600">
-                <CalendarDays size={20} />
-
-                <input
-                    type="datetime-local"
-                    min={minPreorderEnd}
-                    value={
-                        preorderConfigForm.data
-                            .preorder_ends_at
-                    }
-                    onChange={(event) =>
-                        preorderConfigForm.setData(
-                            'preorder_ends_at',
-                            clampDateTimeLocalInput(
-                                event.target.value,
-                                minPreorderEnd,
-                            ),
-                        )
-                    }
-                    onClick={(event) =>
-                        event.currentTarget.showPicker?.()
-                    }
-                    className="absolute inset-0 cursor-pointer opacity-0"
-                />
-            </div>
-
-            <span className="text-sm font-semibold text-slate-700">
-                {preorderConfigForm.data.preorder_ends_at
-                    ? preorderConfigForm.data.preorder_ends_at.replace(
-                        'T',
-                        ' ',
-                    )
-                    : 'Select date & time'}
-            </span>
-</div>
+                <div className="mt-2">
+                    <DateTimePicker
+                        value={
+                            preorderConfigForm.data
+                                .preorder_ends_at
+                        }
+                        onChange={(value) =>
+                            preorderConfigForm.setData(
+                                'preorder_ends_at',
+                                value,
+                            )
+                        }
+                        min={minPreorderEnd}
+                        placeholder="Select date & time"
+                    />
+                </div>
             </div>
 
             <div>
@@ -3464,17 +3424,6 @@ function nowDateTimeLocalValue(): string {
         String(value).padStart(2, '0');
 
     return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
-}
-
-function clampDateTimeLocalInput(
-    value: string,
-    min: string,
-): string {
-    if (!value) {
-        return value;
-    }
-
-    return value < min ? min : value;
 }
 
 function formatDate(
