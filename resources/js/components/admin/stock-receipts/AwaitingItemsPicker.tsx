@@ -1,9 +1,11 @@
 import {
     AlertTriangle,
     CalendarClock,
+    Clock4,
     PackageSearch,
     RotateCcw,
     Search,
+    Sparkles,
 } from 'lucide-react';
 
 import { useMemo, useState } from 'react';
@@ -26,16 +28,43 @@ import type {
 | requiring a PO to be picked before its items become visible.
 */
 
+type DeliveryDateStatus = 'overdue' | 'due_today' | 'upcoming';
+
 interface AwaitingItem {
     purchaseOrderId: string;
     itemId: string;
     poNumber: string;
     supplierName: string;
     expectedDeliveryDate: string | null;
+    dateStatus: DeliveryDateStatus | null;
     label: string;
     quantityRemaining: number;
-    isOverdue: boolean;
+    isNewProduct: boolean;
 }
+
+const DATE_STATUS_STYLES: Record<
+    DeliveryDateStatus,
+    { badge: string; border: string; icon: typeof AlertTriangle; text: string }
+> = {
+    overdue: {
+        badge: 'bg-red-100 text-red-700',
+        border: 'border-l-red-500',
+        icon: AlertTriangle,
+        text: 'Overdue — ',
+    },
+    due_today: {
+        badge: 'bg-amber-100 text-amber-700',
+        border: 'border-l-amber-500',
+        icon: Clock4,
+        text: 'Due today',
+    },
+    upcoming: {
+        badge: 'bg-blue-100 text-blue-700',
+        border: 'border-l-blue-500',
+        icon: CalendarClock,
+        text: 'Expected ',
+    },
+};
 
 function itemLabel(
     item: StockReceiptPurchaseOrderItem,
@@ -113,19 +142,30 @@ export default function AwaitingItemsPicker({
             purchaseOrders.flatMap((purchaseOrder) =>
                 purchaseOrder.items
                     .filter((item) => item.quantity_remaining > 0)
-                    .map((item) => ({
-                        purchaseOrderId: String(purchaseOrder.id),
-                        itemId: String(item.id),
-                        poNumber: purchaseOrder.po_number,
-                        supplierName: purchaseOrder.supplier_name,
-                        expectedDeliveryDate:
-                            purchaseOrder.expected_delivery_date,
-                        label: itemLabel(item),
-                        quantityRemaining: item.quantity_remaining,
-                        isOverdue:
-                            purchaseOrder.expected_delivery_date !== null
-                            && purchaseOrder.expected_delivery_date < today,
-                    })),
+                    .map((item) => {
+                        const date = purchaseOrder.expected_delivery_date;
+
+                        const dateStatus: DeliveryDateStatus | null =
+                            date === null
+                                ? null
+                                : date < today
+                                    ? 'overdue'
+                                    : date === today
+                                        ? 'due_today'
+                                        : 'upcoming';
+
+                        return {
+                            purchaseOrderId: String(purchaseOrder.id),
+                            itemId: String(item.id),
+                            poNumber: purchaseOrder.po_number,
+                            supplierName: purchaseOrder.supplier_name,
+                            expectedDeliveryDate: date,
+                            dateStatus,
+                            label: itemLabel(item),
+                            quantityRemaining: item.quantity_remaining,
+                            isNewProduct: item.merchandise_origin === 'new',
+                        };
+                    }),
             ),
         [purchaseOrders, today],
     );
@@ -198,7 +238,19 @@ export default function AwaitingItemsPicker({
     const overdueDates = useMemo(() => {
         const uniqueDates = new Set(
             datedItems
-                .filter((item) => item.isOverdue)
+                .filter((item) => item.dateStatus === 'overdue')
+                .map((item) => item.expectedDeliveryDate as string),
+        );
+
+        return [...uniqueDates]
+            .map(parseDateValue)
+            .filter((date): date is Date => date !== undefined);
+    }, [datedItems]);
+
+    const dueTodayDates = useMemo(() => {
+        const uniqueDates = new Set(
+            datedItems
+                .filter((item) => item.dateStatus === 'due_today')
                 .map((item) => item.expectedDeliveryDate as string),
         );
 
@@ -307,13 +359,16 @@ export default function AwaitingItemsPicker({
                         onSelect={handleDaySelect}
                         modifiers={{
                             hasDelivery: deliveryDates,
+                            dueToday: dueTodayDates,
                             overdue: overdueDates,
                         }}
                         modifiersClassNames={{
                             hasDelivery:
-                                'relative font-black text-blue-700 after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-blue-600 after:content-[""]',
+                                'relative font-black text-blue-700 ring-1 ring-inset ring-blue-200 rounded-md after:absolute after:bottom-0.5 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-blue-600 after:content-[""]',
+                            dueToday:
+                                'text-amber-700 ring-amber-300 after:bg-amber-500',
                             overdue:
-                                'text-red-600 after:bg-red-600',
+                                'text-red-700 ring-red-300 after:bg-red-600',
                         }}
                     />
 
@@ -406,11 +461,19 @@ function AwaitingItemCard({
     selected: boolean;
     onSelect: (purchaseOrderId: string, itemId: string) => void;
 }) {
+    const dateStyle = item.dateStatus
+        ? DATE_STATUS_STYLES[item.dateStatus]
+        : null;
+
+    const DateIcon = dateStyle?.icon;
+
     return (
         <button
             type="button"
             onClick={() => onSelect(item.purchaseOrderId, item.itemId)}
-            className={`w-full rounded-2xl border p-4 text-left transition ${
+            className={`w-full rounded-2xl border border-l-4 p-4 text-left transition ${
+                dateStyle?.border ?? 'border-l-slate-300'
+            } ${
                 selected
                     ? 'border-blue-500 bg-blue-50 ring-4 ring-blue-100'
                     : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/30'
@@ -428,25 +491,28 @@ function AwaitingItemCard({
                 {item.poNumber} — {item.supplierName}
             </p>
 
-            {item.expectedDeliveryDate && (
-                <div
-                    className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                        item.isOverdue
-                            ? 'bg-red-100 text-red-700'
-                            : 'bg-blue-100 text-blue-700'
-                    }`}
-                >
-                    {item.isOverdue ? (
-                        <AlertTriangle size={12} />
-                    ) : (
-                        <CalendarClock size={12} />
-                    )}
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {item.isNewProduct && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-white">
+                        <Sparkles size={11} />
+                        New Product
+                    </span>
+                )}
 
-                    {item.isOverdue ? 'Overdue — ' : 'Expected '}
+                {dateStyle && DateIcon && (
+                    <span
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${dateStyle.badge}`}
+                    >
+                        <DateIcon size={12} />
 
-                    {formatDisplayDate(item.expectedDeliveryDate)}
-                </div>
-            )}
+                        {dateStyle.text}
+
+                        {item.dateStatus !== 'due_today'
+                            && item.expectedDeliveryDate
+                            && formatDisplayDate(item.expectedDeliveryDate)}
+                    </span>
+                )}
+            </div>
         </button>
     );
 }
