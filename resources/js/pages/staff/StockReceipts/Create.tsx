@@ -1,3 +1,10 @@
+
+import {
+    Head,
+    Link,
+    useForm,
+    usePage,
+} from '@inertiajs/react';
 import {
     ArrowLeft,
     CalendarDays,
@@ -8,28 +15,23 @@ import {
 } from 'lucide-react';
 
 import {
-    Head,
-    Link,
-    useForm,
-    usePage,
-} from '@inertiajs/react';
-
-import {
-    type FormEvent,
+    
     useEffect,
-    useState,
+    useState
 } from 'react';
+import type {FormEvent} from 'react';
 
-import CurrentStockCard from '@/components/admin/stock-receipts/CurrentStockCard';
-import ReceiveStockForm from '@/components/admin/stock-receipts/ReceiveStockForm';
 import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal';
 import ActionNotification from '@/components/action-feedback/ActionNotification';
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
-import specialist from '@/routes/specialist';
+import AwaitingItemsPicker from '@/components/admin/stock-receipts/AwaitingItemsPicker';
+import CurrentStockCard from '@/components/admin/stock-receipts/CurrentStockCard';
+import ReceiveStockForm from '@/components/admin/stock-receipts/ReceiveStockForm';
 
 import AdminLayout from '@/layouts/AdminLayout';
 import SpecialistLayout from '@/layouts/SpecialistLayout';
 import { clampNumberInput } from '@/lib/utils';
+import specialist from '@/routes/specialist';
 
 import type {
     ReceiveStockFormData,
@@ -556,6 +558,45 @@ useEffect(() => {
         };
 
     /*
+    |--------------------------------------------------------------------------
+    | Select Awaiting Item Directly (Specialist)
+    |--------------------------------------------------------------------------
+    |
+    | Used by the calendar/list picker: identifies both the PO and the
+    | item in one click, instead of the two-step dropdown flow above.
+    */
+
+    const selectAwaitingItem = (
+        purchaseOrderId: string,
+        itemId: string,
+    ): void => {
+        const targetOrder = purchaseOrders.find(
+            (purchaseOrder) => String(purchaseOrder.id) === purchaseOrderId,
+        );
+
+        const item = targetOrder?.items.find(
+            (purchaseOrderItem) => String(purchaseOrderItem.id) === itemId,
+        );
+
+        form.setData('purchase_order_id', purchaseOrderId);
+        form.setData('purchase_order_item_id', itemId);
+
+        form.setData(
+            'product_variant_id',
+            item?.product_variant_id
+                ? String(item.product_variant_id)
+                : '',
+        );
+
+        form.setData('quantity', '');
+        form.setData('supplier_reference_number', '');
+
+        form.clearErrors();
+
+        setSuccessMessage(null);
+    };
+
+    /*
 |--------------------------------------------------------------------------
 | Submit
 |--------------------------------------------------------------------------
@@ -952,6 +993,7 @@ const confirmPreorderConfiguration = (): void => {
                     typeof firstError === 'string'
                 ) {
                     showError(firstError);
+
                     return;
                 }
 
@@ -1114,6 +1156,7 @@ const confirmPreorderConfiguration = (): void => {
                         <>
                                 {/* Select PO */}
 
+                                {currentRole !== 'specialist' && (
                                 <section
                                     className="
                                         rounded-3xl
@@ -1374,10 +1417,22 @@ const confirmPreorderConfiguration = (): void => {
                                         </div>
                                     )}
                                 </section>
+                                )}
+
+                                {/* Awaiting Items Picker (Specialist) */}
+
+                                {currentRole === 'specialist' && (
+                                    <AwaitingItemsPicker
+                                        purchaseOrders={purchaseOrders}
+                                        selectedPurchaseOrderId={form.data.purchase_order_id}
+                                        selectedPurchaseOrderItemId={form.data.purchase_order_item_id}
+                                        onSelectItem={selectAwaitingItem}
+                                    />
+                                )}
 
                                 {/* Select PO Item */}
 
-                                {selectedPurchaseOrder && (
+                                {currentRole !== 'specialist' && selectedPurchaseOrder && (
                                     <section
                                         className="
                                             rounded-3xl
@@ -1560,6 +1615,18 @@ const confirmPreorderConfiguration = (): void => {
                                                     selectedPurchaseOrderItem,
                                                 )}
                                             </h2>
+
+                                            {selectedPurchaseOrder && (
+                                                <p className="mt-1 text-sm font-semibold text-slate-500">
+                                                    {selectedPurchaseOrder.po_number}
+                                                    {' — '}
+                                                    {selectedPurchaseOrder.supplier_name}
+                                                    {' — Expected '}
+                                                    {formatDate(
+                                                        selectedPurchaseOrder.expected_delivery_date,
+                                                    )}
+                                                </p>
+                                            )}
 
                                             <div
                                                 className="
