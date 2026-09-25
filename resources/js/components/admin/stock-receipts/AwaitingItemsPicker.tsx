@@ -129,17 +129,46 @@ export default function AwaitingItemsPicker({
         [purchaseOrders, today],
     );
 
-    const datedItems = awaitingItems
-        .filter((item) => item.expectedDeliveryDate !== null)
-        .sort((a, b) =>
-            (a.expectedDeliveryDate as string).localeCompare(
-                b.expectedDeliveryDate as string,
-            ),
-        );
-
-    const undatedItems = awaitingItems.filter(
-        (item) => item.expectedDeliveryDate === null,
+    const datedItems = useMemo(
+        () =>
+            awaitingItems
+                .filter((item) => item.expectedDeliveryDate !== null)
+                .sort((a, b) =>
+                    (a.expectedDeliveryDate as string).localeCompare(
+                        b.expectedDeliveryDate as string,
+                    ),
+                ),
+        [awaitingItems],
     );
+
+    const undatedItems = useMemo(
+        () => awaitingItems.filter((item) => item.expectedDeliveryDate === null),
+        [awaitingItems],
+    );
+
+    /*
+     * The soonest delivery that isn't already overdue — used to open
+     * the calendar on a useful month instead of defaulting to "today"
+     * when nothing is due this month, and to power the "jump to next
+     * delivery" shortcut below.
+     */
+    const nextUpcomingDate =
+        datedItems.find((item) => (item.expectedDeliveryDate as string) >= today)
+            ?.expectedDeliveryDate ?? null;
+
+    const [displayMonth, setDisplayMonth] = useState<Date>(
+        () => (nextUpcomingDate ? parseDateValue(nextUpcomingDate) : undefined)
+            ?? new Date(),
+    );
+
+    const jumpToNextDelivery = (): void => {
+        if (!nextUpcomingDate) {
+            return;
+        }
+
+        setDisplayMonth(parseDateValue(nextUpcomingDate) ?? new Date());
+        setSelectedDate(nextUpcomingDate);
+    };
 
     const deliveryDates = useMemo(() => {
         const uniqueDates = new Set(
@@ -205,10 +234,23 @@ export default function AwaitingItemsPicker({
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                    Click a delivery below, or pick a day on the calendar to
-                    see what&apos;s due that day.
+                    The list already includes every upcoming delivery, not
+                    just this month — scroll it, or use the calendar&apos;s
+                    arrows or the shortcut below to jump ahead and see what a
+                    later day looks like.
                 </p>
             </div>
+
+            {nextUpcomingDate && (
+                <button
+                    type="button"
+                    onClick={jumpToNextDelivery}
+                    className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3.5 py-2 text-xs font-black text-blue-700 transition hover:bg-blue-100"
+                >
+                    <CalendarClock size={14} />
+                    Jump to next delivery — {formatDisplayDate(nextUpcomingDate)}
+                </button>
+            )}
 
             <div className="relative mt-5">
                 <Search
@@ -229,6 +271,8 @@ export default function AwaitingItemsPicker({
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-2 text-slate-700">
                     <Calendar
                         mode="single"
+                        month={displayMonth}
+                        onMonthChange={setDisplayMonth}
                         selected={
                             selectedDate ? parseDateValue(selectedDate) : undefined
                         }
