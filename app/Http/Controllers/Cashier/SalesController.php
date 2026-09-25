@@ -61,6 +61,30 @@ class SalesController extends Controller
             $group = 'day';
         }
 
+        $dateFrom =
+            $this->parseFilterDate(
+                $request->query('date_from'),
+            );
+
+        $dateTo =
+            $this->parseFilterDate(
+                $request->query('date_to'),
+            );
+
+        /*
+         * A reversed range (e.g. tampered URL) can't be turned
+         * into a sensible bucket list — fall back to no filter
+         * rather than querying a backwards or empty window.
+         */
+        if (
+            $dateFrom
+            && $dateTo
+            && $dateFrom->gt($dateTo)
+        ) {
+            $dateFrom = null;
+            $dateTo = null;
+        }
+
         $now =
             now(
                 self::DISPLAY_TIMEZONE,
@@ -150,6 +174,8 @@ class SalesController extends Controller
             $this->breakdown(
                 $group,
                 $now,
+                $dateFrom,
+                $dateTo,
             );
 
         return Inertia::render(
@@ -189,8 +215,42 @@ class SalesController extends Controller
                 'best' => $breakdown['best'],
 
                 'group' => $group,
+
+                'filters' => [
+                    'date_from' => $dateFrom?->format('Y-m-d'),
+                    'date_to' => $dateTo?->format('Y-m-d'),
+                ],
             ],
         );
+    }
+
+    /**
+     * Parse a "Y-m-d" query string into a Manila-local start-of-day
+     * instant, ignoring anything malformed rather than erroring —
+     * this is a display filter, not a validated form submission.
+     */
+    private function parseFilterDate(
+        ?string $value,
+    ): ?CarbonImmutable {
+        if (
+            ! $value
+            || ! preg_match(
+                '/^\d{4}-\d{2}-\d{2}$/',
+                $value,
+            )
+        ) {
+            return null;
+        }
+
+        try {
+            return CarbonImmutable::createFromFormat(
+                'Y-m-d',
+                $value,
+                self::DISPLAY_TIMEZONE,
+            )->startOfDay();
+        } catch (\Exception) {
+            return null;
+        }
     }
 
     /**
@@ -205,28 +265,66 @@ class SalesController extends Controller
     private function breakdown(
         string $group,
         CarbonImmutable $now,
+        ?CarbonImmutable $dateFrom = null,
+        ?CarbonImmutable $dateTo = null,
     ): array {
-        $bucketCount =
-            match ($group) {
-                'week' => 12,
-                'month' => 12,
-                default => 30,
-            };
+        $rangeEnd =
+            $dateTo?->endOfDay() ?? $now;
 
-        $rangeStart =
-            match ($group) {
-                'week' => $now->clone()
-                    ->subWeeks($bucketCount - 1)
-                    ->startOfWeek(),
+        if ($dateFrom || $dateTo) {
+            /*
+             * A custom range was picked from the calendar — the
+             * number of buckets follows the span the admin chose
+             * instead of a fixed rolling window. Capped so an
+             * accidental multi-year range can't blow up the query.
+             */
+            $rangeStart =
+                match ($group) {
+                    'week' => ($dateFrom ?? $rangeEnd->subWeeks(11))
+                        ->startOfWeek(),
 
-                'month' => $now->clone()
-                    ->subMonths($bucketCount - 1)
-                    ->startOfMonth(),
+                    'month' => ($dateFrom ?? $rangeEnd->subMonths(11))
+                        ->startOfMonth(),
 
-                default => $now->clone()
-                    ->subDays($bucketCount - 1)
-                    ->startOfDay(),
-            };
+                    default => ($dateFrom ?? $rangeEnd->subDays(29))
+                        ->startOfDay(),
+                };
+
+            $bucketCount =
+                min(
+                    366,
+                    max(
+                        1,
+                        match ($group) {
+                            'week' => (int) $rangeStart->diffInWeeks($rangeEnd->endOfWeek()) + 1,
+                            'month' => (int) $rangeStart->diffInMonths($rangeEnd->endOfMonth()) + 1,
+                            default => (int) $rangeStart->diffInDays($rangeEnd) + 1,
+                        },
+                    ),
+                );
+        } else {
+            $bucketCount =
+                match ($group) {
+                    'week' => 12,
+                    'month' => 12,
+                    default => 30,
+                };
+
+            $rangeStart =
+                match ($group) {
+                    'week' => $now->clone()
+                        ->subWeeks($bucketCount - 1)
+                        ->startOfWeek(),
+
+                    'month' => $now->clone()
+                        ->subMonths($bucketCount - 1)
+                        ->startOfMonth(),
+
+                    default => $now->clone()
+                        ->subDays($bucketCount - 1)
+                        ->startOfDay(),
+                };
+        }
 
         $orders =
             Order::query()
@@ -241,6 +339,11 @@ class SalesController extends Controller
                     'paid_at',
                     '>=',
                     $rangeStart->clone()->utc(),
+                )
+                ->where(
+                    'paid_at',
+                    '<=',
+                    $rangeEnd->clone()->utc(),
                 )
                 ->get([
                     'paid_at',

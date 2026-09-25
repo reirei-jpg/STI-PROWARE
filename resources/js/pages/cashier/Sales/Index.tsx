@@ -1,12 +1,13 @@
 import {
-    Award,
-    TrendingUp,
-} from 'lucide-react';
-
-import {
     Head,
     router,
 } from '@inertiajs/react';
+import {
+    Award,
+    CalendarDays,
+    TrendingUp,
+} from 'lucide-react';
+
 
 import { useState } from 'react';
 
@@ -22,6 +23,7 @@ import {
 
 import DetailPopup from '@/components/action-feedback/DetailPopup';
 import TrendBadge from '@/components/cashier/TrendBadge';
+import { DatePicker } from '@/components/ui/date-picker';
 
 import CashierLayout from '@/layouts/CashierLayout';
 
@@ -69,11 +71,17 @@ type ActiveCard =
     | 'all_time'
     | null;
 
+interface SalesFilters {
+    date_from: string | null;
+    date_to: string | null;
+}
+
 interface SalesIndexProps {
     summary: SalesSummary;
     breakdown: BreakdownRow[];
     best: BestPeriod | null;
     group: SalesGroup;
+    filters: SalesFilters;
 }
 
 const CARD_META: Record<
@@ -103,9 +111,24 @@ export default function Index({
     breakdown,
     best,
     group,
+    filters,
 }: SalesIndexProps) {
     const [activeCard, setActiveCard] =
         useState<ActiveCard>(null);
+
+    const [dateFrom, setDateFrom] =
+        useState(filters.date_from ?? '');
+
+    const [dateTo, setDateTo] =
+        useState(filters.date_to ?? '');
+
+    const hasDateFilter = Boolean(
+        filters.date_from || filters.date_to,
+    );
+
+    const dateRangeInvalid = Boolean(
+        dateFrom && dateTo && dateFrom > dateTo,
+    );
 
     /*
      * The table shows most-recent-first (matching Payment
@@ -138,6 +161,45 @@ export default function Index({
             cashier.sales.index.url(),
             {
                 group: nextGroup,
+                date_from: filters.date_from ?? undefined,
+                date_to: filters.date_to ?? undefined,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
+
+    const applyDateFilter = () => {
+        if (dateRangeInvalid) {
+            return;
+        }
+
+        router.get(
+            cashier.sales.index.url(),
+            {
+                group,
+                date_from: dateFrom || undefined,
+                date_to: dateTo || undefined,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
+
+    const clearDateFilter = () => {
+        setDateFrom('');
+        setDateTo('');
+
+        router.get(
+            cashier.sales.index.url(),
+            {
+                group,
             },
             {
                 preserveState: true,
@@ -264,6 +326,76 @@ export default function Index({
                             </GroupButton>
                         </div>
                     </div>
+
+                    {/* Date Range Filter */}
+                    <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4 sm:flex-row sm:items-end sm:flex-wrap">
+                        <div className="w-full sm:w-48">
+                            <p className="mb-1.5 text-xs font-bold text-slate-500">
+                                From
+                            </p>
+
+                            <DatePicker
+                                value={dateFrom}
+                                onChange={setDateFrom}
+                                placeholder="Any start date"
+                                disablePast={false}
+                            />
+                        </div>
+
+                        <div className="w-full sm:w-48">
+                            <p className="mb-1.5 text-xs font-bold text-slate-500">
+                                To
+                            </p>
+
+                            <DatePicker
+                                value={dateTo}
+                                onChange={setDateTo}
+                                placeholder="Any end date"
+                                disablePast={false}
+                            />
+                        </div>
+
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                onClick={applyDateFilter}
+                                disabled={dateRangeInvalid}
+                                className="rounded-xl bg-[#0D6EFD] px-5 py-2.5 text-sm font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Apply
+                            </button>
+
+                            {(hasDateFilter || dateFrom || dateTo) && (
+                                <button
+                                    type="button"
+                                    onClick={clearDateFilter}
+                                    className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+                                >
+                                    Clear
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {dateRangeInvalid ? (
+                        <div className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-xs font-semibold text-red-700">
+                            The start date cannot be later than the end date.
+                        </div>
+                    ) : hasDateFilter ? (
+                        <div className="mt-3 flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-3 text-xs font-semibold text-blue-700">
+                            <CalendarDays size={15} />
+
+                            <span>
+                                Showing sales
+                                {filters.date_from
+                                    ? ` from ${formatDisplayDate(filters.date_from)}`
+                                    : ''}
+                                {filters.date_to
+                                    ? ` to ${formatDisplayDate(filters.date_to)}`
+                                    : ''}
+                            </span>
+                        </div>
+                    ) : null}
 
                     {breakdown.length > 0 ? (
                         <>
@@ -561,6 +693,24 @@ function GroupButton({
         >
             {children}
         </button>
+    );
+}
+
+function formatDisplayDate(
+    date: string,
+): string {
+    const [year, month, day] = date.split('-');
+
+    return new Intl.DateTimeFormat('en-PH', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+    }).format(
+        new Date(
+            Number(year),
+            Number(month) - 1,
+            Number(day),
+        ),
     );
 }
 

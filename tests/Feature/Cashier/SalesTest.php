@@ -144,3 +144,42 @@ test('an invalid group parameter falls back to daily grouping instead of errorin
         ->where('group', 'day'),
     );
 });
+
+test('a custom date range only includes sales from within that range', function () {
+    $cashier = salesTestCashier();
+    $studentUser = salesTestStudent();
+
+    salesTestPaidOrder($studentUser->student, $studentUser, 400.00, now()->subDays(10));
+    salesTestPaidOrder($studentUser->student, $studentUser, 999.00, now());
+
+    $from = now()->subDays(11)->toDateString();
+    $to = now()->subDays(9)->toDateString();
+
+    $response = $this->actingAs($cashier)->get("/cashier/sales?date_from={$from}&date_to={$to}");
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->where('filters.date_from', $from)
+        ->where('filters.date_to', $to)
+        // Only the sale inside the picked range should surface here —
+        // the 999.00 sale made "today" falls outside date_to and must
+        // not affect the best-day figure.
+        ->where('best.total', '400.00')
+        ->has('breakdown', 3),
+    );
+});
+
+test('a reversed date range is ignored rather than erroring', function () {
+    $cashier = salesTestCashier();
+
+    $from = now()->toDateString();
+    $to = now()->subDay()->toDateString();
+
+    $response = $this->actingAs($cashier)->get("/cashier/sales?date_from={$from}&date_to={$to}");
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->where('filters.date_from', null)
+        ->where('filters.date_to', null),
+    );
+});
