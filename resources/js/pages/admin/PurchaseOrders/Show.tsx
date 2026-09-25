@@ -164,6 +164,14 @@ interface EditItemFormState {
     manual_description: string;
     manual_sku: string;
     track_inventory: boolean;
+
+    /**
+     * A PO-level field, not really an item field — included here
+     * because this is the one "Edit" action people actually use and
+     * notice, so the expected delivery date is corrected from the
+     * same place rather than a second, easy-to-miss edit control.
+     */
+    expected_delivery_date: string;
 }
 
 const emptyAddItemForm =
@@ -390,67 +398,6 @@ export default function Show({
         !purchaseOrder.is_archived
         && purchaseOrder.status !==
             'completed';
-
-    /*
-    |--------------------------------------------------------------------------
-    | Expected Delivery Date Editing
-    |--------------------------------------------------------------------------
-    */
-
-    const [
-        editingDeliveryDate,
-        setEditingDeliveryDate,
-    ] = useState(false);
-
-    const [
-        deliveryDateValue,
-        setDeliveryDateValue,
-    ] = useState(
-        purchaseOrder.expected_delivery_date_raw,
-    );
-
-    const [
-        savingDeliveryDate,
-        setSavingDeliveryDate,
-    ] = useState(false);
-
-    const openEditDeliveryDate = (): void => {
-        setDeliveryDateValue(
-            purchaseOrder.expected_delivery_date_raw,
-        );
-        setEditingDeliveryDate(true);
-    };
-
-    const cancelEditDeliveryDate = (): void => {
-        setEditingDeliveryDate(false);
-    };
-
-    const saveDeliveryDate = (): void => {
-        setSavingDeliveryDate(true);
-
-        router.patch(
-            `/admin/purchase-orders/${purchaseOrder.id}/expected-delivery-date`,
-            {
-                expected_delivery_date: deliveryDateValue,
-            },
-            {
-                preserveScroll: true,
-
-                onSuccess: () => {
-                    setEditingDeliveryDate(false);
-                    showSuccess('Expected delivery date updated successfully.');
-                },
-
-                onError: () => {
-                    showError('The expected delivery date could not be updated.');
-                },
-
-                onFinish: () => {
-                    setSavingDeliveryDate(false);
-                },
-            },
-        );
-    };
 
     const filteredVariants =
         useMemo(
@@ -836,6 +783,10 @@ export default function Show({
                 track_inventory:
                     item
                         .track_inventory,
+
+                expected_delivery_date:
+                    purchaseOrder
+                        .expected_delivery_date_raw,
             });
         };
 
@@ -973,99 +924,139 @@ return;
                 true,
             );
 
+            const submitItemChanges = (): void => {
+                router.patch(
+                    `/admin/purchase-orders/${purchaseOrder.id}/items/${editItem.id}`,
+                    {
+                        quantity_ordered:
+                            quantity,
+
+                        unit_cost:
+                            editItemForm
+                                .unit_cost
+                                .trim()
+                            || null,
+
+                        manual_name:
+                            editItem
+                                .item_type
+                                === 'manual'
+                            ? editItemForm
+                                .manual_name
+                                .trim()
+                            : null,
+
+                        manual_description:
+                            editItem
+                                .item_type
+                                === 'manual'
+                            ? (
+                                editItemForm
+                                    .manual_description
+                                    .trim()
+                                || null
+                            )
+                            : null,
+
+                        manual_sku:
+                            editItem
+                                .item_type
+                                === 'manual'
+                            ? (
+                                editItemForm
+                                    .manual_sku
+                                    .trim()
+                                || null
+                            )
+                            : null,
+
+                        track_inventory:
+                            editItem
+                                .item_type
+                                === 'manual'
+                            ? editItemForm
+                                .track_inventory
+                            : true,
+                    },
+                    {
+                        preserveScroll:
+                            true,
+
+                        onSuccess:
+                            () => {
+                                setShowEditItemConfirm(
+                                    false,
+                                );
+
+                                setEditItem(
+                                    null,
+                                );
+
+                                setEditItemForm(
+                                    null,
+                                );
+
+                                showSuccess(
+                                    'Purchase order item updated successfully.',
+                                );
+                            },
+
+                        onError:
+                            () => {
+                                setShowEditItemConfirm(
+                                    false,
+                                );
+
+                                showError(
+                                    'Purchase order item could not be updated.',
+                                );
+                            },
+
+                        onFinish:
+                            () => {
+                                setSavingItem(
+                                    false,
+                                );
+                            },
+                    },
+                );
+            };
+
+            const dateChanged =
+                editItemForm.expected_delivery_date
+                !== purchaseOrder.expected_delivery_date_raw;
+
+            if (!dateChanged) {
+                submitItemChanges();
+
+                return;
+            }
+
+            /*
+             * The expected delivery date lives on the parent PO, not
+             * this item, so it goes through its own endpoint first —
+             * only once that succeeds do we save the item itself.
+             */
             router.patch(
-                `/admin/purchase-orders/${purchaseOrder.id}/items/${editItem.id}`,
+                `/admin/purchase-orders/${purchaseOrder.id}/expected-delivery-date`,
                 {
-                    quantity_ordered:
-                        quantity,
-
-                    unit_cost:
-                        editItemForm
-                            .unit_cost
-                            .trim()
+                    expected_delivery_date:
+                        editItemForm.expected_delivery_date
                         || null,
-
-                    manual_name:
-                        editItem
-                            .item_type
-                            === 'manual'
-                        ? editItemForm
-                            .manual_name
-                            .trim()
-                        : null,
-
-                    manual_description:
-                        editItem
-                            .item_type
-                            === 'manual'
-                        ? (
-                            editItemForm
-                                .manual_description
-                                .trim()
-                            || null
-                        )
-                        : null,
-
-                    manual_sku:
-                        editItem
-                            .item_type
-                            === 'manual'
-                        ? (
-                            editItemForm
-                                .manual_sku
-                                .trim()
-                            || null
-                        )
-                        : null,
-
-                    track_inventory:
-                        editItem
-                            .item_type
-                            === 'manual'
-                        ? editItemForm
-                            .track_inventory
-                        : true,
                 },
                 {
-                    preserveScroll:
-                        true,
+                    preserveScroll: true,
 
-                    onSuccess:
-                        () => {
-                            setShowEditItemConfirm(
-                                false,
-                            );
+                    onSuccess: submitItemChanges,
 
-                            setEditItem(
-                                null,
-                            );
+                    onError: () => {
+                        setSavingItem(false);
+                        setShowEditItemConfirm(false);
 
-                            setEditItemForm(
-                                null,
-                            );
-
-                            showSuccess(
-                                'Purchase order item updated successfully.',
-                            );
-                        },
-
-                    onError:
-                        () => {
-                            setShowEditItemConfirm(
-                                false,
-                            );
-
-                            showError(
-                                'Purchase order item could not be updated.',
-                            );
-                        },
-
-                    onFinish:
-                        () => {
-                            setSavingItem(
-                                false,
-                            );
-                        },
+                        showError(
+                            'The expected delivery date could not be updated.',
+                        );
+                    },
                 },
             );
         };
@@ -2198,100 +2189,13 @@ return;
                                     }
                                 />
 
-                                <div>
-                                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">
-                                        Expected Delivery
-                                    </p>
-
-                                    {editingDeliveryDate ? (
-                                        <div className="mt-1.5 space-y-2">
-                                            <DatePicker
-                                                value={deliveryDateValue}
-                                                onChange={setDeliveryDateValue}
-                                                placeholder="No date set"
-                                            />
-
-                                            <div className="flex gap-2">
-                                                <button
-                                                    type="button"
-                                                    disabled={savingDeliveryDate}
-                                                    onClick={saveDeliveryDate}
-                                                    className="
-                                                        rounded-lg
-                                                        bg-blue-600
-                                                        px-3
-                                                        py-1.5
-                                                        text-xs
-                                                        font-black
-                                                        text-white
-                                                        transition
-                                                        hover:bg-blue-700
-                                                        disabled:cursor-not-allowed
-                                                        disabled:opacity-60
-                                                    "
-                                                >
-                                                    {savingDeliveryDate ? 'Saving...' : 'Save'}
-                                                </button>
-
-                                                <button
-                                                    type="button"
-                                                    disabled={savingDeliveryDate}
-                                                    onClick={cancelEditDeliveryDate}
-                                                    className="
-                                                        rounded-lg
-                                                        border
-                                                        border-slate-200
-                                                        bg-white
-                                                        px-3
-                                                        py-1.5
-                                                        text-xs
-                                                        font-black
-                                                        text-slate-600
-                                                        transition
-                                                        hover:bg-slate-50
-                                                        disabled:cursor-not-allowed
-                                                        disabled:opacity-60
-                                                    "
-                                                >
-                                                    Cancel
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="mt-1.5 flex items-center justify-between gap-2">
-                                            <p className="break-words text-sm font-bold text-slate-800">
-                                                {purchaseOrder.expected_delivery_date
-                                                    ?? 'Not set'}
-                                            </p>
-
-                                            {canModifyPo && (
-                                                <button
-                                                    type="button"
-                                                    onClick={openEditDeliveryDate}
-                                                    className="
-                                                        inline-flex
-                                                        shrink-0
-                                                        items-center
-                                                        gap-2
-                                                        rounded-xl
-                                                        bg-blue-50
-                                                        px-3
-                                                        py-2
-                                                        text-sm
-                                                        font-black
-                                                        text-blue-700
-                                                        transition
-                                                        hover:bg-blue-100
-                                                    "
-                                                >
-                                                    <Pencil size={15} />
-
-                                                    Edit
-                                                </button>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
+                                <DetailRow
+                                    label="Expected Delivery"
+                                    value={
+                                        purchaseOrder.expected_delivery_date
+                                        ?? 'Not set'
+                                    }
+                                />
 
                                 <DetailRow
                                     label="Created By"
@@ -3185,6 +3089,37 @@ return;
                                     className={
                                         inputClass
                                     }
+                                />
+                            </FormField>
+                        </div>
+
+                        <div className="mt-5">
+                            <FormField
+                                label="Expected Delivery (whole order)"
+                            >
+                                <DatePicker
+                                    value={
+                                        editItemForm
+                                            .expected_delivery_date
+                                    }
+                                    onChange={(
+                                        value,
+                                    ) =>
+                                        setEditItemForm(
+                                            (
+                                                current,
+                                            ) =>
+                                                current
+                                                    ? {
+                                                        ...current,
+
+                                                        expected_delivery_date:
+                                                            value,
+                                                    }
+                                                    : current,
+                                        )
+                                    }
+                                    placeholder="No date set"
                                 />
                             </FormField>
                         </div>
