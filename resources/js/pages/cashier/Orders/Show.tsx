@@ -1,18 +1,19 @@
 import {
+    Head,
+    Link,
+    router,
+} from '@inertiajs/react';
+import {
     ArrowLeft,
     CheckCircle2,
     Clock3,
     PackageCheck,
     QrCode,
     ShoppingBag,
+    UserRound,
     XCircle,
 } from 'lucide-react';
 
-import {
-    Head,
-    Link,
-    router,
-} from '@inertiajs/react';
 
 
 
@@ -20,17 +21,17 @@ import type {
     LucideIcon,
 } from 'lucide-react';
 
+import { useState } from 'react';
+import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal';
+import ActionNotification from '@/components/action-feedback/ActionNotification';
+import CancelOrderModal from '@/components/action-feedback/CancelOrderModal';
+import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
 import CashierLayout from '@/layouts/CashierLayout';
 
 import cashier from '@/routes/cashier';
 
 
-import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal';
-import CancelOrderModal from '@/components/action-feedback/CancelOrderModal';
-import ActionNotification from '@/components/action-feedback/ActionNotification';
-import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
 
-import { useState } from 'react';
 
 /*
 |--------------------------------------------------------------------------
@@ -459,6 +460,109 @@ export default function Show({
                                 </p>
                             </div>
                         </div>
+                    </div>
+                </section>
+
+                {/* Student */}
+                <section
+                    className="
+                        rounded-3xl
+                        border
+                        border-slate-200
+                        bg-white
+                        p-6
+                        shadow-sm
+                    "
+                >
+                    <div
+                        className="
+                            flex
+                            items-center
+                            gap-3
+                        "
+                    >
+                        <div
+                            className="
+                                flex
+                                h-10
+                                w-10
+                                items-center
+                                justify-center
+                                rounded-xl
+                                bg-blue-50
+                                text-blue-600
+                            "
+                        >
+                            <UserRound size={19} />
+                        </div>
+
+                        <div>
+                            <p
+                                className="
+                                    text-xs
+                                    font-black
+                                    uppercase
+                                    tracking-wide
+                                    text-slate-400
+                                "
+                            >
+                                Ordered By
+                            </p>
+
+                            <h2
+                                className="
+                                    mt-0.5
+                                    font-black
+                                    text-slate-900
+                                "
+                            >
+                                Student
+                            </h2>
+                        </div>
+                    </div>
+
+                    <div
+                        className="
+                            mt-5
+                            rounded-2xl
+                            bg-slate-50
+                            p-4
+                        "
+                    >
+                        <p
+                            className="
+                                font-black
+                                text-slate-900
+                            "
+                        >
+                            {order.student.name}
+                        </p>
+
+                        <p
+                            className="
+                                mt-1
+                                text-sm
+                                font-semibold
+                                text-slate-500
+                            "
+                        >
+                            {order.student.student_id}
+                        </p>
+
+                        <p
+                            className="
+                                mt-1
+                                text-sm
+                                text-slate-500
+                            "
+                        >
+                            {order.student.course ??
+                                'Course not assigned'}
+
+                            {order.student.year_level
+                                ? ` • Year ${order.student.year_level}`
+                                : ''}
+                        </p>
                     </div>
                 </section>
 
