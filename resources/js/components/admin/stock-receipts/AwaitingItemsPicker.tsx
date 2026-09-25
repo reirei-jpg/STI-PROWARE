@@ -2,6 +2,7 @@ import {
     AlertTriangle,
     CalendarClock,
     PackageSearch,
+    RotateCcw,
     Search,
 } from 'lucide-react';
 
@@ -170,6 +171,20 @@ export default function AwaitingItemsPicker({
         setSelectedDate(nextUpcomingDate);
     };
 
+    /*
+     * The only way back to the current month once "jump to next
+     * delivery" or the calendar's own arrows have moved away from it —
+     * without this, a specialist who jumps ahead has no way back
+     * except clicking the back arrow the same number of times.
+     */
+    const isOnCurrentMonth =
+        displayMonth.getFullYear() === new Date().getFullYear()
+        && displayMonth.getMonth() === new Date().getMonth();
+
+    const goToToday = (): void => {
+        setDisplayMonth(new Date());
+    };
+
     const deliveryDates = useMemo(() => {
         const uniqueDates = new Set(
             datedItems.map((item) => item.expectedDeliveryDate as string),
@@ -241,16 +256,29 @@ export default function AwaitingItemsPicker({
                 </p>
             </div>
 
-            {nextUpcomingDate && (
-                <button
-                    type="button"
-                    onClick={jumpToNextDelivery}
-                    className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3.5 py-2 text-xs font-black text-blue-700 transition hover:bg-blue-100"
-                >
-                    <CalendarClock size={14} />
-                    Jump to next delivery — {formatDisplayDate(nextUpcomingDate)}
-                </button>
-            )}
+            <div className="mt-4 flex flex-wrap gap-2">
+                {!isOnCurrentMonth && (
+                    <button
+                        type="button"
+                        onClick={goToToday}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3.5 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-200"
+                    >
+                        <RotateCcw size={14} />
+                        Back to current month
+                    </button>
+                )}
+
+                {nextUpcomingDate && (
+                    <button
+                        type="button"
+                        onClick={jumpToNextDelivery}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3.5 py-2 text-xs font-black text-blue-700 transition hover:bg-blue-100"
+                    >
+                        <CalendarClock size={14} />
+                        Jump to next delivery — {formatDisplayDate(nextUpcomingDate)}
+                    </button>
+                )}
+            </div>
 
             <div className="relative mt-5">
                 <Search
