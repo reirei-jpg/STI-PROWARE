@@ -350,6 +350,47 @@ export default function Index({
         { overdue: 0, dueToday: 0, upcoming: 0, noDate: 0 },
     );
 
+    /*
+     * Every item in a given PO shares the same expected_delivery_date,
+     * so "status" is really a PO-level attribute — filtering out whole
+     * purchase orders here is enough, no need to filter within one.
+     */
+    const [statusFilter, setStatusFilter] = useState<
+        'overdue' | 'due_today' | 'upcoming' | 'no_date' | null
+    >(null);
+
+    const toggleStatusFilter = (
+        value: 'overdue' | 'due_today' | 'upcoming' | 'no_date',
+    ): void => {
+        setStatusFilter((current) => (current === value ? null : value));
+    };
+
+    const filteredOutstandingPurchaseOrders = outstandingPurchaseOrders.filter(
+        (purchaseOrder) => {
+            if (!statusFilter) {
+                return true;
+            }
+
+            if (statusFilter === 'no_date') {
+                return purchaseOrder.expected_delivery_date === null;
+            }
+
+            if (purchaseOrder.expected_delivery_date === null) {
+                return false;
+            }
+
+            if (statusFilter === 'overdue') {
+                return purchaseOrder.expected_delivery_date < today;
+            }
+
+            if (statusFilter === 'due_today') {
+                return purchaseOrder.expected_delivery_date === today;
+            }
+
+            return purchaseOrder.expected_delivery_date > today;
+        },
+    );
+
     const [
         detailPurchaseOrder,
         setDetailPurchaseOrder,
@@ -655,6 +696,8 @@ export default function Index({
                                 value={outstandingSummary.overdue}
                                 icon={AlertTriangle}
                                 tone="red"
+                                active={statusFilter === 'overdue'}
+                                onClick={() => toggleStatusFilter('overdue')}
                             />
 
                             <OutstandingSummaryCard
@@ -662,6 +705,8 @@ export default function Index({
                                 value={outstandingSummary.dueToday}
                                 icon={Clock4}
                                 tone="amber"
+                                active={statusFilter === 'due_today'}
+                                onClick={() => toggleStatusFilter('due_today')}
                             />
 
                             <OutstandingSummaryCard
@@ -669,6 +714,8 @@ export default function Index({
                                 value={outstandingSummary.upcoming}
                                 icon={CalendarClock}
                                 tone="blue"
+                                active={statusFilter === 'upcoming'}
+                                onClick={() => toggleStatusFilter('upcoming')}
                             />
 
                             <OutstandingSummaryCard
@@ -676,11 +723,33 @@ export default function Index({
                                 value={outstandingSummary.noDate}
                                 icon={CalendarDays}
                                 tone="slate"
+                                active={statusFilter === 'no_date'}
+                                onClick={() => toggleStatusFilter('no_date')}
                             />
                         </section>
 
+                        {statusFilter && (
+                            <div className="flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-3 text-xs font-semibold text-blue-700">
+                                <span>
+                                    Showing only{' '}
+                                    {statusFilter === 'no_date'
+                                        ? 'items with no date set'
+                                        : statusFilter.replace('_', ' ')}
+                                    .
+                                </span>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setStatusFilter(null)}
+                                    className="font-black underline underline-offset-2 hover:text-blue-900"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                        )}
+
                         <AwaitingItemsPicker
-                            purchaseOrders={outstandingPurchaseOrders}
+                            purchaseOrders={filteredOutstandingPurchaseOrders}
                             selectedPurchaseOrderId=""
                             selectedPurchaseOrderItemId=""
                             onSelectItem={(purchaseOrderId) =>
@@ -1395,35 +1464,55 @@ function OutstandingSummaryCard({
     value,
     icon: Icon,
     tone,
+    active = false,
+    onClick,
 }: {
     label: string;
     value: number;
     icon: typeof AlertTriangle;
     tone: OutstandingTone;
+    active?: boolean;
+    onClick?: () => void;
 }) {
     const style = OUTSTANDING_TONES[tone];
+
+    const content = (
+        <div className="flex items-start justify-between gap-4">
+            <div>
+                <p className="text-xs font-black tracking-wide text-slate-400 uppercase">
+                    {label}
+                </p>
+
+                <p className={`mt-3 text-3xl font-black ${style.value}`}>
+                    {value}
+                </p>
+            </div>
+
+            <div
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${style.icon}`}
+            >
+                <Icon size={20} />
+            </div>
+        </div>
+    );
+
+    if (onClick) {
+        return (
+            <button
+                type="button"
+                onClick={onClick}
+                className={`rounded-3xl border p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${style.card} ${active ? 'ring-2 ring-blue-500' : ''}`}
+            >
+                {content}
+            </button>
+        );
+    }
 
     return (
         <article
             className={`rounded-3xl border p-5 shadow-sm ${style.card}`}
         >
-            <div className="flex items-start justify-between gap-4">
-                <div>
-                    <p className="text-xs font-black tracking-wide text-slate-400 uppercase">
-                        {label}
-                    </p>
-
-                    <p className={`mt-3 text-3xl font-black ${style.value}`}>
-                        {value}
-                    </p>
-                </div>
-
-                <div
-                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${style.icon}`}
-                >
-                    <Icon size={20} />
-                </div>
-            </div>
+            {content}
         </article>
     );
 }
