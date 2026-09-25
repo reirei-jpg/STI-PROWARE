@@ -27,6 +27,7 @@ import { useActionFeedback } from '@/components/action-feedback/useActionFeedbac
 import AwaitingItemsPicker from '@/components/admin/stock-receipts/AwaitingItemsPicker';
 import CurrentStockCard from '@/components/admin/stock-receipts/CurrentStockCard';
 import ReceiveStockForm from '@/components/admin/stock-receipts/ReceiveStockForm';
+import { DatePicker } from '@/components/ui/date-picker';
 
 import AdminLayout from '@/layouts/AdminLayout';
 import SpecialistLayout from '@/layouts/SpecialistLayout';
@@ -279,6 +280,27 @@ const canConfigurePreorder =
     selectedPurchaseOrderItem !== null &&
     selectedPurchaseOrderItem.merchandise_origin === 'new' &&
     selectedPurchaseOrderItem.product_variant_id !== null;
+
+/*
+|--------------------------------------------------------------------------
+| Preorder Date Floors
+|--------------------------------------------------------------------------
+|
+| Neither the preorder period nor the release date can be set in the
+| past. Preorder End additionally can't be before Preorder Start.
+| These floors both constrain the native picker widget (via `min`) and
+| clamp anything typed or pasted in directly, since this form submits
+| through Inertia rather than a native <form> and so never runs the
+| browser's own min/max constraint validation.
+*/
+
+const minPreorderStart = nowDateTimeLocalValue();
+
+const minPreorderEnd =
+    preorderConfigForm.data.preorder_starts_at
+    && preorderConfigForm.data.preorder_starts_at > minPreorderStart
+        ? preorderConfigForm.data.preorder_starts_at
+        : minPreorderStart;
 
 useEffect(() => {
     setLinkProductId('');
@@ -946,6 +968,47 @@ const submitPreorderConfiguration = (
         !canConfigurePreorder ||
         preorderConfigForm.processing
     ) {
+        return;
+    }
+
+    setErrorMessage(null);
+
+    if (
+        preorderConfigForm.data.expected_release_date
+        && preorderConfigForm.data.expected_release_date
+            < minPreorderStart.slice(0, 10)
+    ) {
+        setErrorMessage(
+            'Expected release date cannot be in the past.',
+        );
+
+        return;
+    }
+
+    if (
+        preorderConfigForm.data.preorder_starts_at
+        && preorderConfigForm.data.preorder_starts_at
+            < minPreorderStart
+    ) {
+        setErrorMessage(
+            'Preorder start cannot be in the past.',
+        );
+
+        return;
+    }
+
+    if (
+        preorderConfigForm.data.preorder_ends_at
+        && preorderConfigForm.data.preorder_ends_at
+            <= (
+                preorderConfigForm.data.preorder_starts_at
+                || minPreorderStart
+            )
+    ) {
+        setErrorMessage(
+            'Preorder end must be after preorder start.',
+        );
+
         return;
     }
 
@@ -1786,34 +1849,21 @@ const confirmPreorderConfiguration = (): void => {
                     Expected Release Date
                 </label>
 
-                <div className="mt-2 flex items-center gap-3">
-    <div className="relative flex h-12 w-12 items-center justify-center rounded-xl border border-slate-300 bg-white text-violet-600">
-        <CalendarDays size={20} />
-
-        <input
-            type="date"
-            value={
-                preorderConfigForm.data
-                    .expected_release_date
-            }
-            onChange={(event) =>
-                preorderConfigForm.setData(
-                    'expected_release_date',
-                    event.target.value,
-                )
-            }
-            onClick={(event) =>
-                event.currentTarget.showPicker?.()
-            }
-            className="absolute inset-0 cursor-pointer opacity-0"
-        />
-    </div>
-
-    <span className="text-sm font-semibold text-slate-700">
-        {preorderConfigForm.data.expected_release_date ||
-            'Select date'}
-    </span>
-</div>
+                <div className="mt-2">
+                    <DatePicker
+                        value={
+                            preorderConfigForm.data
+                                .expected_release_date
+                        }
+                        onChange={(value) =>
+                            preorderConfigForm.setData(
+                                'expected_release_date',
+                                value,
+                            )
+                        }
+                        placeholder="Select date"
+                    />
+                </div>
             </div>
 
             <div>
@@ -1854,6 +1904,7 @@ const confirmPreorderConfiguration = (): void => {
 
             <input
                 type="datetime-local"
+                min={minPreorderStart}
                 value={
                     preorderConfigForm.data
                         .preorder_starts_at
@@ -1861,7 +1912,10 @@ const confirmPreorderConfiguration = (): void => {
                 onChange={(event) =>
                     preorderConfigForm.setData(
                         'preorder_starts_at',
-                        event.target.value,
+                        clampDateTimeLocalInput(
+                            event.target.value,
+                            minPreorderStart,
+                        ),
                     )
                 }
                 onClick={(event) =>
@@ -1893,6 +1947,7 @@ const confirmPreorderConfiguration = (): void => {
 
                 <input
                     type="datetime-local"
+                    min={minPreorderEnd}
                     value={
                         preorderConfigForm.data
                             .preorder_ends_at
@@ -1900,7 +1955,10 @@ const confirmPreorderConfiguration = (): void => {
                     onChange={(event) =>
                         preorderConfigForm.setData(
                             'preorder_ends_at',
-                            event.target.value,
+                            clampDateTimeLocalInput(
+                                event.target.value,
+                                minPreorderEnd,
+                            ),
                         )
                     }
                     onClick={(event) =>
@@ -3398,6 +3456,26 @@ function getPurchaseOrderItemSummary(
 | Date
 |--------------------------------------------------------------------------
 */
+
+function nowDateTimeLocalValue(): string {
+    const now = new Date();
+
+    const pad = (value: number): string =>
+        String(value).padStart(2, '0');
+
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+function clampDateTimeLocalInput(
+    value: string,
+    min: string,
+): string {
+    if (!value) {
+        return value;
+    }
+
+    return value < min ? min : value;
+}
 
 function formatDate(
     value:
