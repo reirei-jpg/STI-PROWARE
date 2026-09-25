@@ -16,11 +16,12 @@ import type { LucideIcon } from 'lucide-react';
 
 
 import {
-    
+
     useEffect,
     useState
 } from 'react';
 import type {FormEvent} from 'react';
+import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal';
 
 interface RegisterFormData {
     student_id: string;
@@ -37,6 +38,9 @@ interface RegisterFormData {
 export default function Register() {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmation, setShowConfirmation] =
+        useState(false);
+
+    const [showConfirmModal, setShowConfirmModal] =
         useState(false);
 
     const form = useForm<RegisterFormData>({
@@ -113,8 +117,20 @@ export default function Register() {
     ) => {
         event.preventDefault();
 
+        setShowConfirmModal(true);
+    };
+
+    const confirmRegister = () => {
         form.post('/register', {
             preserveScroll: true,
+
+            onSuccess: () => {
+                setShowConfirmModal(false);
+            },
+
+            onError: () => {
+                setShowConfirmModal(false);
+            },
 
             onFinish: () => {
                 form.reset(
@@ -326,28 +342,37 @@ export default function Register() {
                                 )}
                             </div>
 
-                            <PasswordInput
-                                id="password"
-                                label="Password"
-                                value={form.data.password}
-                                placeholder="Create a secure password"
-                                visible={showPassword}
-                                error={
-                                    form.errors.password
-                                }
-                                onToggle={() =>
-                                    setShowPassword(
-                                        (current) =>
-                                            !current,
-                                    )
-                                }
-                                onChange={(value) =>
-                                    form.setData(
-                                        'password',
-                                        value,
-                                    )
-                                }
-                            />
+                            <div>
+                                <PasswordInput
+                                    id="password"
+                                    label="Password"
+                                    value={form.data.password}
+                                    placeholder="Create a secure password"
+                                    visible={showPassword}
+                                    error={
+                                        form.errors.password
+                                    }
+                                    onToggle={() =>
+                                        setShowPassword(
+                                            (current) =>
+                                                !current,
+                                        )
+                                    }
+                                    onChange={(value) =>
+                                        form.setData(
+                                            'password',
+                                            value,
+                                        )
+                                    }
+                                />
+
+                                <p className="mt-2 px-4 text-xs leading-5 text-slate-500">
+                                    At least 8 characters, with a
+                                    combination of letters, numbers,
+                                    and a special character (e.g. !
+                                    @ # $).
+                                </p>
+                            </div>
 
                             <PasswordInput
                                 id="password_confirmation"
@@ -454,6 +479,17 @@ export default function Register() {
                     </div>
                 </section>
             </main>
+
+            <ActionConfirmModal
+                open={showConfirmModal}
+                title="Create Student Account"
+                message={`Double check before you continue: ${form.data.full_name || 'this account'} (Student ID ${form.data.student_id}) will be registered with the email ${form.data.email}. This information belongs to you and cannot easily be changed later.`}
+                confirmText="Create Account"
+                processingText="Creating account..."
+                processing={form.processing}
+                onCancel={() => setShowConfirmModal(false)}
+                onConfirm={confirmRegister}
+            />
         </>
     );
 }

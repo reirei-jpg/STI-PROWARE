@@ -12,8 +12,8 @@ function validRegistrationPayload(array $overrides = []): array
         'course' => 'BSIT',
         'year_level' => '1',
         'email' => 'delacruz.123456@sti.edu.ph',
-        'password' => 'Password1',
-        'password_confirmation' => 'Password1',
+        'password' => 'Password1!',
+        'password_confirmation' => 'Password1!',
         'terms' => true,
     ], $overrides);
 }
@@ -97,4 +97,47 @@ test('registering does not require any StudentRegistry data to exist', function 
     $this->post(route('register.store'), validRegistrationPayload());
 
     expect(Student::query()->count())->toBe(1);
+});
+
+test('the password must be at least 8 characters with a letter, a number, and a symbol', function () {
+    $tooShort = $this->post(
+        route('register.store'),
+        validRegistrationPayload([
+            'password' => 'Ab1!',
+            'password_confirmation' => 'Ab1!',
+        ]),
+    );
+
+    $tooShort->assertSessionHasErrors('password');
+
+    $noSymbol = $this->post(
+        route('register.store'),
+        validRegistrationPayload([
+            'password' => 'Password1',
+            'password_confirmation' => 'Password1',
+        ]),
+    );
+
+    $noSymbol->assertSessionHasErrors('password');
+
+    $noNumber = $this->post(
+        route('register.store'),
+        validRegistrationPayload([
+            'password' => 'Password!',
+            'password_confirmation' => 'Password!',
+        ]),
+    );
+
+    $noNumber->assertSessionHasErrors('password');
+
+    expect(User::query()->count())->toBe(0);
+});
+
+test('a successful registration leaves a welcome flash message for the dashboard', function () {
+    $response = $this->post(route('register.store'), validRegistrationPayload());
+
+    $response->assertSessionHas(
+        'success',
+        fn (string $message) => str_contains($message, 'Juan Dela Cruz'),
+    );
 });

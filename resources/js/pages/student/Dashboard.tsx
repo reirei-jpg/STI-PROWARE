@@ -1,19 +1,23 @@
 import {
+    Head,
+    Link,
+    router,
+    usePage,
+} from '@inertiajs/react';
+import {
     Eye,
     PackageOpen,
     Search,
 } from 'lucide-react';
 
-import {
-    Head,
-    Link,
-    router,
-} from '@inertiajs/react';
 
 import {
-    type FormEvent,
-    useState,
+    
+    useState
 } from 'react';
+import type {FormEvent} from 'react';
+
+import ActionNotification from '@/components/action-feedback/ActionNotification';
 
 import CatalogCard from '@/components/catalog/CatalogCard';
 
@@ -100,11 +104,36 @@ interface StudentDashboardProps {
 |
 */
 
+interface DashboardSharedProps {
+    [key: string]: unknown;
+
+    flash?: {
+        success?: string;
+        error?: string;
+    };
+}
+
 export default function Dashboard({
     homeProducts,
     comingSoonProducts,
     filters,
 }: StudentDashboardProps) {
+    const page =
+        usePage<DashboardSharedProps>();
+
+    /*
+     * Seeded from the flash prop rather than synced via an effect —
+     * this only needs to show once, right after landing here (e.g.
+     * fresh off registration), not stay in sync with it afterward.
+     */
+    const [
+        successMessage,
+        setSuccessMessage,
+    ] = useState<string | null>(
+        page.props.flash?.success ??
+            null,
+    );
+
     const [
         searchInput,
         setSearchInput,
@@ -157,6 +186,16 @@ export default function Dashboard({
     return (
         <StudentLayout>
             <Head title="Home" />
+
+            {successMessage && (
+                <ActionNotification
+                    type="success"
+                    message={successMessage}
+                    onClose={() =>
+                        setSuccessMessage(null)
+                    }
+                />
+            )}
 
             <div
                 className="

@@ -5,11 +5,12 @@ namespace App\Actions\Fortify;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
-use Laravel\Fortify\Rules\Password;
 
 class CreateNewUser implements CreatesNewUsers
 {
@@ -74,7 +75,7 @@ class CreateNewUser implements CreatesNewUsers
                 'password' => [
                     'required',
                     'string',
-                    new Password,
+                    Password::defaults(),
                     'confirmed',
                 ],
 
@@ -100,6 +101,14 @@ class CreateNewUser implements CreatesNewUsers
                 'year_level.required' => 'Your year level is required.',
 
                 'email.unique' => 'An account already exists using this email address.',
+
+                'password.min' => 'Your password must be at least 8 characters.',
+
+                'password.letters' => 'Your password must include at least one letter.',
+
+                'password.numbers' => 'Your password must include at least one number.',
+
+                'password.symbols' => 'Your password must include at least one special character (e.g. ! @ # $).',
 
                 'password.confirmed' => 'The password confirmation does not match.',
 
@@ -185,6 +194,17 @@ class CreateNewUser implements CreatesNewUsers
 
                 'status' => 'active',
             ]);
+
+            /*
+             * Fortify logs the new user in and redirects straight to
+             * /student/dashboard, so this flash message is what lets
+             * the success notification show up there instead of the
+             * registration page just silently disappearing.
+             */
+            Session::flash(
+                'success',
+                "Welcome, {$user->name}! Your student account was created successfully.",
+            );
 
             return $user;
         });
