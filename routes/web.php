@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\SalesController;
 use App\Http\Controllers\Admin\StaffUserController;
 use App\Http\Controllers\Admin\StockReceiptController;
+use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\RequiredPasswordChangeController;
 use App\Http\Controllers\CartController;
@@ -780,6 +781,26 @@ Route::middleware([
                     ],
                 )->name(
                     'users.index',
+                );
+
+                /*
+                |--------------------------------------------------------------------------
+                | Registered Students
+                |--------------------------------------------------------------------------
+                |
+                | Activate/deactivate reuses the existing generic
+                | admin.users.activate/deactivate routes below — those
+                | already work against any User row, students included.
+                */
+
+                Route::get(
+                    '/students',
+                    [
+                        StudentController::class,
+                        'index',
+                    ],
+                )->name(
+                    'students.index',
                 );
 
                 /*

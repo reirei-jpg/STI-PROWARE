@@ -6,6 +6,7 @@ import {
     ClipboardList,
     Clock,
     FileText,
+    GraduationCap,
     History,
     LayoutDashboard,
     Package,
@@ -150,6 +151,13 @@ export default function Sidebar() {
             name: 'Employee Management',
             icon: Users,
             link: '/admin/users',
+            enabled: true,
+        },
+
+        {
+            name: 'Students',
+            icon: GraduationCap,
+            link: '/admin/students',
             enabled: true,
         },
 

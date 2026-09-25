@@ -1,4 +1,8 @@
 import {
+    Head,
+    useForm,
+} from '@inertiajs/react';
+import {
     Check,
     Eye,
     EyeOff,
@@ -10,20 +14,20 @@ import {
 
 import type { LucideIcon } from 'lucide-react';
 
-import {
-    Head,
-    useForm,
-} from '@inertiajs/react';
 
 import {
-    type FormEvent,
+    
     useEffect,
-    useState,
+    useState
 } from 'react';
+import type {FormEvent} from 'react';
 
 interface RegisterFormData {
     student_id: string;
+    full_name: string;
     last_name: string;
+    course: string;
+    year_level: string;
     email: string;
     password: string;
     password_confirmation: string;
@@ -37,7 +41,10 @@ export default function Register() {
 
     const form = useForm<RegisterFormData>({
         student_id: '',
+        full_name: '',
         last_name: '',
+        course: '',
+        year_level: '',
         email: '',
         password: '',
         password_confirmation: '',
@@ -156,8 +163,8 @@ export default function Register() {
                             </h1>
 
                             <p className="mt-3 text-sm leading-6 text-slate-500">
-                                Your Student ID and last name must
-                                match an active school record.
+                                Fill in your details below to create
+                                your student account.
                             </p>
                         </div>
 
@@ -184,23 +191,89 @@ export default function Register() {
                             />
 
                             <RegistrationInput
-                                id="last_name"
-                                label="Last name"
+                                id="full_name"
+                                label="Full name"
                                 type="text"
                                 icon={UserRound}
-                                value={form.data.last_name}
-                                placeholder="Dasigan"
-                                autoComplete="family-name"
+                                value={form.data.full_name}
+                                placeholder="Juan Dela Cruz"
+                                autoComplete="name"
                                 error={
-                                    form.errors.last_name
+                                    form.errors.full_name
                                 }
                                 onChange={(value) =>
                                     form.setData(
-                                        'last_name',
+                                        'full_name',
                                         value,
                                     )
                                 }
                             />
+
+                            <div>
+                                <RegistrationInput
+                                    id="last_name"
+                                    label="Last name"
+                                    type="text"
+                                    icon={UserRound}
+                                    value={form.data.last_name}
+                                    placeholder="Dela Cruz"
+                                    autoComplete="family-name"
+                                    error={
+                                        form.errors.last_name
+                                    }
+                                    onChange={(value) =>
+                                        form.setData(
+                                            'last_name',
+                                            value,
+                                        )
+                                    }
+                                />
+
+                                <p className="mt-2 px-4 text-xs leading-5 text-slate-500">
+                                    Used only to generate your school
+                                    email below.
+                                </p>
+                            </div>
+
+                            <div className="grid gap-5 sm:grid-cols-2">
+                                <RegistrationInput
+                                    id="course"
+                                    label="Course"
+                                    type="text"
+                                    icon={GraduationCap}
+                                    value={form.data.course}
+                                    placeholder="BSIT"
+                                    autoComplete="off"
+                                    error={
+                                        form.errors.course
+                                    }
+                                    onChange={(value) =>
+                                        form.setData(
+                                            'course',
+                                            value,
+                                        )
+                                    }
+                                />
+
+                                <RegistrationInput
+                                    id="year_level"
+                                    label="Year level"
+                                    type="text"
+                                    icon={GraduationCap}
+                                    value={form.data.year_level}
+                                    placeholder="1"
+                                    autoComplete="off"
+                                    error={
+                                        form.errors.year_level
+                                    }
+                                    onChange={(value) =>
+                                        form.setData(
+                                            'year_level',
+                                            value,
+                                        )
+                                    }
+                                />
+                            </div>
 
                             <div>
                                 <label
