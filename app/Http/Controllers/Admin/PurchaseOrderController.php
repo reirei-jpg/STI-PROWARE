@@ -12,6 +12,7 @@ use App\Services\AuditLogger;
 use App\Services\ProductCodeGenerator;
 use App\Services\ProductVariantGenerator;
 use App\Services\PurchaseOrderNumberGenerator;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -129,6 +130,57 @@ class PurchaseOrderController extends Controller
     }
 
     /**
+     * Active catalog variants offered on the purchase-order create/edit
+     * form. Physical inventory is shown only for reference — creating
+     * or editing a purchase order never changes stock.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function catalogVariantsForPurchaseOrderForm(): array
+    {
+        return ProductVariant::query()
+            ->with([
+                'product:id,code,name',
+                'inventory',
+            ])
+            ->where('is_active', true)
+            ->whereHas(
+                'product',
+                fn ($query) => $query->where('is_active', true),
+            )
+            ->orderBy('sku')
+            ->get()
+            ->map(
+                function (ProductVariant $variant): array {
+                    $product = $variant->product;
+
+                    return [
+                        'id' => $variant->id,
+                        'sku' => $variant->sku,
+                        'program' => $variant->program,
+                        'size' => $variant->size,
+                        'variant_name' => $variant->variant_name,
+
+                        'product' => [
+                            'id' => $product->id,
+                            'code' => $product->code,
+                            'name' => $product->name,
+                        ],
+
+                        'inventory' => [
+                            'quantity_on_hand' => (int) ($variant->inventory?->quantity_on_hand ?? 0),
+                            'quantity_reserved' => (int) ($variant->inventory?->quantity_reserved ?? 0),
+                            'available_quantity' => (int) ($variant->inventory?->available_quantity ?? 0),
+                            'reorder_level' => (int) ($variant->inventory?->reorder_level ?? 0),
+                        ],
+                    ];
+                },
+            )
+            ->values()
+            ->all();
+    }
+
+    /**
      * Display the purchase-order creation page.
      */
     public function create(
@@ -162,87 +214,6 @@ class PurchaseOrderController extends Controller
         |
         */
 
-        $variants =
-            ProductVariant::query()
-                ->with([
-                    'product:id,code,name',
-                    'inventory',
-                ])
-                ->where(
-                    'is_active',
-                    true,
-                )
-                ->whereHas(
-                    'product',
-                    fn ($query) => $query->where(
-                        'is_active',
-                        true,
-                    ),
-                )
-                ->orderBy(
-                    'sku',
-                )
-                ->get()
-                ->map(
-                    function (
-                        ProductVariant $variant,
-                    ): array {
-                        $product =
-                            $variant->product;
-
-                        return [
-                            'id' => $variant->id,
-
-                            'sku' => $variant->sku,
-
-                            'program' => $variant->program,
-
-                            'size' => $variant->size,
-
-                            'variant_name' => $variant->variant_name,
-
-                            'product' => [
-                                'id' => $product->id,
-
-                                'code' => $product->code,
-
-                                'name' => $product->name,
-                            ],
-
-                            'inventory' => [
-                                'quantity_on_hand' => (int) (
-                                    $variant
-                                        ->inventory
-                                        ?->quantity_on_hand
-                                    ?? 0
-                                ),
-
-                                'quantity_reserved' => (int) (
-                                    $variant
-                                        ->inventory
-                                        ?->quantity_reserved
-                                    ?? 0
-                                ),
-
-                                'available_quantity' => (int) (
-                                    $variant
-                                        ->inventory
-                                        ?->available_quantity
-                                    ?? 0
-                                ),
-
-                                'reorder_level' => (int) (
-                                    $variant
-                                        ->inventory
-                                        ?->reorder_level
-                                    ?? 0
-                                ),
-                            ],
-                        ];
-                    },
-                )
-                ->values();
-
         /*
         |--------------------------------------------------------------------------
         | Render Purchase Order Creation Page
@@ -258,7 +229,101 @@ class PurchaseOrderController extends Controller
         return Inertia::render(
             'admin/PurchaseOrders/Create',
             [
-                'variants' => $variants,
+                'variants' => $this->catalogVariantsForPurchaseOrderForm(),
+            ],
+        );
+    }
+
+    /**
+     * Resume editing a saved draft purchase order.
+     *
+     * Only ever reachable for a purchase order still in DRAFT status —
+     * an already-ordered PO has its own show/receiving flow and is
+     * never edited through this form.
+     */
+    public function edit(
+        Request $request,
+        PurchaseOrder $purchaseOrder,
+    ): Response {
+        $user =
+            $request->user();
+
+        abort_unless(
+            $user
+            && $user->isAdminLevel(),
+            403,
+        );
+
+        abort_unless(
+            $purchaseOrder->status
+                === PurchaseOrder::STATUS_DRAFT,
+            404,
+        );
+
+        $purchaseOrder->load(
+            'items',
+        );
+
+        return Inertia::render(
+            'admin/PurchaseOrders/Create',
+            [
+                'variants' => $this->catalogVariantsForPurchaseOrderForm(),
+
+                'purchaseOrder' => [
+                    'id' => $purchaseOrder->id,
+
+                    'po_number' => $purchaseOrder->po_number,
+
+                    'supplier_name' => $purchaseOrder->supplier_name
+                        === 'Untitled Draft'
+                            ? ''
+                            : $purchaseOrder->supplier_name,
+
+                    'supplier_reference_number' => $purchaseOrder
+                        ->supplier_reference_number
+                        ?? '',
+
+                    'expected_delivery_date' => $purchaseOrder
+                        ->expected_delivery_date
+                        ?->toDateString() ?? '',
+
+                    'notes' => $purchaseOrder->notes
+                        ?? '',
+
+                    'items' => $purchaseOrder->items
+                        ->map(
+                            fn (PurchaseOrderItem $item): array => [
+                                'source_type' => $item->item_type
+                                    === PurchaseOrderItem::TYPE_CATALOG
+                                        ? 'existing_catalog'
+                                        : (
+                                            $item->merchandise_origin
+                                                === PurchaseOrderItem::ORIGIN_NEW
+                                                ? 'new_inventory'
+                                                : 'manual'
+                                        ),
+
+                                'product_variant_id' => $item->product_variant_id,
+
+                                'product_name' => $item->manual_name,
+
+                                'product_description' => $item->manual_description,
+
+                                'manual_name' => $item->manual_name,
+
+                                'manual_description' => $item->manual_description,
+
+                                'manual_sku' => $item->manual_sku,
+
+                                'quantity_ordered' => $item->quantity_ordered,
+
+                                'unit_cost' => $item->unit_cost !== null
+                                    ? (string) $item->unit_cost
+                                    : '',
+                            ],
+                        )
+                        ->values(),
+                ],
             ],
         );
     }
@@ -1072,193 +1137,10 @@ class PurchaseOrderController extends Controller
                                         : null,
                             ]);
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Create Purchase Order Items
-                    |--------------------------------------------------------------------------
-                    */
-
-                    foreach (
-                        $validated['items'] as $item
-                    ) {
-                        $sourceType =
-                            $item['source_type'];
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | Existing Catalog Product
-                        |--------------------------------------------------------------------------
-                        */
-
-                        if (
-                            $sourceType
-                            === 'existing_catalog'
-                        ) {
-                            $purchaseOrder
-                                ->items()
-                                ->create([
-                                    'item_type' => PurchaseOrderItem::TYPE_CATALOG,
-
-                                    'merchandise_origin' => PurchaseOrderItem::ORIGIN_EXISTING,
-
-                                    'product_variant_id' => $item[
-                                            'product_variant_id'
-                                        ],
-
-                                    'manual_name' => null,
-
-                                    'manual_description' => null,
-
-                                    'manual_sku' => null,
-
-                                    'track_inventory' => true,
-
-                                    'quantity_ordered' => $item[
-                                            'quantity_ordered'
-                                        ],
-
-                                    'quantity_received' => 0,
-
-                                    'unit_cost' => $item['unit_cost']
-                                        ?? null,
-                                ]);
-
-                            continue;
-                        }
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | New / Unresolved Inventory Product
-                        |--------------------------------------------------------------------------
-                        |
-                        | A "new_inventory" item represents merchandise that the Admin intends
-                        | to purchase but that has NOT yet been confirmed as a PROWARE catalog
-                        | product.
-                        |
-                        | IMPORTANT:
-                        | - Do NOT create Product here.
-                        | - Do NOT create ProductVariant here.
-                        | - Do NOT create Inventory here.
-                        | - Do NOT increase stock here.
-                        |
-                        | The Specialist must resolve this item during receiving by either:
-                        | 1. Linking it to an existing PROWARE product variant, or
-                        | 2. Registering it as a genuinely new PROWARE product.
-                        |
-                        */
-
-                        if ($sourceType === 'new_inventory') {
-                            $purchaseOrder->items()->create([
-                                'item_type' => PurchaseOrderItem::TYPE_MANUAL,
-
-                                'merchandise_origin' => PurchaseOrderItem::ORIGIN_NEW,
-
-                                // Remains unresolved until the Specialist
-                                // links or registers the merchandise.
-                                'product_variant_id' => null,
-
-                                // Product information entered by Admin.
-                                'manual_name' => trim(
-                                    $item['product_name'],
-                                ),
-
-                                'manual_description' => filled(
-                                    $item['product_description'] ?? null,
-                                )
-                                    ? trim(
-                                        $item['product_description'],
-                                    )
-                                    : null,
-
-                                // Category and selling price are no
-                                // longer collected at PO creation —
-                                // resolved later during receiving.
-                                'proposed_category_id' => null,
-
-                                'proposed_selling_price' => null,
-
-                                'manual_sku' => null,
-
-                                // This merchandise is intended to become
-                                // inventory after Specialist resolution.
-                                'track_inventory' => true,
-
-                                'quantity_ordered' => $item['quantity_ordered'],
-
-                                'quantity_received' => 0,
-
-                                // Purchase cost remains separate from
-                                // the product's selling price.
-                                'unit_cost' => $item['unit_cost'] ?? null,
-                            ]);
-
-                            continue;
-                        }
-                        /*
-                        |--------------------------------------------------------------------------
-                        | Manual / Non-Inventory Item
-                        |--------------------------------------------------------------------------
-                        */
-
-                        $purchaseOrder
-                            ->items()
-                            ->create([
-                                'item_type' => PurchaseOrderItem::TYPE_MANUAL,
-
-                                'merchandise_origin' => PurchaseOrderItem::ORIGIN_EXISTING,
-
-                                'product_variant_id' => null,
-
-                                'manual_name' => trim(
-                                    $item[
-                                        'manual_name'
-                                    ],
-                                ),
-
-                                'manual_description' => filled(
-                                    $item[
-                                        'manual_description'
-                                    ]
-                                    ?? null,
-                                )
-                                        ? trim(
-                                            $item[
-                                                'manual_description'
-                                            ],
-                                        )
-                                        : null,
-
-                                'manual_sku' => filled(
-                                    $item[
-                                        'manual_sku'
-                                    ]
-                                    ?? null,
-                                )
-                                        ? trim(
-                                            $item[
-                                                'manual_sku'
-                                            ],
-                                        )
-                                        : null,
-
-                                /*
-                            |--------------------------------------------------------------------------
-                            | Manual Means Non-Inventory
-                            |--------------------------------------------------------------------------
-                            */
-
-                                'track_inventory' => false,
-
-                                'quantity_ordered' => $item[
-                                        'quantity_ordered'
-                                    ],
-
-                                'quantity_received' => 0,
-
-                                'unit_cost' => $item['unit_cost']
-                                    ?? null,
-                            ]);
-                    }
+                    $this->createPurchaseOrderItems(
+                        $purchaseOrder,
+                        $validated['items'],
+                    );
 
                     return $purchaseOrder;
                 },
@@ -1302,6 +1184,435 @@ class PurchaseOrderController extends Controller
                 'success',
                 'Purchase order created successfully.',
             );
+    }
+
+    /**
+     * Create every line item for a purchase order from fully-validated
+     * "store()"-strength data (every required field present).
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     */
+    private function createPurchaseOrderItems(
+        PurchaseOrder $purchaseOrder,
+        array $items,
+    ): void {
+        foreach ($items as $item) {
+            $sourceType = $item['source_type'];
+
+            if ($sourceType === 'existing_catalog') {
+                $purchaseOrder->items()->create([
+                    'item_type' => PurchaseOrderItem::TYPE_CATALOG,
+                    'merchandise_origin' => PurchaseOrderItem::ORIGIN_EXISTING,
+                    'product_variant_id' => $item['product_variant_id'],
+                    'manual_name' => null,
+                    'manual_description' => null,
+                    'manual_sku' => null,
+                    'track_inventory' => true,
+                    'quantity_ordered' => $item['quantity_ordered'],
+                    'quantity_received' => 0,
+                    'unit_cost' => $item['unit_cost'] ?? null,
+                ]);
+
+                continue;
+            }
+
+            if ($sourceType === 'new_inventory') {
+                $purchaseOrder->items()->create([
+                    'item_type' => PurchaseOrderItem::TYPE_MANUAL,
+                    'merchandise_origin' => PurchaseOrderItem::ORIGIN_NEW,
+                    'product_variant_id' => null,
+                    'manual_name' => trim($item['product_name']),
+                    'manual_description' => filled($item['product_description'] ?? null)
+                        ? trim($item['product_description'])
+                        : null,
+                    'proposed_category_id' => null,
+                    'proposed_selling_price' => null,
+                    'manual_sku' => null,
+                    'track_inventory' => true,
+                    'quantity_ordered' => $item['quantity_ordered'],
+                    'quantity_received' => 0,
+                    'unit_cost' => $item['unit_cost'] ?? null,
+                ]);
+
+                continue;
+            }
+
+            $purchaseOrder->items()->create([
+                'item_type' => PurchaseOrderItem::TYPE_MANUAL,
+                'merchandise_origin' => PurchaseOrderItem::ORIGIN_EXISTING,
+                'product_variant_id' => null,
+                'manual_name' => trim($item['manual_name']),
+                'manual_description' => filled($item['manual_description'] ?? null)
+                    ? trim($item['manual_description'])
+                    : null,
+                'manual_sku' => filled($item['manual_sku'] ?? null)
+                    ? trim($item['manual_sku'])
+                    : null,
+                'track_inventory' => false,
+                'quantity_ordered' => $item['quantity_ordered'],
+                'quantity_received' => 0,
+                'unit_cost' => $item['unit_cost'] ?? null,
+            ]);
+        }
+    }
+
+    /**
+     * Create every line item for a purchase order DRAFT, where any field
+     * may be missing or blank because the admin hasn't finished filling
+     * in the form yet. Rows with no identifying content at all are
+     * silently skipped rather than saved as empty items.
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     */
+    private function saveDraftPurchaseOrderItems(
+        PurchaseOrder $purchaseOrder,
+        array $items,
+    ): void {
+        foreach ($items as $item) {
+            $sourceType = $item['source_type'] ?? null;
+
+            $hasContent =
+                filled($item['product_variant_id'] ?? null)
+                || filled($item['product_name'] ?? null)
+                || filled($item['manual_name'] ?? null)
+                || filled($item['quantity_ordered'] ?? null);
+
+            if (! $hasContent) {
+                continue;
+            }
+
+            if ($sourceType === 'existing_catalog' && filled($item['product_variant_id'] ?? null)) {
+                $purchaseOrder->items()->create([
+                    'item_type' => PurchaseOrderItem::TYPE_CATALOG,
+                    'merchandise_origin' => PurchaseOrderItem::ORIGIN_EXISTING,
+                    'product_variant_id' => $item['product_variant_id'],
+                    'track_inventory' => true,
+                    'quantity_ordered' => (int) ($item['quantity_ordered'] ?? 0),
+                    'quantity_received' => 0,
+                    'unit_cost' => $item['unit_cost'] ?? null,
+                ]);
+
+                continue;
+            }
+
+            if ($sourceType === 'new_inventory') {
+                $purchaseOrder->items()->create([
+                    'item_type' => PurchaseOrderItem::TYPE_MANUAL,
+                    'merchandise_origin' => PurchaseOrderItem::ORIGIN_NEW,
+                    'product_variant_id' => null,
+                    'manual_name' => trim($item['product_name'] ?? '') ?: 'Untitled item',
+                    'manual_description' => filled($item['product_description'] ?? null)
+                        ? trim($item['product_description'])
+                        : null,
+                    'proposed_category_id' => null,
+                    'proposed_selling_price' => null,
+                    'manual_sku' => null,
+                    'track_inventory' => true,
+                    'quantity_ordered' => (int) ($item['quantity_ordered'] ?? 0),
+                    'quantity_received' => 0,
+                    'unit_cost' => $item['unit_cost'] ?? null,
+                ]);
+
+                continue;
+            }
+
+            $purchaseOrder->items()->create([
+                'item_type' => PurchaseOrderItem::TYPE_MANUAL,
+                'merchandise_origin' => PurchaseOrderItem::ORIGIN_EXISTING,
+                'product_variant_id' => null,
+                'manual_name' => trim($item['manual_name'] ?? '') ?: 'Untitled item',
+                'manual_description' => filled($item['manual_description'] ?? null)
+                    ? trim($item['manual_description'])
+                    : null,
+                'manual_sku' => filled($item['manual_sku'] ?? null)
+                    ? trim($item['manual_sku'])
+                    : null,
+                'track_inventory' => false,
+                'quantity_ordered' => (int) ($item['quantity_ordered'] ?? 0),
+                'quantity_received' => 0,
+                'unit_cost' => $item['unit_cost'] ?? null,
+            ]);
+        }
+    }
+
+    /**
+     * The lenient validation rules used for saving a purchase order as a
+     * draft — everything is optional, since the admin may still be in
+     * the middle of filling the form in when a draft save happens.
+     *
+     * @return array<string, mixed>
+     */
+    private function draftPurchaseOrderRules(): array
+    {
+        return [
+            'supplier_name' => ['nullable', 'string', 'max:255'],
+            'supplier_reference_number' => ['nullable', 'string', 'max:255'],
+            'expected_delivery_date' => ['nullable', 'date', 'after_or_equal:today'],
+            'notes' => ['nullable', 'string', 'max:5000'],
+
+            'items' => ['nullable', 'array'],
+
+            'items.*.source_type' => [
+                'nullable',
+                'string',
+                Rule::in(['existing_catalog', 'new_inventory', 'manual']),
+            ],
+
+            'items.*.product_variant_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('product_variants', 'id'),
+            ],
+
+            'items.*.product_name' => ['nullable', 'string', 'max:255'],
+            'items.*.product_description' => ['nullable', 'string', 'max:5000'],
+            'items.*.manual_name' => ['nullable', 'string', 'max:255'],
+            'items.*.manual_description' => ['nullable', 'string', 'max:5000'],
+            'items.*.manual_sku' => ['nullable', 'string', 'max:255'],
+            'items.*.quantity_ordered' => ['nullable', 'integer', 'min:0', 'max:10000'],
+            'items.*.unit_cost' => ['nullable', 'numeric', 'min:0', 'max:10000'],
+        ];
+    }
+
+    /**
+     * Save a brand-new purchase order as a draft.
+     *
+     * Used by the create-page navigation guard when the admin tries to
+     * leave with unsaved progress and chooses to save it rather than
+     * lose it or discard it. Deliberately lenient: a draft may have no
+     * items yet, missing quantities, or no supplier name at all.
+     */
+    public function storeDraft(
+        Request $request,
+        PurchaseOrderNumberGenerator $purchaseOrderNumberGenerator,
+    ): JsonResponse {
+        $user = $request->user();
+
+        abort_unless($user && $user->isAdminLevel(), 403);
+
+        $validated = $request->validate($this->draftPurchaseOrderRules());
+
+        $purchaseOrder = DB::transaction(
+            function () use ($validated, $user, $purchaseOrderNumberGenerator): PurchaseOrder {
+                $purchaseOrder = PurchaseOrder::query()->create([
+                    'po_number' => $purchaseOrderNumberGenerator->generate(),
+
+                    'supplier_name' => filled($validated['supplier_name'] ?? null)
+                        ? trim($validated['supplier_name'])
+                        : 'Untitled Draft',
+
+                    'supplier_reference_number' => filled($validated['supplier_reference_number'] ?? null)
+                        ? trim($validated['supplier_reference_number'])
+                        : null,
+
+                    'expected_delivery_date' => $validated['expected_delivery_date'] ?? null,
+
+                    'status' => PurchaseOrder::STATUS_DRAFT,
+
+                    'created_by' => $user->id,
+
+                    'ordered_at' => null,
+
+                    'completed_at' => null,
+
+                    'notes' => filled($validated['notes'] ?? null)
+                        ? trim($validated['notes'])
+                        : null,
+                ]);
+
+                $this->saveDraftPurchaseOrderItems($purchaseOrder, $validated['items'] ?? []);
+
+                return $purchaseOrder;
+            },
+        );
+
+        AuditLogger::log(
+            request: $request,
+            action: 'draft_saved',
+            module: 'purchase_orders',
+            description: "Saved purchase order draft {$purchaseOrder->po_number} for supplier {$purchaseOrder->supplier_name}.",
+            subject: $purchaseOrder,
+            newValues: [
+                'po_number' => $purchaseOrder->po_number,
+                'status' => $purchaseOrder->status,
+            ],
+        );
+
+        return response()->json([
+            'po_number' => $purchaseOrder->po_number,
+            'id' => $purchaseOrder->id,
+            'edit_url' => route('admin.purchase-orders.edit', $purchaseOrder),
+        ]);
+    }
+
+    /**
+     * Save progress on an already-existing draft, without finalizing it.
+     *
+     * Used by the edit-page navigation guard, the same way storeDraft()
+     * is used from the create page.
+     */
+    public function updateDraft(
+        Request $request,
+        PurchaseOrder $purchaseOrder,
+    ): JsonResponse {
+        $user = $request->user();
+
+        abort_unless($user && $user->isAdminLevel(), 403);
+
+        abort_unless($purchaseOrder->status === PurchaseOrder::STATUS_DRAFT, 404);
+
+        $validated = $request->validate($this->draftPurchaseOrderRules());
+
+        DB::transaction(function () use ($validated, $purchaseOrder): void {
+            $purchaseOrder->update([
+                'supplier_name' => filled($validated['supplier_name'] ?? null)
+                    ? trim($validated['supplier_name'])
+                    : 'Untitled Draft',
+
+                'supplier_reference_number' => filled($validated['supplier_reference_number'] ?? null)
+                    ? trim($validated['supplier_reference_number'])
+                    : null,
+
+                'expected_delivery_date' => $validated['expected_delivery_date'] ?? null,
+
+                'notes' => filled($validated['notes'] ?? null)
+                    ? trim($validated['notes'])
+                    : null,
+            ]);
+
+            // A draft's items have never been received against, so it's
+            // safe to simply replace them wholesale on every save.
+            $purchaseOrder->items()->delete();
+
+            $this->saveDraftPurchaseOrderItems($purchaseOrder, $validated['items'] ?? []);
+        });
+
+        AuditLogger::log(
+            request: $request,
+            action: 'draft_saved',
+            module: 'purchase_orders',
+            description: "Saved purchase order draft {$purchaseOrder->po_number} for supplier {$purchaseOrder->supplier_name}.",
+            subject: $purchaseOrder,
+            newValues: [
+                'po_number' => $purchaseOrder->po_number,
+                'status' => $purchaseOrder->status,
+            ],
+        );
+
+        return response()->json([
+            'po_number' => $purchaseOrder->po_number,
+            'id' => $purchaseOrder->id,
+        ]);
+    }
+
+    /**
+     * Finalize a draft into a real, ordered purchase order.
+     *
+     * Runs the same strict validation as store() — a draft can only be
+     * finalized once it actually has everything a real purchase order
+     * needs.
+     */
+    public function update(
+        Request $request,
+        PurchaseOrder $purchaseOrder,
+    ): RedirectResponse {
+        $user = $request->user();
+
+        abort_unless($user && $user->isAdminLevel(), 403);
+
+        abort_unless($purchaseOrder->status === PurchaseOrder::STATUS_DRAFT, 404);
+
+        $validated = $request->validate([
+            'supplier_name' => ['required', 'string', 'max:255'],
+            'supplier_reference_number' => ['nullable', 'string', 'max:255'],
+            'expected_delivery_date' => ['nullable', 'date', 'after_or_equal:today'],
+            'notes' => ['nullable', 'string', 'max:5000'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.source_type' => [
+                'required',
+                'string',
+                Rule::in(['existing_catalog', 'new_inventory', 'manual']),
+            ],
+            'items.*.product_variant_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('product_variants', 'id'),
+            ],
+            'items.*.product_name' => ['nullable', 'string', 'max:255'],
+            'items.*.product_description' => ['nullable', 'string', 'max:5000'],
+            'items.*.manual_name' => ['nullable', 'string', 'max:255'],
+            'items.*.manual_description' => ['nullable', 'string', 'max:5000'],
+            'items.*.manual_sku' => ['nullable', 'string', 'max:255'],
+            'items.*.quantity_ordered' => ['required', 'integer', 'min:1', 'max:10000'],
+            'items.*.unit_cost' => ['nullable', 'numeric', 'min:0', 'max:10000'],
+        ], [
+            'expected_delivery_date.after_or_equal' => 'The expected delivery date cannot be in the past.',
+        ]);
+
+        foreach ($validated['items'] as $index => $item) {
+            $sourceType = $item['source_type'];
+
+            if ($sourceType === 'existing_catalog' && empty($item['product_variant_id'])) {
+                throw ValidationException::withMessages([
+                    "items.{$index}.product_variant_id" => 'Please select an existing product variant.',
+                ]);
+            }
+
+            if ($sourceType === 'new_inventory' && blank($item['product_name'] ?? null)) {
+                throw ValidationException::withMessages([
+                    "items.{$index}.product_name" => 'Please enter the item name.',
+                ]);
+            }
+
+            if ($sourceType === 'manual' && blank($item['manual_name'] ?? null)) {
+                throw ValidationException::withMessages([
+                    "items.{$index}.manual_name" => 'Please enter the item name.',
+                ]);
+            }
+        }
+
+        DB::transaction(function () use ($validated, $purchaseOrder): void {
+            $purchaseOrder->update([
+                'supplier_name' => trim($validated['supplier_name']),
+
+                'supplier_reference_number' => filled($validated['supplier_reference_number'] ?? null)
+                    ? trim($validated['supplier_reference_number'])
+                    : null,
+
+                'expected_delivery_date' => $validated['expected_delivery_date'] ?? null,
+
+                'status' => PurchaseOrder::STATUS_ORDERED,
+
+                'ordered_at' => now(),
+
+                'notes' => filled($validated['notes'] ?? null)
+                    ? trim($validated['notes'])
+                    : null,
+            ]);
+
+            $purchaseOrder->items()->delete();
+
+            $this->createPurchaseOrderItems($purchaseOrder, $validated['items']);
+        });
+
+        $purchaseOrder->refresh();
+
+        AuditLogger::log(
+            request: $request,
+            action: 'created',
+            module: 'purchase_orders',
+            description: "Finalized purchase order draft into {$purchaseOrder->po_number} for supplier {$purchaseOrder->supplier_name} (".count($validated['items']).' item(s)).',
+            subject: $purchaseOrder,
+            newValues: [
+                'po_number' => $purchaseOrder->po_number,
+                'status' => $purchaseOrder->status,
+                'item_count' => count($validated['items']),
+            ],
+        );
+
+        return redirect()
+            ->route('admin.purchase-orders.show', $purchaseOrder)
+            ->with('success', 'Purchase order created successfully.');
     }
 
     /**

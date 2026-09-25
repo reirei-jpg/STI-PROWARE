@@ -26,6 +26,7 @@ import {
 import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal';
 import ActionNotification from '@/components/action-feedback/ActionNotification';
 import ActionProcessingButton from '@/components/action-feedback/ActionProcessingButton';
+import UnsavedPurchaseOrderGuard from '@/components/action-feedback/UnsavedPurchaseOrderGuard';
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
 import { DatePicker } from '@/components/ui/date-picker';
 import AdminLayout from '@/layouts/AdminLayout';
@@ -71,8 +72,31 @@ interface PurchaseVariant {
     inventory: VariantInventory;
 }
 
+interface ExistingPurchaseOrderItem {
+    source_type: SourceType;
+    product_variant_id: number | null;
+    product_name: string | null;
+    product_description: string | null;
+    manual_name: string | null;
+    manual_description: string | null;
+    manual_sku: string | null;
+    quantity_ordered: number;
+    unit_cost: string;
+}
+
+interface ExistingPurchaseOrder {
+    id: number;
+    po_number: string;
+    supplier_name: string;
+    supplier_reference_number: string;
+    expected_delivery_date: string;
+    notes: string;
+    items: ExistingPurchaseOrderItem[];
+}
+
 interface Props {
     variants: PurchaseVariant[];
+    purchaseOrder?: ExistingPurchaseOrder;
 }
 
 interface PurchaseOrderItemForm {
@@ -107,7 +131,9 @@ interface PurchaseOrderForm {
 
 export default function Create({
     variants,
+    purchaseOrder,
 }: Props) {
+    const isEditingDraft = purchaseOrder !== undefined;
     const [
         addMode,
         setAddMode,
@@ -247,11 +273,11 @@ const {
 
     const form =
         useForm<PurchaseOrderForm>({
-            supplier_name: '',
-            supplier_reference_number: '',
-            expected_delivery_date: '',
-            notes: '',
-            items: [],
+            supplier_name: purchaseOrder?.supplier_name ?? '',
+            supplier_reference_number: purchaseOrder?.supplier_reference_number ?? '',
+            expected_delivery_date: purchaseOrder?.expected_delivery_date ?? '',
+            notes: purchaseOrder?.notes ?? '',
+            items: purchaseOrder?.items ?? [],
         });
 
     /*
@@ -952,8 +978,16 @@ const {
 
 const confirmCreatePurchaseOrder =
     (): void => {
-        form.post(
-            '/admin/purchase-orders',
+        const submit = purchaseOrder
+            ? form.patch
+            : form.post;
+
+        const url = purchaseOrder
+            ? `/admin/purchase-orders/${purchaseOrder.id}`
+            : '/admin/purchase-orders';
+
+        submit(
+            url,
             {
                 preserveScroll:
                     true,
@@ -986,7 +1020,18 @@ const confirmCreatePurchaseOrder =
 
     return (
         <AdminLayout>
-            <Head title="Create Purchase Order" />
+            <Head title={isEditingDraft ? `Edit Draft ${purchaseOrder?.po_number}` : 'Create Purchase Order'} />
+
+            <UnsavedPurchaseOrderGuard
+                isDirty={form.isDirty}
+                saveDraftUrl={
+                    purchaseOrder
+                        ? `/admin/purchase-orders/${purchaseOrder.id}/draft`
+                        : '/admin/purchase-orders/draft'
+                }
+                saveDraftMethod={purchaseOrder ? 'PATCH' : 'POST'}
+                getDraftPayload={() => form.data}
+            />
 
             <div className="space-y-7">
                 {/* Header */}
@@ -1019,7 +1064,7 @@ const confirmCreatePurchaseOrder =
                         </p>
 
                         <h1 className="mt-1 text-3xl font-black text-slate-900">
-                            Create Purchase Order
+                            {isEditingDraft ? `Editing Draft ${purchaseOrder?.po_number}` : 'Create Purchase Order'}
                         </h1>
 
                         <p className="mt-1 text-sm text-slate-500">

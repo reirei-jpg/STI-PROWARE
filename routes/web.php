@@ -567,6 +567,46 @@ Route::middleware([
                     'purchase-orders.store',
                 );
 
+                Route::post(
+                    '/purchase-orders/draft',
+                    [
+                        PurchaseOrderController::class,
+                        'storeDraft',
+                    ],
+                )->name(
+                    'purchase-orders.draft.store',
+                );
+
+                Route::get(
+                    '/purchase-orders/{purchaseOrder}/edit',
+                    [
+                        PurchaseOrderController::class,
+                        'edit',
+                    ],
+                )->name(
+                    'purchase-orders.edit',
+                );
+
+                Route::patch(
+                    '/purchase-orders/{purchaseOrder}/draft',
+                    [
+                        PurchaseOrderController::class,
+                        'updateDraft',
+                    ],
+                )->name(
+                    'purchase-orders.draft.update',
+                );
+
+                Route::patch(
+                    '/purchase-orders/{purchaseOrder}',
+                    [
+                        PurchaseOrderController::class,
+                        'update',
+                    ],
+                )->name(
+                    'purchase-orders.update',
+                );
+
                 Route::get(
                     '/purchase-orders/archived-items',
                     [

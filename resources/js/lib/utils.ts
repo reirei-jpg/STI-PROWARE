@@ -34,3 +34,47 @@ export function clampNumberInput(value: string, max: number): string {
 
     return String(max);
 }
+
+function readCookie(name: string): string | null {
+    const match = document.cookie
+        .split('; ')
+        .find((row) => row.startsWith(`${name}=`));
+
+    return match ? decodeURIComponent(match.split('=').slice(1).join('=')) : null;
+}
+
+/**
+ * A plain JSON fetch for requests that must NOT navigate the page
+ * (Inertia's router/useForm always navigate on success). Used for
+ * background actions like "save as draft" while leaving a form, where
+ * the response is read and acted on without ever changing the page.
+ */
+export async function postJson<TResponse = unknown>(
+    url: string,
+    data: object,
+    method: 'POST' | 'PATCH' | 'DELETE' = 'POST',
+): Promise<TResponse> {
+    const response = await fetch(url, {
+        method,
+        credentials: 'same-origin',
+        headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-XSRF-TOKEN': readCookie('XSRF-TOKEN') ?? '',
+        },
+        body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+        const body = await response.json().catch(() => null);
+
+        throw new Error(
+            (body && typeof body === 'object' && 'message' in body
+                ? String((body as { message: unknown }).message)
+                : null) ?? `Request to ${url} failed with status ${response.status}.`,
+        );
+    }
+
+    return (await response.json()) as TResponse;
+}

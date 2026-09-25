@@ -983,31 +983,59 @@ export default function Index({
                                                                     gap-2
                                                                 "
                                                             >
-                                                                <Link
-                                                                    href={`/admin/purchase-orders/${purchaseOrder.id}`}
-                                                                    className="
-                                                                        inline-flex
-                                                                        items-center
-                                                                        gap-2
-                                                                        rounded-xl
-                                                                        bg-blue-50
-                                                                        px-3
-                                                                        py-2
-                                                                        text-sm
-                                                                        font-black
-                                                                        text-blue-700
-                                                                        transition
-                                                                        hover:bg-blue-100
-                                                                    "
-                                                                >
-                                                                    View
+                                                                {purchaseOrder.status === 'draft' ? (
+                                                                    <Link
+                                                                        href={`/admin/purchase-orders/${purchaseOrder.id}/edit`}
+                                                                        className="
+                                                                            inline-flex
+                                                                            items-center
+                                                                            gap-2
+                                                                            rounded-xl
+                                                                            bg-amber-50
+                                                                            px-3
+                                                                            py-2
+                                                                            text-sm
+                                                                            font-black
+                                                                            text-amber-700
+                                                                            transition
+                                                                            hover:bg-amber-100
+                                                                        "
+                                                                    >
+                                                                        Continue Draft
 
-                                                                    <ArrowRight
-                                                                        size={
-                                                                            15
-                                                                        }
-                                                                    />
-                                                                </Link>
+                                                                        <ArrowRight
+                                                                            size={
+                                                                                15
+                                                                            }
+                                                                        />
+                                                                    </Link>
+                                                                ) : (
+                                                                    <Link
+                                                                        href={`/admin/purchase-orders/${purchaseOrder.id}`}
+                                                                        className="
+                                                                            inline-flex
+                                                                            items-center
+                                                                            gap-2
+                                                                            rounded-xl
+                                                                            bg-blue-50
+                                                                            px-3
+                                                                            py-2
+                                                                            text-sm
+                                                                            font-black
+                                                                            text-blue-700
+                                                                            transition
+                                                                            hover:bg-blue-100
+                                                                        "
+                                                                    >
+                                                                        View
+
+                                                                        <ArrowRight
+                                                                            size={
+                                                                                15
+                                                                            }
+                                                                        />
+                                                                    </Link>
+                                                                )}
 
                                                                 <button
                                                                     type="button"
