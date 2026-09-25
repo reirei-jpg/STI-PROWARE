@@ -225,38 +225,35 @@ export default function AwaitingItemsPicker({
         setDisplayMonth(new Date());
     };
 
-    const deliveryDates = useMemo(() => {
-        const uniqueDates = new Set(
-            datedItems.map((item) => item.expectedDeliveryDate as string),
-        );
+    /*
+     * Kept mutually exclusive by status (a day is either overdue, due
+     * today, or upcoming — never more than one) so react-day-picker
+     * never has to merge two conflicting background-color classes onto
+     * the same day cell.
+     */
+    const datesByStatus = useMemo(() => {
+        const groups: Record<DeliveryDateStatus, Set<string>> = {
+            overdue: new Set(),
+            due_today: new Set(),
+            upcoming: new Set(),
+        };
 
-        return [...uniqueDates]
-            .map(parseDateValue)
-            .filter((date): date is Date => date !== undefined);
-    }, [datedItems]);
+        for (const item of datedItems) {
+            if (item.dateStatus) {
+                groups[item.dateStatus].add(item.expectedDeliveryDate as string);
+            }
+        }
 
-    const overdueDates = useMemo(() => {
-        const uniqueDates = new Set(
-            datedItems
-                .filter((item) => item.dateStatus === 'overdue')
-                .map((item) => item.expectedDeliveryDate as string),
-        );
+        const toDates = (dates: Set<string>): Date[] =>
+            [...dates]
+                .map(parseDateValue)
+                .filter((date): date is Date => date !== undefined);
 
-        return [...uniqueDates]
-            .map(parseDateValue)
-            .filter((date): date is Date => date !== undefined);
-    }, [datedItems]);
-
-    const dueTodayDates = useMemo(() => {
-        const uniqueDates = new Set(
-            datedItems
-                .filter((item) => item.dateStatus === 'due_today')
-                .map((item) => item.expectedDeliveryDate as string),
-        );
-
-        return [...uniqueDates]
-            .map(parseDateValue)
-            .filter((date): date is Date => date !== undefined);
+        return {
+            overdue: toDates(groups.overdue),
+            dueToday: toDates(groups.due_today),
+            upcoming: toDates(groups.upcoming),
+        };
     }, [datedItems]);
 
     const query = searchQuery.trim().toLowerCase();
@@ -358,17 +355,17 @@ export default function AwaitingItemsPicker({
                         }
                         onSelect={handleDaySelect}
                         modifiers={{
-                            hasDelivery: deliveryDates,
-                            dueToday: dueTodayDates,
-                            overdue: overdueDates,
+                            upcoming: datesByStatus.upcoming,
+                            dueToday: datesByStatus.dueToday,
+                            overdue: datesByStatus.overdue,
                         }}
                         modifiersClassNames={{
-                            hasDelivery:
-                                'relative font-black text-blue-700 ring-1 ring-inset ring-blue-200 rounded-md after:absolute after:bottom-0.5 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-blue-600 after:content-[""]',
+                            upcoming:
+                                'rounded-md bg-blue-200 font-black text-blue-900 hover:bg-blue-300',
                             dueToday:
-                                'text-amber-700 ring-amber-300 after:bg-amber-500',
+                                'rounded-md bg-amber-200 font-black text-amber-900 hover:bg-amber-300',
                             overdue:
-                                'text-red-700 ring-red-300 after:bg-red-600',
+                                'rounded-md bg-red-200 font-black text-red-900 hover:bg-red-300',
                         }}
                     />
 
