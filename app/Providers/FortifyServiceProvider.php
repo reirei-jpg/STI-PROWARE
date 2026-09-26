@@ -172,9 +172,31 @@ class FortifyServiceProvider extends ServiceProvider
                     );
 
                 return Limit::perMinute(
-                    5,
+                    AccountAuthenticator::LOGIN_ATTEMPTS_PER_MINUTE,
                 )->by(
                     $throttleKey,
+                )->response(
+                    function (Request $request, array $headers) {
+                        $seconds = (int) ($headers['Retry-After'] ?? 60);
+
+                        $message = "Too many login attempts. Please try again in {$seconds} seconds.";
+
+                        /*
+                         * The mobile app reads the 429 status and the
+                         * Retry-After header itself, so it keeps both;
+                         * the website shows the message on its form.
+                         */
+                        if ($request->expectsJson()) {
+                            return response()->json([
+                                'message' => $message,
+                                'errors' => ['email' => [$message]],
+                            ], 429, $headers);
+                        }
+
+                        return back()
+                            ->withErrors(['email' => $message])
+                            ->onlyInput('email');
+                    },
                 );
             },
         );

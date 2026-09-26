@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Services\AccountAuthenticator;
 use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Fortify\Features;
 
@@ -71,15 +72,22 @@ test('users can logout', function () {
     $response->assertRedirect(route('home'));
 });
 
-test('users are rate limited', function () {
+test('users who try to log in too fast get a readable message instead of an error page', function () {
     $user = User::factory()->create();
 
-    RateLimiter::increment(md5('login'.implode('|', [$user->email, '127.0.0.1'])), amount: 5);
+    RateLimiter::increment(
+        md5('login'.implode('|', [$user->email, '127.0.0.1'])),
+        amount: AccountAuthenticator::LOGIN_ATTEMPTS_PER_MINUTE,
+    );
 
-    $response = $this->post(route('login.store'), [
+    $response = $this->from(route('login'))->post(route('login.store'), [
         'email' => $user->email,
         'password' => 'wrong-password',
     ]);
 
-    $response->assertTooManyRequests();
+    $response->assertRedirect(route('login'));
+    $response->assertSessionHasErrors('email');
+    expect(session('errors')->first('email'))
+        ->toStartWith('Too many login attempts. Please try again in ');
+    $this->assertGuest();
 });
