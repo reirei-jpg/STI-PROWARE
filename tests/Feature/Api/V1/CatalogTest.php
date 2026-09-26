@@ -165,3 +165,27 @@ test('an inactive product never reaches the app', function () {
 
     $this->getJson('/api/v1/catalog')->assertOk()->assertJsonCount(0, 'data');
 });
+
+test('products with a NEW badge come first, newest first, then available, then out of stock', function () {
+    $outOfStock = apiCatalogProduct(Product::AVAILABILITY_AVAILABLE, 0, 'Sold Out Shirt');
+    $available = apiCatalogProduct(Product::AVAILABILITY_AVAILABLE, 10, 'Plain Lanyard');
+
+    $olderNew = apiCatalogProduct(Product::AVAILABILITY_AVAILABLE, 10, 'Older New Jacket');
+    $olderNew->update(['new_badge_duration_days' => 7, 'new_badge_started_at' => now()->subDays(3)]);
+
+    $newest = apiCatalogProduct(Product::AVAILABILITY_AVAILABLE, 10, 'Newest Polo');
+    $newest->update(['new_badge_duration_days' => 7, 'new_badge_started_at' => now()->subDay()]);
+
+    $expiredBadge = apiCatalogProduct(Product::AVAILABILITY_AVAILABLE, 0, 'Old Badge Cap');
+    $expiredBadge->update(['new_badge_duration_days' => 7, 'new_badge_started_at' => now()->subDays(10)]);
+
+    $newButSoldOut = apiCatalogProduct(Product::AVAILABILITY_AVAILABLE, 0, 'New Sold Out Bag');
+    $newButSoldOut->update(['new_badge_duration_days' => 7, 'new_badge_started_at' => now()]);
+
+    apiCatalogStudent();
+
+    $names = collect($this->getJson('/api/v1/catalog')->assertOk()->json('data'))->pluck('name');
+
+    expect($names->take(3)->all())->toBe(['Newest Polo', 'Older New Jacket', 'Plain Lanyard'])
+        ->and($names->slice(3)->values()->all())->toEqualCanonicalizing(['Sold Out Shirt', 'Old Badge Cap', 'New Sold Out Bag']);
+});

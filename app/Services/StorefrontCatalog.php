@@ -7,6 +7,7 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -84,25 +85,29 @@ class StorefrontCatalog
             );
 
         /*
-        | Available products first. Within each tier, a pseudo-random order
-        | that stays identical for the whole day, so paging never repeats or
-        | skips a product mid-browse. It rotates at midnight Philippine time.
+        | Products still showing their NEW badge come first (newest arrival
+        | first), then Available, then Out of Stock. A new product that is
+        | out of stock waits with the other Out of Stock items, since it
+        | cannot be bought yet. Within Available and Out of Stock, a
+        | pseudo-random order that stays identical for the whole day, so
+        | paging never repeats or skips a product mid-browse. It rotates at
+        | midnight Philippine time.
         */
         $availabilityPriority = [
-            Product::AVAILABILITY_AVAILABLE => 0,
-            Product::AVAILABILITY_OUT_OF_STOCK => 1,
+            Product::AVAILABILITY_AVAILABLE => 1,
+            Product::AVAILABILITY_OUT_OF_STOCK => 2,
         ];
 
         $dailySeed = now('Asia/Manila')->format('Y-m-d');
 
         $sortedProducts = $eligibleProducts
-            ->sortBy(
-                fn (array $product): int => (
-                    ($availabilityPriority[$product['availability_status']] ?? 3)
-                    * 1_000_000_000
-                )
-                    + crc32("{$dailySeed}-{$product['id']}") % 1_000_000_000,
-            )
+            ->sortBy([
+                fn (array $first, array $second): int => $this->catalogTier($first, $availabilityPriority)
+                    <=> $this->catalogTier($second, $availabilityPriority),
+                fn (array $first, array $second): int => $this->catalogTier($first, $availabilityPriority) === 0
+                    ? strcmp((string) $second['new_badge_started_at'], (string) $first['new_badge_started_at'])
+                    : crc32("{$dailySeed}-{$first['id']}") <=> crc32("{$dailySeed}-{$second['id']}"),
+            ])
             ->values();
 
         $currentPage = LengthAwarePaginator::resolveCurrentPage();
@@ -116,6 +121,43 @@ class StorefrontCatalog
                 'path' => $request->url(),
                 'query' => $request->query(),
             ],
+        );
+    }
+
+    /**
+     * Where a card sits in the grid: 0 for a buyable product still showing
+     * its NEW badge, then the availability tier.
+     *
+     * @param  array<string, mixed>  $product
+     * @param  array<string, int>  $availabilityPriority
+     */
+    private function catalogTier(array $product, array $availabilityPriority): int
+    {
+        if (
+            $product['availability_status'] === Product::AVAILABILITY_AVAILABLE
+            && $this->newBadgeIsShowing($product)
+        ) {
+            return 0;
+        }
+
+        return $availabilityPriority[$product['availability_status']] ?? 3;
+    }
+
+    /**
+     * The same rule the website and app cards use to show the NEW badge.
+     *
+     * @param  array<string, mixed>  $product
+     */
+    private function newBadgeIsShowing(array $product): bool
+    {
+        $durationDays = (int) ($product['new_badge_duration_days'] ?? 0);
+
+        if (! $product['new_badge_started_at'] || $durationDays <= 0) {
+            return false;
+        }
+
+        return now()->lt(
+            Carbon::parse($product['new_badge_started_at'])->addDays($durationDays),
         );
     }
 
