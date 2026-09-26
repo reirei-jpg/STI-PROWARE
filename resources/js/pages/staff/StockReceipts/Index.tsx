@@ -1,7 +1,11 @@
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
+    AlertTriangle,
     ArrowDownToLine,
     ArrowLeft,
+    CalendarClock,
     CalendarDays,
+    Clock4,
     LoaderCircle,
     Package,
     PackageCheck,
@@ -11,12 +15,16 @@ import {
     X,
 } from 'lucide-react';
 
-import { Head, Link, router, usePage } from '@inertiajs/react';
 
-import { type FormEvent, type ReactNode, useState } from 'react';
+import {   useState } from 'react';
+import type {FormEvent, ReactNode} from 'react';
+
+import AwaitingItemsPicker from '@/components/admin/stock-receipts/AwaitingItemsPicker';
 
 import AdminLayout from '@/layouts/AdminLayout';
 import SpecialistLayout from '@/layouts/SpecialistLayout';
+
+import type { StockReceiptPurchaseOrder } from '@/types/stock-receipt';
 
 /*
 |--------------------------------------------------------------------------
@@ -121,6 +129,20 @@ interface PageProps {
     summary: SummaryData;
 
     filters: FilterData;
+
+    outstandingPurchaseOrders: StockReceiptPurchaseOrder[];
+}
+
+type ReceiptTab = 'history' | 'to_be_received';
+
+function todayDateString(): string {
+    const now = new Date();
+
+    return [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, '0'),
+        String(now.getDate()).padStart(2, '0'),
+    ].join('-');
 }
 
 /*
@@ -129,7 +151,12 @@ interface PageProps {
 |--------------------------------------------------------------------------
 */
 
-export default function Index({ receipts, summary, filters }: PageProps) {
+export default function Index({
+    receipts,
+    summary,
+    filters,
+    outstandingPurchaseOrders,
+}: PageProps) {
     const [search, setSearch] = useState(filters.search);
 
     const page = usePage<SharedPageProps>();
@@ -276,6 +303,107 @@ export default function Index({ receipts, summary, filters }: PageProps) {
         );
     };
 
+    /*
+    |--------------------------------------------------------------------------
+    | To Be Received Tab
+    |--------------------------------------------------------------------------
+    |
+    | A read-only look at the exact same outstanding-PO data the Receive
+    | Stock picker uses, for checking what's still expected without
+    | risking navigating into the actual receiving flow. Clicking an item
+    | opens a details popup built entirely from data already on this
+    | page (no navigation, no extra request), since Specialists don't
+    | have permission to open a Purchase Order's own detail page.
+    */
+
+    const [activeTab, setActiveTab] = useState<ReceiptTab>(
+        () =>
+            (typeof window !== 'undefined'
+            && new URLSearchParams(window.location.search).get('tab') ===
+                'to_be_received'
+                ? 'to_be_received'
+                : 'history'),
+    );
+
+    const today = todayDateString();
+
+    const outstandingSummary = outstandingPurchaseOrders.reduce(
+        (totals, purchaseOrder) => {
+            for (const item of purchaseOrder.items) {
+                if (item.quantity_remaining <= 0) {
+                    continue;
+                }
+
+                if (!purchaseOrder.expected_delivery_date) {
+                    totals.noDate += 1;
+                } else if (purchaseOrder.expected_delivery_date < today) {
+                    totals.overdue += 1;
+                } else if (purchaseOrder.expected_delivery_date === today) {
+                    totals.dueToday += 1;
+                } else {
+                    totals.upcoming += 1;
+                }
+            }
+
+            return totals;
+        },
+        { overdue: 0, dueToday: 0, upcoming: 0, noDate: 0 },
+    );
+
+    /*
+     * Every item in a given PO shares the same expected_delivery_date,
+     * so "status" is really a PO-level attribute — filtering out whole
+     * purchase orders here is enough, no need to filter within one.
+     */
+    const [statusFilter, setStatusFilter] = useState<
+        'overdue' | 'due_today' | 'upcoming' | 'no_date' | null
+    >(null);
+
+    const toggleStatusFilter = (
+        value: 'overdue' | 'due_today' | 'upcoming' | 'no_date',
+    ): void => {
+        setStatusFilter((current) => (current === value ? null : value));
+    };
+
+    const filteredOutstandingPurchaseOrders = outstandingPurchaseOrders.filter(
+        (purchaseOrder) => {
+            if (!statusFilter) {
+                return true;
+            }
+
+            if (statusFilter === 'no_date') {
+                return purchaseOrder.expected_delivery_date === null;
+            }
+
+            if (purchaseOrder.expected_delivery_date === null) {
+                return false;
+            }
+
+            if (statusFilter === 'overdue') {
+                return purchaseOrder.expected_delivery_date < today;
+            }
+
+            if (statusFilter === 'due_today') {
+                return purchaseOrder.expected_delivery_date === today;
+            }
+
+            return purchaseOrder.expected_delivery_date > today;
+        },
+    );
+
+    const [
+        detailPurchaseOrder,
+        setDetailPurchaseOrder,
+    ] = useState<StockReceiptPurchaseOrder | null>(null);
+
+    const openPurchaseOrderDetails = (purchaseOrderId: string): void => {
+        const purchaseOrder = outstandingPurchaseOrders.find(
+            (candidate) => String(candidate.id) === purchaseOrderId,
+        );
+
+        setDetailPurchaseOrder(purchaseOrder ?? null);
+    };
+
     return (
         <Layout>
             <Head title={pageTitle} />
@@ -330,6 +458,42 @@ export default function Index({ receipts, summary, filters }: PageProps) {
                     )}
                 </section>
 
+                {/*
+                |--------------------------------------------------------------------------
+                | Tabs
+                |--------------------------------------------------------------------------
+                */}
+
+                <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
+                    <TabButton
+                        active={activeTab === 'history'}
+                        onClick={() => setActiveTab('history')}
+                    >
+                        Receipt History
+                    </TabButton>
+
+                    <TabButton
+                        active={activeTab === 'to_be_received'}
+                        onClick={() => setActiveTab('to_be_received')}
+                    >
+                        To Be Received
+                        {outstandingSummary.overdue
+                            + outstandingSummary.dueToday
+                            + outstandingSummary.upcoming
+                            + outstandingSummary.noDate >
+                            0 && (
+                            <span className="ml-2 rounded-full bg-blue-600 px-2 py-0.5 text-[11px] font-black text-white">
+                                {outstandingSummary.overdue
+                                    + outstandingSummary.dueToday
+                                    + outstandingSummary.upcoming
+                                    + outstandingSummary.noDate}
+                            </span>
+                        )}
+                    </TabButton>
+                </div>
+
+                {activeTab === 'history' && (
+                <>
                 {/*
                 |--------------------------------------------------------------------------
                 | Admin Monitoring Notice
@@ -515,6 +679,88 @@ export default function Index({ receipts, summary, filters }: PageProps) {
                         canReceiveStock={isSpecialist}
                     />
                 )}
+                </>
+                )}
+
+                {/*
+                |--------------------------------------------------------------------------
+                | To Be Received Tab
+                |--------------------------------------------------------------------------
+                */}
+
+                {activeTab === 'to_be_received' && (
+                    <>
+                        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                            <OutstandingSummaryCard
+                                label="Overdue"
+                                value={outstandingSummary.overdue}
+                                icon={AlertTriangle}
+                                tone="red"
+                                active={statusFilter === 'overdue'}
+                                onClick={() => toggleStatusFilter('overdue')}
+                            />
+
+                            <OutstandingSummaryCard
+                                label="Due Today"
+                                value={outstandingSummary.dueToday}
+                                icon={Clock4}
+                                tone="amber"
+                                active={statusFilter === 'due_today'}
+                                onClick={() => toggleStatusFilter('due_today')}
+                            />
+
+                            <OutstandingSummaryCard
+                                label="Upcoming"
+                                value={outstandingSummary.upcoming}
+                                icon={CalendarClock}
+                                tone="blue"
+                                active={statusFilter === 'upcoming'}
+                                onClick={() => toggleStatusFilter('upcoming')}
+                            />
+
+                            <OutstandingSummaryCard
+                                label="No Date Set"
+                                value={outstandingSummary.noDate}
+                                icon={CalendarDays}
+                                tone="slate"
+                                active={statusFilter === 'no_date'}
+                                onClick={() => toggleStatusFilter('no_date')}
+                            />
+                        </section>
+
+                        {statusFilter && (
+                            <div className="flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-3 text-xs font-semibold text-blue-700">
+                                <span>
+                                    Showing only{' '}
+                                    {statusFilter === 'no_date'
+                                        ? 'items with no date set'
+                                        : statusFilter.replace('_', ' ')}
+                                    .
+                                </span>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setStatusFilter(null)}
+                                    className="font-black underline underline-offset-2 hover:text-blue-900"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                        )}
+
+                        <AwaitingItemsPicker
+                            purchaseOrders={filteredOutstandingPurchaseOrders}
+                            selectedPurchaseOrderId=""
+                            selectedPurchaseOrderItemId=""
+                            onSelectItem={(purchaseOrderId) =>
+                                openPurchaseOrderDetails(purchaseOrderId)
+                            }
+                            title="Browse What's Coming"
+                            description="A read-only look at everything still awaiting delivery — click any item to see its full purchase order. Nothing here starts a stock receipt; that only happens from Receive Stock."
+                            itemActionHint="View details"
+                        />
+                    </>
+                )}
             </div>
 
             <ReceiptPreviewModal
@@ -523,6 +769,11 @@ export default function Index({ receipts, summary, filters }: PageProps) {
                 onClose={() => setReceiptModalView(null)}
                 onBack={backToReceiptList}
                 onOpenDetails={openReceiptDetails}
+            />
+
+            <PurchaseOrderDetailModal
+                purchaseOrder={detailPurchaseOrder}
+                onClose={() => setDetailPurchaseOrder(null)}
             />
         </Layout>
     );
@@ -1142,4 +1393,299 @@ function groupReceiptsByProduct(
     }
 
     return groups;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Tab Button
+|--------------------------------------------------------------------------
+*/
+
+function TabButton({
+    active,
+    onClick,
+    children,
+}: {
+    active: boolean;
+    onClick: () => void;
+    children: ReactNode;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={`inline-flex items-center rounded-lg px-4 py-2 text-sm font-bold transition ${
+                active
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+            }`}
+        >
+            {children}
+        </button>
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Outstanding Summary Card
+|--------------------------------------------------------------------------
+*/
+
+type OutstandingTone = 'red' | 'amber' | 'blue' | 'slate';
+
+const OUTSTANDING_TONES: Record<
+    OutstandingTone,
+    { card: string; icon: string; value: string }
+> = {
+    red: {
+        card: 'border-red-200 bg-red-50/60',
+        icon: 'bg-red-100 text-red-700',
+        value: 'text-red-700',
+    },
+    amber: {
+        card: 'border-amber-200 bg-amber-50/60',
+        icon: 'bg-amber-100 text-amber-700',
+        value: 'text-amber-700',
+    },
+    blue: {
+        card: 'border-blue-200 bg-blue-50/60',
+        icon: 'bg-blue-100 text-blue-700',
+        value: 'text-blue-700',
+    },
+    slate: {
+        card: 'border-slate-200 bg-slate-50/60',
+        icon: 'bg-slate-100 text-slate-600',
+        value: 'text-slate-700',
+    },
+};
+
+function OutstandingSummaryCard({
+    label,
+    value,
+    icon: Icon,
+    tone,
+    active = false,
+    onClick,
+}: {
+    label: string;
+    value: number;
+    icon: typeof AlertTriangle;
+    tone: OutstandingTone;
+    active?: boolean;
+    onClick?: () => void;
+}) {
+    const style = OUTSTANDING_TONES[tone];
+
+    const content = (
+        <div className="flex items-start justify-between gap-4">
+            <div>
+                <p className="text-xs font-black tracking-wide text-slate-400 uppercase">
+                    {label}
+                </p>
+
+                <p className={`mt-3 text-3xl font-black ${style.value}`}>
+                    {value}
+                </p>
+            </div>
+
+            <div
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${style.icon}`}
+            >
+                <Icon size={20} />
+            </div>
+        </div>
+    );
+
+    if (onClick) {
+        return (
+            <button
+                type="button"
+                onClick={onClick}
+                className={`rounded-3xl border p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${style.card} ${active ? 'ring-2 ring-blue-500' : ''}`}
+            >
+                {content}
+            </button>
+        );
+    }
+
+    return (
+        <article
+            className={`rounded-3xl border p-5 shadow-sm ${style.card}`}
+        >
+            {content}
+        </article>
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Purchase Order Detail Modal
+|--------------------------------------------------------------------------
+|
+| Built entirely from data already loaded on this page — no navigation,
+| no extra request — since Specialists don't have permission to open a
+| Purchase Order's own detail page (that's an Admin-only screen), and
+| this tab is meant to work identically for both roles.
+*/
+
+function PurchaseOrderDetailModal({
+    purchaseOrder,
+    onClose,
+}: {
+    purchaseOrder: StockReceiptPurchaseOrder | null;
+    onClose: () => void;
+}) {
+    if (!purchaseOrder) {
+        return null;
+    }
+
+    const outstandingItems = purchaseOrder.items.filter(
+        (item) => item.quantity_remaining > 0,
+    );
+
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+            onClick={onClose}
+        >
+            <div
+                className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-white shadow-xl"
+                onClick={(event) => event.stopPropagation()}
+            >
+                {/* HEADER */}
+                <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-6 py-5">
+                    <div>
+                        <p className="text-xs font-black tracking-wide text-blue-600 uppercase">
+                            Purchase Order
+                        </p>
+
+                        <h2 className="mt-1 text-xl font-black text-slate-900">
+                            {purchaseOrder.po_number}
+                        </h2>
+
+                        <p className="mt-1 text-sm text-slate-500">
+                            {purchaseOrder.supplier_name}
+                        </p>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
+
+                {/* BODY */}
+                <div className="flex-1 space-y-3 overflow-y-auto px-6 py-5">
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                            <p className="text-xs font-bold tracking-wide text-slate-400 uppercase">
+                                Expected Delivery
+                            </p>
+
+                            <p className="mt-1 text-sm font-black text-slate-900">
+                                {purchaseOrder.expected_delivery_date
+                                    ?? 'Not set'}
+                            </p>
+                        </div>
+
+                        <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                            <p className="text-xs font-bold tracking-wide text-slate-400 uppercase">
+                                Supplier Reference
+                            </p>
+
+                            <p className="mt-1 text-sm font-black text-slate-900">
+                                {purchaseOrder.supplier_reference_number
+                                    ?? '—'}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        {outstandingItems.map((item) => (
+                            <div
+                                key={item.id}
+                                className="rounded-2xl border border-slate-100 p-4"
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <p className="font-black text-slate-900">
+                                        {item.product_name
+                                            ?? item.manual_name
+                                            ?? 'Purchase Order Item'}
+                                    </p>
+
+                                    {item.merchandise_origin === 'new' && (
+                                        <span className="shrink-0 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-black tracking-wide text-white uppercase">
+                                            New Product
+                                        </span>
+                                    )}
+                                </div>
+
+                                {(item.sku
+                                    || item.variant_name
+                                    || item.program
+                                    || item.size) && (
+                                    <p className="mt-1 text-xs text-slate-500">
+                                        {[
+                                            item.sku,
+                                            item.variant_name,
+                                            item.program,
+                                            item.size,
+                                        ]
+                                            .filter(Boolean)
+                                            .join(' • ')}
+                                    </p>
+                                )}
+
+                                <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                                    <div>
+                                        <p className="text-[10px] font-bold tracking-wide text-slate-400 uppercase">
+                                            Ordered
+                                        </p>
+
+                                        <p className="mt-0.5 text-sm font-black text-slate-900">
+                                            {item.quantity_ordered}
+                                        </p>
+                                    </div>
+
+                                    <div>
+                                        <p className="text-[10px] font-bold tracking-wide text-slate-400 uppercase">
+                                            Received
+                                        </p>
+
+                                        <p className="mt-0.5 text-sm font-black text-slate-900">
+                                            {item.quantity_received}
+                                        </p>
+                                    </div>
+
+                                    <div>
+                                        <p className="text-[10px] font-bold tracking-wide text-slate-400 uppercase">
+                                            Remaining
+                                        </p>
+
+                                        <p className="mt-0.5 text-sm font-black text-blue-700">
+                                            {item.quantity_remaining}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* FOOTER */}
+                <div className="flex items-center justify-end border-t border-slate-100 px-6 py-4">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
 }

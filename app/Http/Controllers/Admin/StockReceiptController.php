@@ -341,6 +341,18 @@ class StockReceiptController extends Controller
 
                     'date' => $date,
                 ],
+
+                /*
+                |----------------------------------------------------------------
+                | To Be Received
+                |----------------------------------------------------------------
+                |
+                | A read-only view of the exact same outstanding-PO dataset the
+                | Receive Stock picker uses, so staff can check what's still
+                | expected without navigating into the receiving flow itself.
+                */
+
+                'outstandingPurchaseOrders' => $this->outstandingPurchaseOrdersForReceiving(),
             ],
         );
     }
@@ -667,179 +679,7 @@ class StockReceiptController extends Controller
         |
         */
 
-        $purchaseOrders =
-            PurchaseOrder::query()
-                ->whereNull(
-                    'archived_at',
-                )
-                ->whereIn(
-                    'status',
-                    [
-                        PurchaseOrder::STATUS_ORDERED,
-                        PurchaseOrder::STATUS_PARTIALLY_RECEIVED,
-                    ],
-                )
-                ->whereHas(
-                    'items',
-                    function ($query): void {
-                        $query
-                            ->whereNull(
-                                'archived_at',
-                            )
-                            ->whereColumn(
-                                'quantity_received',
-                                '<',
-                                'quantity_ordered',
-                            );
-                    },
-                )
-                ->with([
-                    'items' => function ($query): void {
-                        $query
-                            ->whereNull(
-                                'archived_at',
-                            )
-                            ->whereColumn(
-                                'quantity_received',
-                                '<',
-                                'quantity_ordered',
-                            )
-                            ->with([
-                                'productVariant.product:id,code,name',
-                            ])
-                            ->orderBy(
-                                'id',
-                            );
-                    },
-                ])
-                ->orderBy(
-                    'expected_delivery_date',
-                )
-                ->orderBy(
-                    'id',
-                )
-                ->get()
-                ->map(
-                    function (
-                        PurchaseOrder $purchaseOrder,
-                    ): array {
-                        return [
-                            'id' => $purchaseOrder->id,
-
-                            'po_number' => $purchaseOrder
-                                ->po_number,
-
-                            'supplier_name' => $purchaseOrder
-                                ->supplier_name,
-
-                            'supplier_reference_number' => $purchaseOrder
-                                ->supplier_reference_number,
-
-                            'expected_delivery_date' => $purchaseOrder
-                                ->expected_delivery_date
-                                ?->format(
-                                    'Y-m-d',
-                                ),
-
-                            'status' => $purchaseOrder
-                                ->status,
-
-                            'items' => $purchaseOrder
-                                ->items
-                                ->map(
-                                    function (
-                                        PurchaseOrderItem $item,
-                                    ): array {
-                                        $variant =
-                                            $item
-                                                ->productVariant;
-
-                                        $product =
-                                            $variant
-                                                ?->product;
-
-                                        $remaining =
-                                            max(
-                                                0,
-                                                (int)
-                                                $item
-                                                    ->quantity_ordered
-                                                - (int)
-                                                $item
-                                                    ->quantity_received,
-                                            );
-
-                                        return [
-                                            'id' => $item->id,
-
-                                            'item_type' => $item
-                                                ->item_type,
-
-                                            'merchandise_origin' => $item
-                                                ->merchandise_origin,
-
-                                            'product_variant_id' => $item
-                                                ->product_variant_id,
-
-                                            'product_code' => $product
-                                                ?->code,
-
-                                            'product_name' => $product
-                                                ?->name,
-
-                                            'variant_name' => $variant
-                                                ?->variant_name,
-
-                                            'sku' => $variant
-                                                ?->sku
-                                                ?? $item
-                                                    ->manual_sku,
-
-                                            'program' => $variant
-                                                ?->program,
-
-                                            'size' => $variant
-                                                ?->size,
-
-                                            'manual_name' => $item
-                                                ->manual_name,
-
-                                            'manual_description' => $item
-                                                ->manual_description,
-
-                                            'proposed_category_id' => $item
-                                                ->proposed_category_id,
-
-                                            'proposed_selling_price' => $item
-                                                ->proposed_selling_price,
-
-                                            'manual_sku' => $item
-                                                ->manual_sku,
-
-                                            'track_inventory' => (bool)
-                                                $item
-                                                    ->track_inventory,
-
-                                            'quantity_ordered' => (int)
-                                                $item
-                                                    ->quantity_ordered,
-
-                                            'quantity_received' => (int)
-                                                $item
-                                                    ->quantity_received,
-
-                                            'quantity_remaining' => $remaining,
-
-                                            'unit_cost' => $item
-                                                ->unit_cost,
-                                        ];
-                                    },
-                                )
-                                ->values(),
-                        ];
-                    },
-                )
-                ->values();
+        $purchaseOrders = $this->outstandingPurchaseOrdersForReceiving();
 
         /*
         |--------------------------------------------------------------------------
@@ -2301,6 +2141,191 @@ class StockReceiptController extends Controller
                 ."{$productName} ({$variantName}). "
                 .'You can now receive stock against this purchase order item.',
             );
+    }
+
+    /**
+     * Every active purchase order that still has merchandise waiting to
+     * be received, with its outstanding items — used to drive the
+     * specialist's Receive Stock picker and the read-only "To Be
+     * Received" tab on Receipt History.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function outstandingPurchaseOrdersForReceiving(): array
+    {
+        return PurchaseOrder::query()
+            ->whereNull(
+                'archived_at',
+            )
+            ->whereIn(
+                'status',
+                [
+                    PurchaseOrder::STATUS_ORDERED,
+                    PurchaseOrder::STATUS_PARTIALLY_RECEIVED,
+                ],
+            )
+            ->whereHas(
+                'items',
+                function ($query): void {
+                    $query
+                        ->whereNull(
+                            'archived_at',
+                        )
+                        ->whereColumn(
+                            'quantity_received',
+                            '<',
+                            'quantity_ordered',
+                        );
+                },
+            )
+            ->with([
+                'items' => function ($query): void {
+                    $query
+                        ->whereNull(
+                            'archived_at',
+                        )
+                        ->whereColumn(
+                            'quantity_received',
+                            '<',
+                            'quantity_ordered',
+                        )
+                        ->with([
+                            'productVariant.product:id,code,name',
+                        ])
+                        ->orderBy(
+                            'id',
+                        );
+                },
+            ])
+            ->orderBy(
+                'expected_delivery_date',
+            )
+            ->orderBy(
+                'id',
+            )
+            ->get()
+            ->map(
+                function (
+                    PurchaseOrder $purchaseOrder,
+                ): array {
+                    return [
+                        'id' => $purchaseOrder->id,
+
+                        'po_number' => $purchaseOrder
+                            ->po_number,
+
+                        'supplier_name' => $purchaseOrder
+                            ->supplier_name,
+
+                        'supplier_reference_number' => $purchaseOrder
+                            ->supplier_reference_number,
+
+                        'expected_delivery_date' => $purchaseOrder
+                            ->expected_delivery_date
+                            ?->format(
+                                'Y-m-d',
+                            ),
+
+                        'status' => $purchaseOrder
+                            ->status,
+
+                        'items' => $purchaseOrder
+                            ->items
+                            ->map(
+                                function (
+                                    PurchaseOrderItem $item,
+                                ): array {
+                                    $variant =
+                                        $item
+                                            ->productVariant;
+
+                                    $product =
+                                        $variant
+                                            ?->product;
+
+                                    $remaining =
+                                        max(
+                                            0,
+                                            (int)
+                                            $item
+                                                ->quantity_ordered
+                                            - (int)
+                                            $item
+                                                ->quantity_received,
+                                        );
+
+                                    return [
+                                        'id' => $item->id,
+
+                                        'item_type' => $item
+                                            ->item_type,
+
+                                        'merchandise_origin' => $item
+                                            ->merchandise_origin,
+
+                                        'product_variant_id' => $item
+                                            ->product_variant_id,
+
+                                        'product_code' => $product
+                                            ?->code,
+
+                                        'product_name' => $product
+                                            ?->name,
+
+                                        'variant_name' => $variant
+                                            ?->variant_name,
+
+                                        'sku' => $variant
+                                            ?->sku
+                                            ?? $item
+                                                ->manual_sku,
+
+                                        'program' => $variant
+                                            ?->program,
+
+                                        'size' => $variant
+                                            ?->size,
+
+                                        'manual_name' => $item
+                                            ->manual_name,
+
+                                        'manual_description' => $item
+                                            ->manual_description,
+
+                                        'proposed_category_id' => $item
+                                            ->proposed_category_id,
+
+                                        'proposed_selling_price' => $item
+                                            ->proposed_selling_price,
+
+                                        'manual_sku' => $item
+                                            ->manual_sku,
+
+                                        'track_inventory' => (bool)
+                                            $item
+                                                ->track_inventory,
+
+                                        'quantity_ordered' => (int)
+                                            $item
+                                                ->quantity_ordered,
+
+                                        'quantity_received' => (int)
+                                            $item
+                                                ->quantity_received,
+
+                                        'quantity_remaining' => $remaining,
+
+                                        'unit_cost' => $item
+                                            ->unit_cost,
+                                    ];
+                                },
+                            )
+                            ->values(),
+                    ];
+                },
+            )
+            ->values()
+            ->all();
     }
 
     /**

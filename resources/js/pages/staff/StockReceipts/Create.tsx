@@ -7,7 +7,6 @@ import {
 } from '@inertiajs/react';
 import {
     ArrowLeft,
-    CalendarDays,
     CheckCircle2,
     LoaderCircle,
     PackagePlus,
@@ -24,8 +23,11 @@ import type {FormEvent} from 'react';
 import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal';
 import ActionNotification from '@/components/action-feedback/ActionNotification';
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
+import AwaitingItemsPicker from '@/components/admin/stock-receipts/AwaitingItemsPicker';
 import CurrentStockCard from '@/components/admin/stock-receipts/CurrentStockCard';
 import ReceiveStockForm from '@/components/admin/stock-receipts/ReceiveStockForm';
+import { DatePicker } from '@/components/ui/date-picker';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
 
 import AdminLayout from '@/layouts/AdminLayout';
 import SpecialistLayout from '@/layouts/SpecialistLayout';
@@ -301,6 +303,27 @@ const canConfigurePreorder =
     selectedPurchaseOrderItem.product_variant_id !== null;
 
 /*
+|--------------------------------------------------------------------------
+| Preorder Date Floors
+|--------------------------------------------------------------------------
+|
+| Neither the preorder period nor the release date can be set in the
+| past. Preorder End additionally can't be before Preorder Start.
+| These floors both constrain the native picker widget (via `min`) and
+| clamp anything typed or pasted in directly, since this form submits
+| through Inertia rather than a native <form> and so never runs the
+| browser's own min/max constraint validation.
+*/
+
+const minPreorderStart = nowDateTimeLocalValue();
+
+const minPreorderEnd =
+    preorderConfigForm.data.preorder_starts_at
+    && preorderConfigForm.data.preorder_starts_at > minPreorderStart
+        ? preorderConfigForm.data.preorder_starts_at
+        : minPreorderStart;
+
+/*
  * Only this one plain setState call is safe to hoist out of the
  * effect below and into the render phase — linkVariantForm.reset()
  * and registerProductForm.setData()/.reset() are Inertia useForm()
@@ -425,20 +448,22 @@ useEffect(() => {
 
     /*
     |--------------------------------------------------------------------------
-    | Flash Success / Error Message
+    | Flash Success Message
     |--------------------------------------------------------------------------
-    |
-    | Re-synced during render rather than in a useEffect: an Inertia
-    | visit that lands on this same page component (e.g. after saving
-    | something) brings a fresh flash message without remounting, so
-    | the initial useState seed above only covers first load. This is
-    | React's own recommended pattern for adjusting state when a prop
-    | changes — calling setState conditionally, during render, guarded
-    | so it only fires once per new flash value — and it avoids the
-    | extra render pass (and the set-state-in-effect lint error) that
-    | scheduling the same update from inside an effect would cause.
     */
 
+    /*
+     * Re-synced during render rather than in a useEffect: an Inertia
+     * visit that lands on this same page component (e.g. after saving
+     * the receipt) brings a fresh flash message without remounting,
+     * so the initial useState seed above only covers first load. This
+     * is React's own recommended pattern for adjusting state when a
+     * prop changes — calling setState conditionally, during render,
+     * guarded so it only fires once per new flash value — and it
+     * avoids the extra render pass (and the set-state-in-effect lint
+     * error) that scheduling the same update from inside an effect
+     * would cause.
+     */
     if (
         page.props.flash?.success
         && page.props.flash.success !== lastFlashSuccess
@@ -588,6 +613,45 @@ useEffect(() => {
                 null,
             );
         };
+
+    /*
+    |--------------------------------------------------------------------------
+    | Select Awaiting Item Directly (Specialist)
+    |--------------------------------------------------------------------------
+    |
+    | Used by the calendar/list picker: identifies both the PO and the
+    | item in one click, instead of the two-step dropdown flow above.
+    */
+
+    const selectAwaitingItem = (
+        purchaseOrderId: string,
+        itemId: string,
+    ): void => {
+        const targetOrder = purchaseOrders.find(
+            (purchaseOrder) => String(purchaseOrder.id) === purchaseOrderId,
+        );
+
+        const item = targetOrder?.items.find(
+            (purchaseOrderItem) => String(purchaseOrderItem.id) === itemId,
+        );
+
+        form.setData('purchase_order_id', purchaseOrderId);
+        form.setData('purchase_order_item_id', itemId);
+
+        form.setData(
+            'product_variant_id',
+            item?.product_variant_id
+                ? String(item.product_variant_id)
+                : '',
+        );
+
+        form.setData('quantity', '');
+        form.setData('supplier_reference_number', '');
+
+        form.clearErrors();
+
+        setSuccessMessage(null);
+    };
 
     /*
 |--------------------------------------------------------------------------
@@ -942,6 +1006,47 @@ const submitPreorderConfiguration = (
         return;
     }
 
+    setErrorMessage(null);
+
+    if (
+        preorderConfigForm.data.expected_release_date
+        && preorderConfigForm.data.expected_release_date
+            < minPreorderStart.slice(0, 10)
+    ) {
+        setErrorMessage(
+            'Expected release date cannot be in the past.',
+        );
+
+        return;
+    }
+
+    if (
+        preorderConfigForm.data.preorder_starts_at
+        && preorderConfigForm.data.preorder_starts_at
+            < minPreorderStart
+    ) {
+        setErrorMessage(
+            'Preorder start cannot be in the past.',
+        );
+
+        return;
+    }
+
+    if (
+        preorderConfigForm.data.preorder_ends_at
+        && preorderConfigForm.data.preorder_ends_at
+            <= (
+                preorderConfigForm.data.preorder_starts_at
+                || minPreorderStart
+            )
+    ) {
+        setErrorMessage(
+            'Preorder end must be after preorder start.',
+        );
+
+        return;
+    }
+
     setShowPreorderConfigConfirm(true);
 };
 
@@ -1149,6 +1254,7 @@ const confirmPreorderConfiguration = (): void => {
                         <>
                                 {/* Select PO */}
 
+                                {currentRole !== 'specialist' && (
                                 <section
                                     className="
                                         rounded-3xl
@@ -1409,10 +1515,24 @@ const confirmPreorderConfiguration = (): void => {
                                         </div>
                                     )}
                                 </section>
+                                )}
+
+                                {/* Awaiting Items Picker (Specialist) */}
+
+                                {currentRole === 'specialist' && (
+                                    <AwaitingItemsPicker
+                                        purchaseOrders={purchaseOrders}
+                                        selectedPurchaseOrderId={form.data.purchase_order_id}
+                                        selectedPurchaseOrderItemId={form.data.purchase_order_item_id}
+                                        onSelectItem={selectAwaitingItem}
+                                        viewAllHref="/staff/stock-receipts?tab=to_be_received"
+                                        viewAllLabel="View Full To Be Received List"
+                                    />
+                                )}
 
                                 {/* Select PO Item */}
 
-                                {selectedPurchaseOrder && (
+                                {currentRole !== 'specialist' && selectedPurchaseOrder && (
                                     <section
                                         className="
                                             rounded-3xl
@@ -1596,6 +1716,18 @@ const confirmPreorderConfiguration = (): void => {
                                                 )}
                                             </h2>
 
+                                            {selectedPurchaseOrder && (
+                                                <p className="mt-1 text-sm font-semibold text-slate-500">
+                                                    {selectedPurchaseOrder.po_number}
+                                                    {' — '}
+                                                    {selectedPurchaseOrder.supplier_name}
+                                                    {' — Expected '}
+                                                    {formatDate(
+                                                        selectedPurchaseOrder.expected_delivery_date,
+                                                    )}
+                                                </p>
+                                            )}
+
                                             <div
                                                 className="
                                                     mt-2
@@ -1754,34 +1886,21 @@ const confirmPreorderConfiguration = (): void => {
                     Expected Release Date
                 </label>
 
-                <div className="mt-2 flex items-center gap-3">
-    <div className="relative flex h-12 w-12 items-center justify-center rounded-xl border border-slate-300 bg-white text-violet-600">
-        <CalendarDays size={20} />
-
-        <input
-            type="date"
-            value={
-                preorderConfigForm.data
-                    .expected_release_date
-            }
-            onChange={(event) =>
-                preorderConfigForm.setData(
-                    'expected_release_date',
-                    event.target.value,
-                )
-            }
-            onClick={(event) =>
-                event.currentTarget.showPicker?.()
-            }
-            className="absolute inset-0 cursor-pointer opacity-0"
-        />
-    </div>
-
-    <span className="text-sm font-semibold text-slate-700">
-        {preorderConfigForm.data.expected_release_date ||
-            'Select date'}
-    </span>
-</div>
+                <div className="mt-2">
+                    <DatePicker
+                        value={
+                            preorderConfigForm.data
+                                .expected_release_date
+                        }
+                        onChange={(value) =>
+                            preorderConfigForm.setData(
+                                'expected_release_date',
+                                value,
+                            )
+                        }
+                        placeholder="Select date"
+                    />
+                </div>
             </div>
 
             <div>
@@ -1812,81 +1931,49 @@ const confirmPreorderConfiguration = (): void => {
             </div>
 
             <div>
-                    <label className="text-sm font-bold text-slate-700">
-                        Preorder Start
-                    </label>
+                <label className="text-sm font-bold text-slate-700">
+                    Preorder Start
+                </label>
 
-                    <div className="mt-2 flex items-center gap-3">
-        <div className="relative flex h-12 w-12 items-center justify-center rounded-xl border border-slate-300 bg-white text-violet-600">
-            <CalendarDays size={20} />
-
-            <input
-                type="datetime-local"
-                value={
-                    preorderConfigForm.data
-                        .preorder_starts_at
-                }
-                onChange={(event) =>
-                    preorderConfigForm.setData(
-                        'preorder_starts_at',
-                        event.target.value,
-                    )
-                }
-                onClick={(event) =>
-                    event.currentTarget.showPicker?.()
-                }
-                className="absolute inset-0 cursor-pointer opacity-0"
-            />
-        </div>
-
-        <span className="text-sm font-semibold text-slate-700">
-            {preorderConfigForm.data.preorder_starts_at
-                ? preorderConfigForm.data.preorder_starts_at.replace(
-                    'T',
-                    ' ',
-                )
-                : 'Select date & time'}
-        </span>
-        </div>
+                <div className="mt-2">
+                    <DateTimePicker
+                        value={
+                            preorderConfigForm.data
+                                .preorder_starts_at
+                        }
+                        onChange={(value) =>
+                            preorderConfigForm.setData(
+                                'preorder_starts_at',
+                                value,
+                            )
+                        }
+                        min={minPreorderStart}
+                        placeholder="Select date & time"
+                    />
+                </div>
             </div>
 
             <div>
-                        <label className="text-sm font-bold text-slate-700">
-                            Preorder End
-                        </label>
+                <label className="text-sm font-bold text-slate-700">
+                    Preorder End
+                </label>
 
-                        <div className="mt-2 flex items-center gap-3">
-            <div className="relative flex h-12 w-12 items-center justify-center rounded-xl border border-slate-300 bg-white text-violet-600">
-                <CalendarDays size={20} />
-
-                <input
-                    type="datetime-local"
-                    value={
-                        preorderConfigForm.data
-                            .preorder_ends_at
-                    }
-                    onChange={(event) =>
-                        preorderConfigForm.setData(
-                            'preorder_ends_at',
-                            event.target.value,
-                        )
-                    }
-                    onClick={(event) =>
-                        event.currentTarget.showPicker?.()
-                    }
-                    className="absolute inset-0 cursor-pointer opacity-0"
-                />
-            </div>
-
-            <span className="text-sm font-semibold text-slate-700">
-                {preorderConfigForm.data.preorder_ends_at
-                    ? preorderConfigForm.data.preorder_ends_at.replace(
-                        'T',
-                        ' ',
-                    )
-                    : 'Select date & time'}
-            </span>
-</div>
+                <div className="mt-2">
+                    <DateTimePicker
+                        value={
+                            preorderConfigForm.data
+                                .preorder_ends_at
+                        }
+                        onChange={(value) =>
+                            preorderConfigForm.setData(
+                                'preorder_ends_at',
+                                value,
+                            )
+                        }
+                        min={minPreorderEnd}
+                        placeholder="Select date & time"
+                    />
+                </div>
             </div>
 
             <div>
@@ -3366,6 +3453,15 @@ function getPurchaseOrderItemSummary(
 | Date
 |--------------------------------------------------------------------------
 */
+
+function nowDateTimeLocalValue(): string {
+    const now = new Date();
+
+    const pad = (value: number): string =>
+        String(value).padStart(2, '0');
+
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
 
 function formatDate(
     value:
