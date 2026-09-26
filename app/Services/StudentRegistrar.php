@@ -1,0 +1,214 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
+
+/**
+ * Validates and creates a self-registered student account.
+ *
+ * Shared between the website's registration form
+ * (App\Actions\Fortify\CreateNewUser, which Fortify calls) and the mobile
+ * app's own registration endpoint (App\Http\Controllers\Api\V1\AuthController),
+ * so both platforms register a student under the exact same rules and can
+ * never drift apart. There is no Microsoft 365 / school-roster integration
+ * yet, so this is a manual, self-attested registration: the student's own
+ * input is trusted directly rather than being matched against a pre-approved
+ * list. The school email is still auto-generated (last name + last six
+ * digits of the Student ID + @sti.edu.ph) and re-derived here server-side, so
+ * it can't be forged by submitting a different value than what the locked
+ * frontend field shows.
+ */
+final class StudentRegistrar
+{
+    public function __construct(
+        private readonly StudentSchoolEmailGenerator $emailGenerator,
+    ) {}
+
+    /**
+     * @param  array<string, mixed>  $input
+     */
+    public function register(array $input): User
+    {
+        $validator = Validator::make(
+            $input,
+            [
+                'student_id' => [
+                    'required',
+                    'string',
+                    'size:11',
+                    'regex:/^[0-9]{11}$/',
+                    Rule::unique('students', 'student_id'),
+                ],
+
+                'full_name' => [
+                    'required',
+                    'string',
+                    'max:255',
+                ],
+
+                'last_name' => [
+                    'required',
+                    'string',
+                    'max:100',
+                ],
+
+                'course' => [
+                    'required',
+                    'string',
+                    'max:100',
+                ],
+
+                'year_level' => [
+                    'required',
+                    'integer',
+                    'min:1',
+                    'max:10',
+                ],
+
+                'email' => [
+                    'required',
+                    'string',
+                    'email',
+                    'max:255',
+                    Rule::unique(User::class),
+                ],
+
+                'password' => [
+                    'required',
+                    'string',
+                    Password::defaults(),
+                    'confirmed',
+                ],
+
+                'terms' => [
+                    'accepted',
+                ],
+            ],
+            [
+                'student_id.required' => 'Your Student ID is required.',
+
+                'student_id.size' => 'The Student ID must contain exactly 11 digits.',
+
+                'student_id.regex' => 'The Student ID must contain numbers only.',
+
+                'student_id.unique' => 'This Student ID has already been registered.',
+
+                'full_name.required' => 'Your full name is required.',
+
+                'last_name.required' => 'Your last name is required.',
+
+                'course.required' => 'Your course is required.',
+
+                'year_level.required' => 'Your year level is required.',
+
+                'year_level.integer' => 'Your year level must be a number.',
+
+                'year_level.min' => 'Your year level must be at least 1.',
+
+                'year_level.max' => 'Your year level does not look right — please double-check it.',
+
+                'email.unique' => 'An account already exists using this email address.',
+
+                'password.min' => 'Your password must be at least 8 characters.',
+
+                'password.letters' => 'Your password must include at least one letter.',
+
+                'password.numbers' => 'Your password must include at least one number.',
+
+                'password.symbols' => 'Your password must include at least one special character (e.g. ! @ # $).',
+
+                'password.confirmed' => 'The password confirmation does not match.',
+
+                'terms.accepted' => 'You must confirm that the information belongs to you.',
+            ],
+        );
+
+        $validator->after(function ($validator) use ($input) {
+            $studentId = trim(
+                (string) ($input['student_id'] ?? ''),
+            );
+
+            $lastName = $this->emailGenerator->normalizeLastName(
+                (string) ($input['last_name'] ?? ''),
+            );
+
+            $submittedEmail = strtolower(
+                trim((string) ($input['email'] ?? '')),
+            );
+
+            if (
+                $studentId === ''
+                || $lastName === ''
+                || $submittedEmail === ''
+                || strlen($studentId) !== 11
+            ) {
+                return;
+            }
+
+            $expectedEmail = $this->emailGenerator->generate(
+                $studentId,
+                $lastName,
+            );
+
+            if ($submittedEmail !== $expectedEmail) {
+                $validator->errors()->add(
+                    'email',
+                    "The expected school email is {$expectedEmail}.",
+                );
+            }
+        });
+
+        $validated = $validator->validate();
+
+        return DB::transaction(function () use ($validated): User {
+            $studentId = trim(
+                (string) $validated['student_id'],
+            );
+
+            $lastName = $this->emailGenerator->normalizeLastName(
+                (string) $validated['last_name'],
+            );
+
+            $expectedEmail = $this->emailGenerator->generate(
+                $studentId,
+                $lastName,
+            );
+
+            $user = User::create([
+                'name' => trim(
+                    (string) $validated['full_name'],
+                ),
+
+                'email' => $expectedEmail,
+
+                'password' => Hash::make(
+                    (string) $validated['password'],
+                ),
+
+                'role' => 'student',
+            ]);
+
+            $user->student()->create([
+                'student_id' => $studentId,
+
+                'course' => trim(
+                    (string) $validated['course'],
+                ),
+
+                'year_level' => trim(
+                    (string) $validated['year_level'],
+                ),
+
+                'status' => 'active',
+            ]);
+
+            return $user;
+        });
+    }
+}

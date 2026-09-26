@@ -51,6 +51,18 @@ type LoginResponse = {
 
 type MeResponse = { data: ApiUser };
 
+export type RegisterPayload = {
+    full_name: string;
+    student_id: string;
+    last_name: string;
+    course: string;
+    year_level: string;
+    email: string;
+    password: string;
+    password_confirmation: string;
+    terms: boolean;
+};
+
 function toSessionUser(user: ApiUser): SessionUser {
     return {
         id: user.id,
@@ -88,6 +100,9 @@ type AuthContextValue = {
         password: string,
         remember: boolean,
     ) => Promise<void>;
+    /** Registers a new student account and signs them straight in, the same
+     *  way the website does after registering. */
+    register: (payload: RegisterPayload) => Promise<void>;
     signOut: () => Promise<void>;
     /** Call after the server confirms a password change, so the forced
      *  temporary-password screen releases the rest of the app immediately. */
@@ -164,6 +179,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         [],
     );
 
+    const register = useCallback(async (payload: RegisterPayload) => {
+        const response = await apiRequest<LoginResponse>('/auth/register', {
+            method: 'POST',
+            body: {
+                ...payload,
+                device_name: await deviceName(),
+            },
+        });
+
+        // A newly registered student stays signed in, the same way the
+        // website logs them straight into their dashboard after registering.
+        await saveToken(response.data.token);
+
+        setToken(response.data.token);
+        setUser(toSessionUser(response.data.user));
+    }, []);
+
     const signOut = useCallback(async () => {
         const current = token;
 
@@ -207,10 +239,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             request,
             restoring,
             signIn,
+            register,
             signOut,
             markPasswordChanged,
         }),
-        [user, request, restoring, signIn, signOut, markPasswordChanged],
+        [
+            user,
+            request,
+            restoring,
+            signIn,
+            register,
+            signOut,
+            markPasswordChanged,
+        ],
     );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

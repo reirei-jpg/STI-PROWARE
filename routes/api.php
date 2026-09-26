@@ -32,6 +32,10 @@ Route::prefix('v1')
             ->middleware('throttle:login')
             ->name('auth.login');
 
+        Route::post('auth/register', [AuthController::class, 'register'])
+            ->middleware('throttle:6,1')
+            ->name('auth.register');
+
         Route::middleware([
             'auth:sanctum',
             EnsureApiAccountIsUsable::class,
