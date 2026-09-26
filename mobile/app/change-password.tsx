@@ -74,7 +74,14 @@ function PasswordField({
 
 export default function ChangePassword() {
     const insets = useSafeAreaInsets();
-    const { request } = useAuth();
+    const { user, request, markPasswordChanged } = useAuth();
+
+    // Captured once, on mount: this screen must keep treating the change as
+    // forced for its own lifetime even though submit() below clears the live
+    // flag on success (which is what lets the rest of the app unlock).
+    // Reading user.mustChangePassword directly instead would flip to false
+    // the instant that happens, right before the success screen renders.
+    const [forced] = useState(() => user?.mustChangePassword ?? false);
 
     const [current, setCurrent] = useState('');
     const [next, setNext] = useState('');
@@ -106,6 +113,7 @@ export default function ChangePassword() {
             setCurrent('');
             setNext('');
             setConfirmation('');
+            markPasswordChanged();
             setDone(response.message);
         } catch (caught) {
             setError(
@@ -118,23 +126,33 @@ export default function ChangePassword() {
         }
     };
 
+    const continueOn = (): void => {
+        if (forced) {
+            router.replace('/(tabs)');
+        } else {
+            router.back();
+        }
+    };
+
     const header = (
         <View
             className="flex-row items-center gap-3 px-5 pb-3"
             style={{ paddingTop: insets.top + 12 }}
         >
-            <Pressable
-                onPress={() => router.back()}
-                accessibilityRole="button"
-                accessibilityLabel="Back"
-                hitSlop={8}
-                className="h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white"
-            >
-                <ArrowLeft size={20} color="#0f172a" />
-            </Pressable>
+            {!forced && (
+                <Pressable
+                    onPress={() => router.back()}
+                    accessibilityRole="button"
+                    accessibilityLabel="Back"
+                    hitSlop={8}
+                    className="h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white"
+                >
+                    <ArrowLeft size={20} color="#0f172a" />
+                </Pressable>
+            )}
 
             <Text className="font-sans-bold text-2xl text-slate-900">
-                Change Password
+                {forced ? 'Set Your Password' : 'Change Password'}
             </Text>
         </View>
     );
@@ -159,12 +177,12 @@ export default function ChangePassword() {
                     </Text>
 
                     <Pressable
-                        onPress={() => router.back()}
+                        onPress={continueOn}
                         accessibilityRole="button"
                         className="mt-8 rounded-full bg-brand px-8 py-3"
                     >
                         <Text className="font-sans-bold text-sm text-white">
-                            Back to profile
+                            {forced ? 'Continue to PROWARE' : 'Back to profile'}
                         </Text>
                     </Pressable>
                 </View>
@@ -188,9 +206,11 @@ export default function ChangePassword() {
                 keyboardShouldPersistTaps="handled"
             >
                 <Text className="px-1 font-sans text-sm leading-6 text-slate-500">
-                    Enter your current password, then choose a new one. Use a
-                    strong password: long, with upper and lower case letters,
-                    numbers and symbols.
+                    {forced
+                        ? 'Your account was set up with a temporary password. Enter it below, then choose a permanent one to continue.'
+                        : 'Enter your current password, then choose a new one.'}{' '}
+                    Use a strong password: long, with upper and lower case
+                    letters, numbers and symbols.
                 </Text>
 
                 <PasswordField

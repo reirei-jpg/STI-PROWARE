@@ -89,6 +89,9 @@ type AuthContextValue = {
         remember: boolean,
     ) => Promise<void>;
     signOut: () => Promise<void>;
+    /** Call after the server confirms a password change, so the forced
+     *  temporary-password screen releases the rest of the app immediately. */
+    markPasswordChanged: () => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -177,6 +180,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }, [token]);
 
+    const markPasswordChanged = useCallback(() => {
+        setUser((current) =>
+            current ? { ...current, mustChangePassword: false } : current,
+        );
+    }, []);
+
     const request = useCallback<RequestFunction>(
         async (path, options = {}) => {
             try {
@@ -193,8 +202,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     const value = useMemo(
-        () => ({ user, request, restoring, signIn, signOut }),
-        [user, request, restoring, signIn, signOut],
+        () => ({
+            user,
+            request,
+            restoring,
+            signIn,
+            signOut,
+            markPasswordChanged,
+        }),
+        [user, request, restoring, signIn, signOut, markPasswordChanged],
     );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

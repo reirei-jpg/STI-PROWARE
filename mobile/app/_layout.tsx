@@ -19,6 +19,7 @@ import PushHandler from '@/lib/push';
 function RootNavigator() {
     const { user, restoring } = useAuth();
     const isSignedIn = user !== null;
+    const mustChangePassword = isSignedIn && user.mustChangePassword;
 
     if (restoring) {
         return null;
@@ -31,7 +32,9 @@ function RootNavigator() {
                 contentStyle: { backgroundColor: '#F3F7FA' },
             }}
         >
-            <Stack.Protected guard={isSignedIn}>
+            {/* Listed first so "(tabs)" stays the default landing screen
+                whenever this group is active (normal signed-in browsing). */}
+            <Stack.Protected guard={isSignedIn && !mustChangePassword}>
                 <Stack.Screen name="(tabs)" />
 
                 <Stack.Screen name="product/[id]" />
@@ -42,9 +45,17 @@ function RootNavigator() {
 
                 <Stack.Screen name="pay/[id]" />
 
-                <Stack.Screen name="change-password" />
-
                 <Stack.Screen name="notifications" />
+            </Stack.Protected>
+
+            {/* A student signed in with a temporary password (e.g. an
+                admin-created account) can reach only this screen until they
+                set a permanent one — the mobile equivalent of the website's
+                ForcePasswordChange middleware. Since the group above is
+                excluded while mustChangePassword is true, this becomes the
+                sole (and therefore default) screen in that case. */}
+            <Stack.Protected guard={isSignedIn}>
+                <Stack.Screen name="change-password" />
             </Stack.Protected>
 
             <Stack.Protected guard={!isSignedIn}>

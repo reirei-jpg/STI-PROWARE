@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\PasswordController;
 use App\Http\Controllers\Api\V1\PreorderController;
 use App\Http\Middleware\EnsureApiAccountIsUsable;
+use App\Http\Middleware\EnsureApiPasswordIsPermanent;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -34,6 +35,7 @@ Route::prefix('v1')
         Route::middleware([
             'auth:sanctum',
             EnsureApiAccountIsUsable::class,
+            EnsureApiPasswordIsPermanent::class,
         ])->group(function (): void {
             Route::get('auth/me', [AuthController::class, 'me'])
                 ->name('auth.me');
