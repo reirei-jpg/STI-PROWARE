@@ -8,6 +8,7 @@ import {
     CheckCircle2,
     CircleOff,
     GraduationCap,
+    LockKeyhole,
     Search,
     UserRound,
     UserRoundCheck,
@@ -40,6 +41,7 @@ interface StudentRow {
     name: string;
     email: string;
     is_active: boolean;
+    is_locked: boolean;
     student_id: string | null;
     course: string | null;
     year_level: string | null;
@@ -410,19 +412,25 @@ export default function Index({
                 open={confirmTarget !== null}
                 title={
                     confirmTarget?.action === 'activate'
-                        ? 'Activate Account'
+                        ? confirmTarget.student.is_locked
+                            ? 'Unlock Account'
+                            : 'Activate Account'
                         : 'Deactivate Account'
                 }
                 message={
                     confirmTarget
                         ? confirmTarget.action === 'activate'
-                            ? `${confirmTarget.student.name} will be able to log in again.`
+                            ? confirmTarget.student.is_locked
+                                ? `${confirmTarget.student.name}'s account was locked after too many failed login attempts. Unlocking it clears the lockout so they can log in again.`
+                                : `${confirmTarget.student.name} will be able to log in again.`
                             : `${confirmTarget.student.name} will no longer be able to log in.`
                         : ''
                 }
                 confirmText={
                     confirmTarget?.action === 'activate'
-                        ? 'Activate'
+                        ? confirmTarget.student.is_locked
+                            ? 'Unlock'
+                            : 'Activate'
                         : 'Deactivate'
                 }
                 processing={processing}
@@ -637,18 +645,26 @@ function StudentTableRow({
 
             <td className="px-5 py-5">
                 <span
-                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black ${
-                        student.is_active
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-red-100 text-red-700'
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black whitespace-nowrap ${
+                        student.is_locked
+                            ? 'bg-amber-100 text-amber-700'
+                            : student.is_active
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-red-100 text-red-700'
                     }`}
                 >
-                    {student.is_active ? (
+                    {student.is_locked ? (
+                        <LockKeyhole size={13} />
+                    ) : student.is_active ? (
                         <CheckCircle2 size={13} />
                     ) : (
                         <CircleOff size={13} />
                     )}
-                    {student.is_active ? 'Active' : 'Inactive'}
+                    {student.is_locked
+                        ? 'Locked (Security)'
+                        : student.is_active
+                          ? 'Active'
+                          : 'Inactive'}
                 </span>
             </td>
 
@@ -662,7 +678,11 @@ function StudentTableRow({
                             : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100'
                     }`}
                 >
-                    {student.is_active ? 'Deactivate' : 'Activate'}
+                    {student.is_active
+                        ? 'Deactivate'
+                        : student.is_locked
+                          ? 'Unlock'
+                          : 'Activate'}
                 </button>
             </td>
         </tr>

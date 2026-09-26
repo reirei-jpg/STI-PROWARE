@@ -131,6 +131,59 @@ test('the registered-today filter only shows accounts created today', function (
     );
 });
 
+test('a student locked out by failed logins is flagged as locked, not just inactive', function () {
+    $admin = studentIndexAdmin();
+
+    registeredStudent([
+        'name' => 'Locked Student',
+        'is_active' => false,
+        'failed_login_attempts' => 5,
+        'locked_at' => now(),
+    ]);
+    registeredStudent(['name' => 'Deactivated Student', 'is_active' => false]);
+
+    $this->actingAs($admin)
+        ->get('/admin/students?search=Locked')
+        ->assertInertia(fn ($page) => $page
+            ->has('students.data', 1)
+            ->where('students.data.0.is_locked', true),
+        );
+
+    $this->actingAs($admin)
+        ->get('/admin/students?search=Deactivated')
+        ->assertInertia(fn ($page) => $page
+            ->has('students.data', 1)
+            ->where('students.data.0.is_locked', false),
+        );
+});
+
+test('an admin can unlock a locked-out student from the students page, and the student can log in again', function () {
+    $admin = studentIndexAdmin();
+    $student = registeredStudent([
+        'is_active' => false,
+        'failed_login_attempts' => 5,
+        'locked_at' => now(),
+    ]);
+
+    $this->post('/login', ['email' => $student->email, 'password' => 'password'])
+        ->assertSessionHasErrors('email');
+    $this->assertGuest();
+
+    $this->actingAs($admin)
+        ->patch("/admin/users/{$student->id}/activate")
+        ->assertRedirect();
+
+    $student = $student->fresh();
+    expect($student->is_active)->toBeTrue()
+        ->and($student->locked_at)->toBeNull()
+        ->and($student->failed_login_attempts)->toBe(0);
+
+    auth()->logout();
+
+    $this->post('/login', ['email' => $student->email, 'password' => 'password']);
+    $this->assertAuthenticatedAs($student);
+});
+
 test('an admin can deactivate and reactivate a registered student through the existing generic endpoint', function () {
     $admin = studentIndexAdmin();
     $student = registeredStudent();

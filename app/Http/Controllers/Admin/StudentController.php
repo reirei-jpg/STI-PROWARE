@@ -100,6 +100,8 @@ class StudentController extends Controller
 
                 'is_active' => (bool) $user->is_active,
 
+                'is_locked' => $user->isLocked(),
+
                 'student_id' => $user->student?->student_id,
 
                 'course' => $user->student?->course,
