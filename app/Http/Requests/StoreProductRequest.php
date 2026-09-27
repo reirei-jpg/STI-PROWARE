@@ -446,7 +446,8 @@ class StoreProductRequest extends FormRequest
                 )
                 : [],
 
-            'is_active' => $this->boolean('is_active'),
+            'is_active' => $this->boolean('is_active')
+                && $this->input('availability_status') !== Product::AVAILABILITY_INACTIVE,
         ]);
     }
 

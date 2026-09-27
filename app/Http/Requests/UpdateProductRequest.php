@@ -286,7 +286,7 @@ class UpdateProductRequest extends FormRequest
 
             'is_active' => $this->boolean(
                 'is_active',
-            ),
+            ) && $this->input('availability_status') !== Product::AVAILABILITY_INACTIVE,
         ]);
     }
 }

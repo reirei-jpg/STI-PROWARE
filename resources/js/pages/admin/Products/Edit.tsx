@@ -406,6 +406,12 @@ export default function Edit({
                 status,
             );
 
+            form.setData(
+                'is_active',
+                status !==
+                    'inactive',
+            );
+
             form.clearErrors(
                 'availability_status',
             );
@@ -1877,11 +1883,12 @@ export default function Edit({
                                     onChange={(
                                         event,
                                     ) =>
-                                        form.setData(
-                                            'is_active',
+                                        selectAvailability(
                                             event
                                                 .target
-                                                .checked,
+                                                .checked
+                                                ? 'available'
+                                                : 'inactive',
                                         )
                                     }
                                     className="
