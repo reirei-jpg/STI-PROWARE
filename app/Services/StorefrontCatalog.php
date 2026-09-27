@@ -243,7 +243,7 @@ class StorefrontCatalog
             'preorder_enabled' => $product->preorder_enabled,
             'accepts_preorders' => $product->acceptsPreorders(),
             'preorder_ends_at' => $product->preorder_ends_at?->toISOString(),
-            'preorder_days_remaining' => $this->preorderDaysRemaining($product),
+            'preorder_days_remaining' => self::preorderDaysRemaining($product),
             'expected_release_date' => $card['expected_release_date'],
             'category' => $card['category'],
             'variants' => $variants,
@@ -347,7 +347,7 @@ class StorefrontCatalog
             'preorder_enabled' => (bool) $product->preorder_enabled,
             'accepts_preorders' => $product->acceptsPreorders(),
             'preorder_ends_at' => $product->preorder_ends_at?->toISOString(),
-            'preorder_days_remaining' => $this->preorderDaysRemaining($product),
+            'preorder_days_remaining' => self::preorderDaysRemaining($product),
             'expected_release_date' => $product->expected_release_date?->format('M d, Y'),
             'new_badge_duration_days' => $product->new_badge_duration_days,
             'new_badge_started_at' => $product->new_badge_started_at
@@ -465,7 +465,7 @@ class StorefrontCatalog
      * is not currently open for preorders. 0 means the window closes
      * sometime today.
      */
-    private function preorderDaysRemaining(Product $product): ?int
+    public static function preorderDaysRemaining(Product $product): ?int
     {
         if (! $product->acceptsPreorders() || ! $product->preorder_ends_at) {
             return null;

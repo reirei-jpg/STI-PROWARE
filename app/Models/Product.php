@@ -2,9 +2,12 @@
 
 namespace App\Models;
 
+use DateTimeInterface;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 class Product extends Model
 {
@@ -118,6 +121,51 @@ class Product extends Model
 
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Preorder window start, entered by staff in Manila time and stored in UTC.
+     *
+     * @return Attribute<Carbon|null, mixed>
+     */
+    protected function preorderStartsAt(): Attribute
+    {
+        return Attribute::make(
+            set: fn (mixed $value): ?string => self::manilaDateTimeToUtc($value),
+        );
+    }
+
+    /**
+     * Preorder window end, entered by staff in Manila time and stored in UTC.
+     *
+     * @return Attribute<Carbon|null, mixed>
+     */
+    protected function preorderEndsAt(): Attribute
+    {
+        return Attribute::make(
+            set: fn (mixed $value): ?string => self::manilaDateTimeToUtc($value),
+        );
+    }
+
+    /**
+     * Convert a staff-entered date and time to a UTC database value.
+     *
+     * Form inputs such as "2026-09-27T17:00" carry no timezone and are what the
+     * staff member read off a Manila clock, so they are read as Manila time.
+     * Values that already carry a timezone (Carbon instances, strings with an
+     * offset) keep their own timezone.
+     */
+    public static function manilaDateTimeToUtc(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $dateTime = $value instanceof DateTimeInterface
+            ? Carbon::instance($value)
+            : Carbon::parse((string) $value, config('app.display_timezone'));
+
+        return $dateTime->utc()->format('Y-m-d H:i:s');
     }
 
     /*

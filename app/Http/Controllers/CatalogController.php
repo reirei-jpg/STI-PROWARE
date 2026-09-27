@@ -454,6 +454,10 @@ class CatalogController extends Controller
 
             'accepts_preorders' => $product->acceptsPreorders(),
 
+            'preorder_days_remaining' => StorefrontCatalog::preorderDaysRemaining(
+                $product,
+            ),
+
             'expected_release_date' => $product->expected_release_date
                     ? $product
                         ->expected_release_date

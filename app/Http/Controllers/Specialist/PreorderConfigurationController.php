@@ -100,6 +100,12 @@ class PreorderConfigurationController extends Controller
 
         $quantityOrdered = (int) $purchaseOrderItem->quantity_ordered;
 
+        /*
+         * The form's date and time inputs are Manila wall-clock values, so the
+         * "not in the past" checks compare against the Manila clock too.
+         */
+        $manilaNow = now(config('app.display_timezone'));
+
         $validated = $request->validate([
             'preorder_enabled' => [
                 'required',
@@ -109,19 +115,19 @@ class PreorderConfigurationController extends Controller
             'expected_release_date' => [
                 'nullable',
                 'date',
-                'after_or_equal:today',
+                'after_or_equal:'.$manilaNow->toDateString(),
             ],
 
             'preorder_starts_at' => [
                 'nullable',
                 'date',
-                'after_or_equal:now',
+                'after_or_equal:'.$manilaNow->format('Y-m-d H:i:s'),
             ],
 
             'preorder_ends_at' => [
                 'nullable',
                 'date',
-                'after_or_equal:now',
+                'after_or_equal:'.$manilaNow->format('Y-m-d H:i:s'),
                 'after:preorder_starts_at',
             ],
 

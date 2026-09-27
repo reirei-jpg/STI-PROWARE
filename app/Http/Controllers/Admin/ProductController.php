@@ -529,13 +529,15 @@ class ProductController extends Controller
 
                     'preorder_starts_at' => $product
                         ->preorder_starts_at
-                        ?->format(
+                        ?->timezone(config('app.display_timezone'))
+                        ->format(
                             'Y-m-d\TH:i',
                         ),
 
                     'preorder_ends_at' => $product
                         ->preorder_ends_at
-                        ?->format(
+                        ?->timezone(config('app.display_timezone'))
+                        ->format(
                             'Y-m-d\TH:i',
                         ),
 
