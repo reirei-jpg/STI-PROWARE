@@ -69,7 +69,7 @@ const DATE_STATUS_STYLES: Record<
     },
 };
 
-function itemLabel(
+export function itemLabel(
     item: StockReceiptPurchaseOrderItem,
 ): string {
     const baseName =

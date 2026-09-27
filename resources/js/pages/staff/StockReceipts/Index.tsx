@@ -20,6 +20,7 @@ import {   useState } from 'react';
 import type {FormEvent, ReactNode} from 'react';
 
 import AwaitingItemsPicker from '@/components/admin/stock-receipts/AwaitingItemsPicker';
+import AwaitingItemsTable from '@/components/admin/stock-receipts/AwaitingItemsTable';
 
 import AdminLayout from '@/layouts/AdminLayout';
 import SpecialistLayout from '@/layouts/SpecialistLayout';
@@ -759,6 +760,7 @@ export default function Index({
                             </div>
                         )}
 
+                        {isSpecialist ? (
                         <AwaitingItemsPicker
                             purchaseOrders={filteredOutstandingPurchaseOrders}
                             selectedPurchaseOrderId=""
@@ -770,6 +772,13 @@ export default function Index({
                             description="A read-only look at everything still awaiting delivery — click any item to see its full purchase order. Nothing here starts a stock receipt; that only happens from Receive Stock."
                             itemActionHint="View details"
                         />
+                        ) : (
+                            <AwaitingItemsTable
+                                purchaseOrders={filteredOutstandingPurchaseOrders}
+                                today={today}
+                                onViewDetails={openPurchaseOrderDetails}
+                            />
+                        )}
                     </>
                 )}
             </div>
