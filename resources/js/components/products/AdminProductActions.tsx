@@ -1,6 +1,5 @@
 import {
     Boxes,
-    PackagePlus,
     Pencil,
 } from 'lucide-react';
 
@@ -24,7 +23,7 @@ export default function AdminProductActions({
             className="
                 grid
                 gap-3
-                sm:grid-cols-3
+                sm:grid-cols-2
             "
             onClick={(
                 event,
@@ -98,37 +97,6 @@ export default function AdminProductActions({
                 />
 
                 Edit Product
-            </Link>
-
-            {/* RECEIVE STOCK */}
-            <Link
-                href={`/staff/stock-receipts/create?product=${product.id}`}
-                onClick={(
-                    event,
-                ) => {
-                    event.stopPropagation();
-                }}
-                className="
-                    inline-flex
-                    items-center
-                    justify-center
-                    gap-2
-                    rounded-xl
-                    bg-[#0D6EFD]
-                    px-4
-                    py-3
-                    text-sm
-                    font-bold
-                    text-white
-                    transition
-                    hover:bg-blue-700
-                "
-            >
-                <PackagePlus
-                    size={17}
-                />
-
-                Receive Stock
             </Link>
         </div>
     );

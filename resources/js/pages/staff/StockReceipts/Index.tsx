@@ -43,6 +43,11 @@ interface SharedPageProps {
             role: string;
         } | null;
     };
+
+    flash?: {
+        success?: string | null;
+        error?: string | null;
+    };
 }
 
 interface ReceiptItem {
@@ -409,6 +414,12 @@ export default function Index({
             <Head title={pageTitle} />
 
             <div className="mx-auto max-w-7xl space-y-7">
+                {page.props.flash?.error && (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-bold text-amber-800">
+                        {page.props.flash.error}
+                    </div>
+                )}
+
                 {/*
                 |--------------------------------------------------------------------------
                 | Header

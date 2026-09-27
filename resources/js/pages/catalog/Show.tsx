@@ -3,10 +3,9 @@ import {
     CalendarDays,
     Check,
     PackageOpen,
-    PackagePlus,
+    Boxes,
     ShoppingCart,
     UserRoundPlus,
-    X,
 } from 'lucide-react';
 
 import {
@@ -21,7 +20,6 @@ import type {
 } from 'lucide-react';
 
 import {
-    useEffect,
     useMemo,
     useState,
 } from 'react';
@@ -1597,7 +1595,7 @@ type ProductActionState =
     | 'out_of_stock'
     | 'staff_order'
     | 'staff_preorder'
-    | 'admin_receive'
+    | 'admin_manage_variants'
     | 'cashier_view';
 
 interface ActionStateOptions {
@@ -1626,7 +1624,7 @@ function getActionState({
         role ===
         'admin'
     ) {
-        return 'admin_receive';
+        return 'admin_manage_variants';
     }
 
     /*
@@ -1734,11 +1732,11 @@ function ProductAction({
 }: ProductActionProps) {
     if (
         state ===
-        'admin_receive'
+        'admin_manage_variants'
     ) {
         return (
             <Link
-                href={`/staff/stock-receipts/create?product=${productId}`}
+                href={`/admin/products/${productId}/variants`}
                 className="
                     flex
                     w-full
@@ -1756,11 +1754,11 @@ function ProductAction({
                     hover:bg-blue-700
                 "
             >
-                <PackagePlus
+                <Boxes
                     size={19}
                 />
 
-                Receive Stock
+                Manage Variants
             </Link>
         );
     }

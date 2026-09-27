@@ -88,7 +88,7 @@ test('receiving without a fresh cost falls back to the purchase order item plann
     $variant = poReceivingCostVariant($admin);
     $poItem = poReceivingCostItem($admin, $variant, 120.00);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $poItem->purchase_order_id,
         'purchase_order_item_id' => $poItem->id,
         'quantity' => 10,
@@ -108,7 +108,7 @@ test('a fresh cost typed on the receiving form overrides the purchase order item
     $variant = poReceivingCostVariant($admin);
     $poItem = poReceivingCostItem($admin, $variant, 120.00);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $poItem->purchase_order_id,
         'purchase_order_item_id' => $poItem->id,
         'quantity' => 10,
@@ -127,7 +127,7 @@ test('receiving with neither a fresh cost nor a planned cost leaves the average 
     $variant = poReceivingCostVariant($admin);
     $poItem = poReceivingCostItem($admin, $variant, null);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $poItem->purchase_order_id,
         'purchase_order_item_id' => $poItem->id,
         'quantity' => 10,
@@ -147,7 +147,7 @@ test('a fresh cost on one receipt and a fallback cost on the next still compute 
     $poItem = poReceivingCostItem($admin, $variant, 120.00);
 
     // First receipt: specialist types a fresh price.
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $poItem->purchase_order_id,
         'purchase_order_item_id' => $poItem->id,
         'quantity' => 10,
@@ -155,7 +155,7 @@ test('a fresh cost on one receipt and a fallback cost on the next still compute 
     ])->assertSessionDoesntHaveErrors();
 
     // Second receipt against the same item: nothing typed, falls back to 120.
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $poItem->purchase_order_id,
         'purchase_order_item_id' => $poItem->id,
         'quantity' => 10,

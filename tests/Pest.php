@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -47,4 +48,16 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+/**
+ * A PROWARE Specialist account, the role that receives deliveries into
+ * inventory (the Admin orders stock but does not receive it).
+ */
+function receivingSpecialist(): User
+{
+    return User::factory()->create([
+        'role' => 'specialist',
+        'is_active' => true,
+    ]);
 }

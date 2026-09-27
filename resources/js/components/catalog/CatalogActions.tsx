@@ -1,8 +1,7 @@
 import {
     Eye,
-    PackagePlus,
+    Boxes,
     ShoppingCart,
-    UserRoundPlus,
 } from 'lucide-react';
 
 import {
@@ -78,12 +77,12 @@ function AdminCatalogActions({
             </Link>
 
             <Link
-                href={`/staff/stock-receipts/create?product=${product.id}`}
+                href={`/admin/products/${product.id}/variants`}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D6EFD] px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-700"
             >
-                <PackagePlus size={17} />
+                <Boxes size={17} />
 
-                Receive Stock
+                Manage Variants
             </Link>
         </div>
     );

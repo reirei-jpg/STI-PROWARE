@@ -29,6 +29,19 @@ use RuntimeException;
 class StockReceiptController extends Controller
 {
     /**
+     * Who may receive deliveries into inventory. The Admin orders stock
+     * through purchase orders, so receiving it is kept with the PROWARE
+     * Specialist (separation of duties); the Super Admin keeps access as
+     * the system owner.
+     *
+     * @var list<string>
+     */
+    private const RECEIVING_ROLES = [
+        'super_admin',
+        'specialist',
+    ];
+
+    /**
      * Display stock receipt history.
      */
     public function index(
@@ -507,19 +520,25 @@ class StockReceiptController extends Controller
      */
     public function create(
         Request $request,
-    ): Response {
+    ): Response|RedirectResponse {
         $user =
             $request->user();
+
+        /*
+         * Receiving is the PROWARE Specialist's job, so an Admin who
+         * follows an old link lands on Receipt History instead.
+         */
+        if ($user && in_array($user->role, ['admin'], true)) {
+            return redirect()
+                ->route('staff.stock-receipts.index')
+                ->with('error', 'Receiving stock is done by the PROWARE Specialist. You can follow every delivery here in Receipt History.');
+        }
 
         abort_unless(
             $user
             && in_array(
                 $user->role,
-                [
-                    'super_admin',
-                    'admin',
-                    'specialist',
-                ],
+                self::RECEIVING_ROLES,
                 true,
             ),
             403,
@@ -749,11 +768,7 @@ class StockReceiptController extends Controller
             $user
             && in_array(
                 $user->role,
-                [
-                    'super_admin',
-                    'admin',
-                    'specialist',
-                ],
+                self::RECEIVING_ROLES,
                 true,
             ),
             403,
@@ -1557,11 +1572,7 @@ class StockReceiptController extends Controller
             $user
             && in_array(
                 $user->role,
-                [
-                    'super_admin',
-                    'admin',
-                    'specialist',
-                ],
+                self::RECEIVING_ROLES,
                 true,
             ),
             403,
@@ -1915,11 +1926,7 @@ class StockReceiptController extends Controller
             $user
             && in_array(
                 $user->role,
-                [
-                    'super_admin',
-                    'admin',
-                    'specialist',
-                ],
+                self::RECEIVING_ROLES,
                 true,
             ),
             403,

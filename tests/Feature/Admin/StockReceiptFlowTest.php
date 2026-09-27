@@ -84,7 +84,7 @@ function receiptStoreTestItem(PurchaseOrder $purchaseOrder, $variant, int $quant
 |--------------------------------------------------------------------------
 */
 
-test('an admin, specialist, and super admin can each receive stock', function (string $role) {
+test('the PROWARE Specialist and the super admin can receive stock', function (string $role) {
     $admin = receiptStoreTestUser('admin');
     $actor = receiptStoreTestUser($role);
     $variant = receiptStoreTestVariant($admin);
@@ -98,9 +98,9 @@ test('an admin, specialist, and super admin can each receive stock', function (s
     ])->assertSessionDoesntHaveErrors();
 
     expect((int) $variant->inventory->fresh()->quantity_on_hand)->toBe(5);
-})->with(['admin', 'specialist', 'super_admin']);
+})->with(['specialist', 'super_admin']);
 
-test('a student or cashier cannot receive stock', function (string $role) {
+test('an admin, cashier, or student cannot receive stock', function (string $role) {
     $admin = receiptStoreTestUser('admin');
     $actor = receiptStoreTestUser($role);
     $variant = receiptStoreTestVariant($admin);
@@ -114,7 +114,7 @@ test('a student or cashier cannot receive stock', function (string $role) {
     ])->assertForbidden();
 
     expect((int) $variant->inventory->fresh()->quantity_on_hand)->toBe(0);
-})->with(['student', 'cashier']);
+})->with(['admin', 'cashier', 'student']);
 
 /*
 |--------------------------------------------------------------------------
@@ -128,7 +128,7 @@ test('an archived purchase order cannot receive merchandise', function () {
     $purchaseOrder = receiptStoreTestOrder($admin, archived: true);
     $item = receiptStoreTestItem($purchaseOrder, $variant, quantityOrdered: 10);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $purchaseOrder->id,
         'purchase_order_item_id' => $item->id,
         'quantity' => 5,
@@ -143,7 +143,7 @@ test('a completed purchase order cannot receive merchandise', function () {
     $purchaseOrder = receiptStoreTestOrder($admin, status: PurchaseOrder::STATUS_COMPLETED);
     $item = receiptStoreTestItem($purchaseOrder, $variant, quantityOrdered: 10, quantityReceived: 10);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $purchaseOrder->id,
         'purchase_order_item_id' => $item->id,
         'quantity' => 1,
@@ -156,7 +156,7 @@ test('a draft purchase order cannot receive merchandise', function () {
     $purchaseOrder = receiptStoreTestOrder($admin, status: PurchaseOrder::STATUS_DRAFT);
     $item = receiptStoreTestItem($purchaseOrder, $variant, quantityOrdered: 10);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $purchaseOrder->id,
         'purchase_order_item_id' => $item->id,
         'quantity' => 5,
@@ -169,7 +169,7 @@ test('an archived purchase order item cannot receive merchandise', function () {
     $purchaseOrder = receiptStoreTestOrder($admin);
     $item = receiptStoreTestItem($purchaseOrder, $variant, quantityOrdered: 10, archived: true);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $purchaseOrder->id,
         'purchase_order_item_id' => $item->id,
         'quantity' => 5,
@@ -183,7 +183,7 @@ test('an item that does not belong to the given purchase order is rejected', fun
     $purchaseOrderB = receiptStoreTestOrder($admin);
     $itemOnB = receiptStoreTestItem($purchaseOrderB, $variant, quantityOrdered: 10);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $purchaseOrderA->id,
         'purchase_order_item_id' => $itemOnB->id,
         'quantity' => 5,
@@ -202,7 +202,7 @@ test('receiving more than the remaining quantity is rejected', function () {
     $purchaseOrder = receiptStoreTestOrder($admin);
     $item = receiptStoreTestItem($purchaseOrder, $variant, quantityOrdered: 10, quantityReceived: 4);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $purchaseOrder->id,
         'purchase_order_item_id' => $item->id,
         // Only 6 remain.
@@ -219,7 +219,7 @@ test('an item that has already been fully received cannot receive more', functio
     $purchaseOrder = receiptStoreTestOrder($admin, status: PurchaseOrder::STATUS_PARTIALLY_RECEIVED);
     $item = receiptStoreTestItem($purchaseOrder, $variant, quantityOrdered: 10, quantityReceived: 10);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $purchaseOrder->id,
         'purchase_order_item_id' => $item->id,
         'quantity' => 1,
@@ -232,7 +232,7 @@ test('receiving exactly the remaining quantity succeeds', function () {
     $purchaseOrder = receiptStoreTestOrder($admin);
     $item = receiptStoreTestItem($purchaseOrder, $variant, quantityOrdered: 10, quantityReceived: 4);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $purchaseOrder->id,
         'purchase_order_item_id' => $item->id,
         'quantity' => 6,
@@ -254,7 +254,7 @@ test('a submitted product_variant_id that does not match the linked variant is r
     $purchaseOrder = receiptStoreTestOrder($admin);
     $item = receiptStoreTestItem($purchaseOrder, $linkedVariant, quantityOrdered: 10);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $purchaseOrder->id,
         'purchase_order_item_id' => $item->id,
         // Manipulated request tries to receive into a different variant.
@@ -272,7 +272,7 @@ test('submitting the correct matching product_variant_id succeeds', function () 
     $purchaseOrder = receiptStoreTestOrder($admin);
     $item = receiptStoreTestItem($purchaseOrder, $variant, quantityOrdered: 10);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $purchaseOrder->id,
         'purchase_order_item_id' => $item->id,
         'product_variant_id' => $variant->id,
@@ -292,7 +292,7 @@ test('receiving against an inactive product is rejected', function () {
     $purchaseOrder = receiptStoreTestOrder($admin);
     $item = receiptStoreTestItem($purchaseOrder, $variant, quantityOrdered: 10);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $purchaseOrder->id,
         'purchase_order_item_id' => $item->id,
         'quantity' => 5,
@@ -305,7 +305,7 @@ test('receiving against an inactive variant is rejected', function () {
     $purchaseOrder = receiptStoreTestOrder($admin);
     $item = receiptStoreTestItem($purchaseOrder, $variant, quantityOrdered: 10);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $purchaseOrder->id,
         'purchase_order_item_id' => $item->id,
         'quantity' => 5,
@@ -324,7 +324,7 @@ test('a purchase order moves to partially received after a partial receipt', fun
     $purchaseOrder = receiptStoreTestOrder($admin);
     $item = receiptStoreTestItem($purchaseOrder, $variant, quantityOrdered: 10);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $purchaseOrder->id,
         'purchase_order_item_id' => $item->id,
         'quantity' => 4,
@@ -342,7 +342,7 @@ test('a purchase order moves to completed once every item is fully received', fu
     $purchaseOrder = receiptStoreTestOrder($admin, status: PurchaseOrder::STATUS_PARTIALLY_RECEIVED);
     $item = receiptStoreTestItem($purchaseOrder, $variant, quantityOrdered: 10, quantityReceived: 4);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $purchaseOrder->id,
         'purchase_order_item_id' => $item->id,
         'quantity' => 6,
@@ -362,11 +362,12 @@ test('a purchase order moves to completed once every item is fully received', fu
 
 test('a successful receipt creates a correct stock movement record', function () {
     $admin = receiptStoreTestUser('admin');
+    $specialist = receivingSpecialist();
     $variant = receiptStoreTestVariant($admin);
     $purchaseOrder = receiptStoreTestOrder($admin);
     $item = receiptStoreTestItem($purchaseOrder, $variant, quantityOrdered: 10);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs($specialist)->post('/staff/stock-receipts', [
         'purchase_order_id' => $purchaseOrder->id,
         'purchase_order_item_id' => $item->id,
         'quantity' => 6,
@@ -380,18 +381,19 @@ test('a successful receipt creates a correct stock movement record', function ()
     expect($movement->quantity_change)->toBe(6);
     expect($movement->quantity_before)->toBe(0);
     expect($movement->quantity_after)->toBe(6);
-    expect($movement->performed_by)->toBe($admin->id);
+    expect($movement->performed_by)->toBe($specialist->id);
     expect($movement->supplier_reference_number)->toBe('SUP-REF-123');
     expect($movement->receipt_number)->not->toBeNull();
 });
 
 test('a successful receipt writes an audit log entry', function () {
     $admin = receiptStoreTestUser('admin');
+    $specialist = receivingSpecialist();
     $variant = receiptStoreTestVariant($admin);
     $purchaseOrder = receiptStoreTestOrder($admin);
     $item = receiptStoreTestItem($purchaseOrder, $variant, quantityOrdered: 10);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs($specialist)->post('/staff/stock-receipts', [
         'purchase_order_id' => $purchaseOrder->id,
         'purchase_order_item_id' => $item->id,
         'quantity' => 6,
@@ -404,7 +406,7 @@ test('a successful receipt writes an audit log entry', function () {
         ->first();
 
     expect($log)->not->toBeNull();
-    expect($log->user_id)->toBe($admin->id);
+    expect($log->user_id)->toBe($specialist->id);
     expect($log->new_values['quantity_received'])->toBe(6);
     expect($log->new_values['purchase_order_id'])->toBe($purchaseOrder->id);
     expect($log->old_values['quantity_on_hand'])->toBe(0);
@@ -418,11 +420,26 @@ test('receiving against an existing catalog item marks the product as recently r
 
     expect($variant->product->restocked_badge_started_at)->toBeNull();
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $purchaseOrder->id,
         'purchase_order_item_id' => $item->id,
         'quantity' => 5,
     ])->assertSessionDoesntHaveErrors();
 
     expect($variant->product->fresh()->restocked_badge_started_at)->not->toBeNull();
+});
+
+test('an admin who opens Receive Stock is sent to Receipt History with an explanation', function () {
+    $admin = receiptStoreTestUser('admin');
+
+    $this->actingAs($admin)
+        ->get('/staff/stock-receipts/create')
+        ->assertRedirect('/staff/stock-receipts')
+        ->assertSessionHas('error', 'Receiving stock is done by the PROWARE Specialist. You can follow every delivery here in Receipt History.');
+});
+
+test('the PROWARE Specialist can open Receive Stock', function () {
+    $this->actingAs(receivingSpecialist())
+        ->get('/staff/stock-receipts/create')
+        ->assertOk();
 });
