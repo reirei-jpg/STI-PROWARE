@@ -19,7 +19,6 @@ import {
 import {   useState } from 'react';
 import type {FormEvent, ReactNode} from 'react';
 
-import AwaitingItemsPicker from '@/components/admin/stock-receipts/AwaitingItemsPicker';
 import AwaitingItemsTable from '@/components/admin/stock-receipts/AwaitingItemsTable';
 
 import AdminLayout from '@/layouts/AdminLayout';
@@ -760,25 +759,16 @@ export default function Index({
                             </div>
                         )}
 
-                        {isSpecialist ? (
-                        <AwaitingItemsPicker
+                        <AwaitingItemsTable
                             purchaseOrders={filteredOutstandingPurchaseOrders}
-                            selectedPurchaseOrderId=""
-                            selectedPurchaseOrderItemId=""
-                            onSelectItem={(purchaseOrderId) =>
-                                openPurchaseOrderDetails(purchaseOrderId)
+                            today={today}
+                            receivingNote={
+                                isSpecialist
+                                    ? 'To record a delivery, use Receive Stock.'
+                                    : 'Receiving is done by the PROWARE Specialist.'
                             }
-                            title="Browse What's Coming"
-                            description="A read-only look at everything still awaiting delivery — click any item to see its full purchase order. Nothing here starts a stock receipt; that only happens from Receive Stock."
-                            itemActionHint="View details"
+                            onViewDetails={openPurchaseOrderDetails}
                         />
-                        ) : (
-                            <AwaitingItemsTable
-                                purchaseOrders={filteredOutstandingPurchaseOrders}
-                                today={today}
-                                onViewDetails={openPurchaseOrderDetails}
-                            />
-                        )}
                     </>
                 )}
             </div>

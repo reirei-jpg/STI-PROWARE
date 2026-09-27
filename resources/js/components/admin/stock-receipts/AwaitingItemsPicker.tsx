@@ -4,6 +4,7 @@ import {
     CalendarClock,
     ChevronRight,
     Clock4,
+    ListChecks,
     PackageSearch,
     RotateCcw,
     Search,
@@ -332,8 +333,9 @@ export default function AwaitingItemsPicker({
                 {viewAllHref && (
                     <Link
                         href={viewAllHref}
-                        className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-black text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                        className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[#0D6EFD] px-5 py-3 text-sm font-black text-white shadow-md shadow-blue-200 transition hover:bg-blue-700"
                     >
+                        <ListChecks size={18} />
                         {viewAllLabel}
                     </Link>
                 )}

@@ -19,10 +19,10 @@ import type { StockReceiptPurchaseOrder } from '@/types/stock-receipt';
 | Awaiting Items Table
 |--------------------------------------------------------------------------
 |
-| The Admin's read-only list of everything still awaiting delivery. The
-| Specialist receives stock through the calendar picker; the Admin only
-| monitors, so a plain table with every item's details on one row is
-| easier to scan than the picker's calendar and cards.
+| The read-only list of everything still awaiting delivery, shown on the
+| To Be Received tab for both the Admin and the Specialist. Receiving
+| itself happens on Receive Stock, which keeps the calendar picker; here a
+| plain table with every item's details on one row is easier to scan.
 |
 */
 
@@ -92,10 +92,12 @@ function formatDisplayDate(value: string): string {
 export default function AwaitingItemsTable({
     purchaseOrders,
     today,
+    receivingNote,
     onViewDetails,
 }: {
     purchaseOrders: StockReceiptPurchaseOrder[];
     today: string;
+    receivingNote: string;
     onViewDetails: (purchaseOrderId: string) => void;
 }) {
     const [searchQuery, setSearchQuery] = useState('');
@@ -163,8 +165,7 @@ export default function AwaitingItemsTable({
 
                     <p className="mt-1 text-sm text-slate-500">
                         {rows.length} item{rows.length === 1 ? '' : 's'} still
-                        to be received, overdue first. Receiving is done by the
-                        PROWARE Specialist.
+                        to be received, overdue first. {receivingNote}
                     </p>
                 </div>
 
