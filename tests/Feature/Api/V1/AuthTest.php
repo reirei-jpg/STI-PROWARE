@@ -2,6 +2,7 @@
 
 use App\Models\Student;
 use App\Models\User;
+use App\Services\AccountAuthenticator;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\PersonalAccessToken;
 
@@ -107,14 +108,33 @@ test('five wrong passwords lock the account and end its mobile sessions', functi
         ->assertUnauthorized();
 });
 
-test('a sixth attempt inside a minute is rate limited', function () {
+test('the attempt that locks the account says so, and the next one inside the minute gets the lockout message, not a rate limit', function () {
     $user = apiAuthStudent();
 
-    for ($attempt = 0; $attempt < 5; $attempt++) {
-        apiAuthLogin($this, $user->email, 'wrong-password');
+    for ($attempt = 0; $attempt < 4; $attempt++) {
+        apiAuthLogin($this, $user->email, 'wrong-password')
+            ->assertJsonValidationErrors(['email' => 'Invalid credentials.']);
     }
 
-    apiAuthLogin($this, $user->email, 'correct-password')->assertStatus(429);
+    apiAuthLogin($this, $user->email, 'wrong-password')
+        ->assertJsonValidationErrors(['email' => AccountAuthenticator::LOCKED_MESSAGE]);
+
+    apiAuthLogin($this, $user->email, 'correct-password')
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['email' => AccountAuthenticator::LOCKED_MESSAGE]);
+});
+
+test('the per-minute rate limit only kicks in after 10 attempts and tells the app when to retry', function () {
+    $user = apiAuthStudent();
+
+    for ($attempt = 0; $attempt < AccountAuthenticator::LOGIN_ATTEMPTS_PER_MINUTE; $attempt++) {
+        apiAuthLogin($this, $user->email, 'wrong-password')->assertUnprocessable();
+    }
+
+    apiAuthLogin($this, $user->email, 'wrong-password')
+        ->assertStatus(429)
+        ->assertHeader('Retry-After')
+        ->assertJsonPath('message', fn (string $message) => str_starts_with($message, 'Too many login attempts.'));
 });
 
 test('a disabled account gets the website message and no token', function () {

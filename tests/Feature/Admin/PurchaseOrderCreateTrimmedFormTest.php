@@ -45,6 +45,7 @@ test('creating a new inventory item no longer requires category, selling price, 
 
     $response = $this->actingAs($admin)->post('/admin/purchase-orders', [
         'supplier_name' => 'Test Supplier',
+        'expected_delivery_date' => now()->addDay()->toDateString(),
         'items' => [
             [
                 'source_type' => 'new_inventory',
@@ -81,6 +82,7 @@ test('a new inventory item still requires a name', function () {
 
     $response = $this->actingAs($admin)->post('/admin/purchase-orders', [
         'supplier_name' => 'Test Supplier',
+        'expected_delivery_date' => now()->addDay()->toDateString(),
         'items' => [
             [
                 'source_type' => 'new_inventory',
@@ -104,6 +106,7 @@ test('sending category, selling price, or variant fields for a new inventory ite
 
     $response = $this->actingAs($admin)->post('/admin/purchase-orders', [
         'supplier_name' => 'Test Supplier',
+        'expected_delivery_date' => now()->addDay()->toDateString(),
         'items' => [
             [
                 'source_type' => 'new_inventory',
@@ -133,6 +136,7 @@ test('an existing catalog item can still be added to a purchase order', function
 
     $response = $this->actingAs($admin)->post('/admin/purchase-orders', [
         'supplier_name' => 'Test Supplier',
+        'expected_delivery_date' => now()->addDay()->toDateString(),
         'items' => [
             [
                 'source_type' => 'existing_catalog',
@@ -194,6 +198,27 @@ test('the expected delivery date accepts today and future dates', function () {
     expect(
         PurchaseOrder::query()->latest('id')->first()->expected_delivery_date->toDateString(),
     )->toBe(now()->toDateString());
+});
+
+test('the expected delivery date is required — a purchase order cannot be tracked without one', function () {
+    $admin = trimmedFormAdmin();
+
+    $response = $this->actingAs($admin)->post('/admin/purchase-orders', [
+        'supplier_name' => 'Test Supplier',
+        'items' => [
+            [
+                'source_type' => 'new_inventory',
+                'product_name' => 'Black Boots',
+                'quantity_ordered' => 10,
+            ],
+        ],
+    ]);
+
+    $response->assertSessionHasErrors([
+        'expected_delivery_date' => 'Please select the expected delivery date.',
+    ]);
+
+    expect(PurchaseOrder::query()->count())->toBe(0);
 });
 
 test('the purchase order creation page no longer sends category or product configuration data', function () {

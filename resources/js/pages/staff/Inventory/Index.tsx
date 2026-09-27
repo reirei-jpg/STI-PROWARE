@@ -1,8 +1,10 @@
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     AlertTriangle,
     ArrowLeft,
     Boxes,
     CheckCircle2,
+    ChevronDown,
     ChevronLeft,
     ChevronRight,
     LoaderCircle,
@@ -17,16 +19,14 @@ import {
     X,
 } from 'lucide-react';
 
-import { Head, Link, router, usePage } from '@inertiajs/react';
-
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react';
-
-import AdminLayout from '@/layouts/AdminLayout';
-import SpecialistLayout from '@/layouts/SpecialistLayout';
+import type { FormEvent, ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 
 import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal';
 import ActionNotification from '@/components/action-feedback/ActionNotification';
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
+import AdminLayout from '@/layouts/AdminLayout';
+import SpecialistLayout from '@/layouts/SpecialistLayout';
 import { clampNumberInput } from '@/lib/utils';
 
 /*
@@ -68,9 +68,27 @@ interface InventoryRow {
     stock_status: StockStatus;
 }
 
-interface PaginatedInventories {
+/**
+ * One product on the Inventory page. Its totals cover all of its
+ * variants; `variants` holds only the ones matching the current
+ * search and status filter.
+ */
+interface ProductGroup {
+    product: InventoryProduct;
+
+    variant_count: number;
+    total_on_hand: number;
+    total_reserved: number;
+    total_available: number;
+    low_stock_count: number;
+    out_of_stock_count: number;
+
+    variants: InventoryRow[];
+}
+
+interface PaginatedProducts {
     current_page: number;
-    data: InventoryRow[];
+    data: ProductGroup[];
 
     first_page_url?: string;
     from: number | null;
@@ -107,7 +125,7 @@ interface InventoryFilters {
 }
 
 interface Props {
-    inventories: PaginatedInventories;
+    products: PaginatedProducts;
     summary: InventorySummary;
     filters: InventoryFilters;
 }
@@ -136,7 +154,7 @@ interface SharedPageProps {
 |--------------------------------------------------------------------------
 */
 
-export default function Index({ inventories, summary, filters }: Props) {
+export default function Index({ products, summary, filters }: Props) {
     const page = usePage<SharedPageProps>();
 
     const role = page.props.auth?.user?.role ?? '';
@@ -165,16 +183,73 @@ export default function Index({ inventories, summary, filters }: Props) {
     const { notification, showSuccess, showError, clearNotification } =
         useActionFeedback();
 
-    useEffect(() => {
+    /*
+     * Keep the search box and status select in step with the filters
+     * the server actually applied (for example after Clear, or a
+     * summary card). Adjusted during render rather than in an effect.
+     */
+    const [lastFilters, setLastFilters] = useState(filters);
+
+    if (
+        filters.search !== lastFilters.search ||
+        filters.status !== lastFilters.status
+    ) {
+        setLastFilters(filters);
+
         setSearch(filters.search ?? '');
 
         setStatus(filters.status ?? 'all');
-    }, [filters.search, filters.status]);
+    }
 
-    const rows = useMemo(
-        () => (Array.isArray(inventories?.data) ? inventories.data : []),
-        [inventories],
+    const groups = useMemo(
+        () => (Array.isArray(products?.data) ? products.data : []),
+        [products],
     );
+
+    /*
+     * Which products are opened to show their sizes. With a search or
+     * status filter applied, every listed product starts open so the
+     * matching sizes are visible right away; otherwise all start
+     * closed. Re-seeded during render (not in an effect) whenever a
+     * different page or filter result arrives.
+     */
+    const isFiltered =
+        (filters.search ?? '') !== '' || (filters.status ?? 'all') !== 'all';
+
+    const groupsKey = `${products.current_page}|${filters.search ?? ''}|${filters.status ?? 'all'}|${groups.map((group) => group.product.id).join(',')}`;
+
+    const [expandedProducts, setExpandedProducts] = useState<Set<number>>(
+        () =>
+            new Set(
+                isFiltered ? groups.map((group) => group.product.id ?? 0) : [],
+            ),
+    );
+
+    const [lastGroupsKey, setLastGroupsKey] = useState(groupsKey);
+
+    if (groupsKey !== lastGroupsKey) {
+        setLastGroupsKey(groupsKey);
+
+        setExpandedProducts(
+            new Set(
+                isFiltered ? groups.map((group) => group.product.id ?? 0) : [],
+            ),
+        );
+    }
+
+    const toggleProduct = (productId: number): void => {
+        setExpandedProducts((previous) => {
+            const next = new Set(previous);
+
+            if (next.has(productId)) {
+                next.delete(productId);
+            } else {
+                next.add(productId);
+            }
+
+            return next;
+        });
+    };
 
     const pageTitle = isAdmin
         ? 'Inventory Control & Monitoring'
@@ -600,18 +675,19 @@ export default function Index({ inventories, summary, filters }: Props) {
                     </form>
                 </section>
 
-                {/* Inventory Table */}
+                {/* Inventory Table, one row per product */}
                 <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
                     <div className="flex flex-col gap-3 border-b border-slate-100 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <h2 className="text-lg font-black text-slate-900">
-                                Inventory Records
+                                Products
                             </h2>
 
                             <p className="mt-1 text-sm text-slate-500">
-                                Showing <strong>{inventories.from ?? 0}</strong>{' '}
-                                to <strong>{inventories.to ?? 0}</strong> of{' '}
-                                <strong>{inventories.total}</strong> records.
+                                Showing <strong>{products.from ?? 0}</strong> to{' '}
+                                <strong>{products.to ?? 0}</strong> of{' '}
+                                <strong>{products.total}</strong> products.
+                                Click a product to see its sizes.
                             </p>
                         </div>
 
@@ -622,17 +698,15 @@ export default function Index({ inventories, summary, filters }: Props) {
                         )}
                     </div>
 
-                    {rows.length > 0 ? (
+                    {groups.length > 0 ? (
                         <>
                             <div className="overflow-x-auto">
-                                <table className="w-full min-w-[1350px]">
+                                <table className="w-full min-w-[980px]">
                                     <thead className="bg-slate-50">
                                         <tr>
                                             <TableHeading>Product</TableHeading>
 
-                                            <TableHeading>Variant</TableHeading>
-
-                                            <TableHeading>SKU</TableHeading>
+                                            <TableHeading>Sizes</TableHeading>
 
                                             <TableHeading>On Hand</TableHeading>
 
@@ -645,138 +719,44 @@ export default function Index({ inventories, summary, filters }: Props) {
                                             </TableHeading>
 
                                             <TableHeading>
-                                                Restock Threshold
+                                                Stock Status
                                             </TableHeading>
 
-                                            <TableHeading>Status</TableHeading>
-
-                                            {isAdmin && (
-                                                <th className="px-5 py-4 text-right text-xs font-black tracking-wide text-slate-400 uppercase">
-                                                    Action
-                                                </th>
-                                            )}
+                                            <th className="px-5 py-4 text-right text-xs font-black tracking-wide text-slate-400 uppercase">
+                                                Action
+                                            </th>
                                         </tr>
                                     </thead>
 
                                     <tbody>
-                                        {rows.map((inventory) => (
-                                            <tr
-                                                key={inventory.id}
-                                                className="border-t border-slate-100 transition hover:bg-slate-50/60"
-                                            >
-                                                <td className="px-5 py-4">
-                                                    <p className="font-black text-slate-900">
-                                                        {inventory.product.name}
-                                                    </p>
+                                        {groups.map((group) => {
+                                            const productId =
+                                                group.product.id ?? 0;
 
-                                                    <div className="mt-1 flex flex-wrap gap-2">
-                                                        <span className="font-mono text-xs font-bold text-blue-600">
-                                                            {
-                                                                inventory
-                                                                    .product
-                                                                    .code
-                                                            }
-                                                        </span>
+                                            const isOpen =
+                                                expandedProducts.has(productId);
 
-                                                        {inventory.product
-                                                            .category && (
-                                                            <span className="text-xs font-semibold text-slate-400">
-                                                                {
-                                                                    inventory
-                                                                        .product
-                                                                        .category
-                                                                }
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </td>
-
-                                                <td className="px-5 py-4">
-                                                    <p className="font-bold text-slate-800">
-                                                        {
-                                                            inventory.variant
-                                                                .variant_name
-                                                        }
-                                                    </p>
-
-                                                    <p className="mt-1 text-xs text-slate-400">
-                                                        {[
-                                                            inventory.variant
-                                                                .program,
-
-                                                            inventory.variant
-                                                                .size,
-                                                        ]
-                                                            .filter(Boolean)
-                                                            .join(' / ') ||
-                                                            'Standard'}
-                                                    </p>
-                                                </td>
-
-                                                <td className="px-5 py-4 font-mono text-xs font-bold text-slate-600">
-                                                    {inventory.variant.sku}
-                                                </td>
-
-                                                <QuantityCell
-                                                    value={
-                                                        inventory.quantity_on_hand
+                                            return (
+                                                <ProductRows
+                                                    key={productId}
+                                                    group={group}
+                                                    isOpen={isOpen}
+                                                    isAdmin={isAdmin}
+                                                    isFiltered={isFiltered}
+                                                    onToggle={() =>
+                                                        toggleProduct(productId)
+                                                    }
+                                                    onSetThreshold={
+                                                        openThresholdModal
                                                     }
                                                 />
-
-                                                <QuantityCell
-                                                    value={
-                                                        inventory.quantity_reserved
-                                                    }
-                                                />
-
-                                                <QuantityCell
-                                                    value={
-                                                        inventory.available_quantity
-                                                    }
-                                                    emphasized
-                                                />
-
-                                                <td className="px-5 py-4">
-                                                    <span className="font-black text-slate-800">
-                                                        {
-                                                            inventory.reorder_level
-                                                        }
-                                                    </span>
-                                                </td>
-
-                                                <td className="px-5 py-4">
-                                                    <StockStatusBadge
-                                                        status={
-                                                            inventory.stock_status
-                                                        }
-                                                    />
-                                                </td>
-
-                                                {isAdmin && (
-                                                    <td className="px-5 py-4 text-right">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() =>
-                                                                openThresholdModal(
-                                                                    inventory,
-                                                                )
-                                                            }
-                                                            className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 transition hover:bg-blue-100"
-                                                        >
-                                                            <Settings2
-                                                                size={15}
-                                                            />
-                                                            Set Threshold
-                                                        </button>
-                                                    </td>
-                                                )}
-                                            </tr>
-                                        ))}
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
 
-                            <Pagination inventories={inventories} />
+                            <Pagination products={products} />
                         </>
                     ) : (
                         <div className="px-6 py-16 text-center">
@@ -786,7 +766,7 @@ export default function Index({ inventories, summary, filters }: Props) {
                             />
 
                             <h3 className="mt-4 text-lg font-black text-slate-800">
-                                No inventory records found
+                                No products found
                             </h3>
 
                             <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">
@@ -899,7 +879,7 @@ export default function Index({ inventories, summary, filters }: Props) {
 
             <InventoryPreviewModal
                 view={inventoryModalView}
-                inventories={inventories}
+                products={products}
                 onClose={() => setInventoryModalView(null)}
                 onBack={backToInventoryList}
                 onOpenDetails={openInventoryDetails}
@@ -950,13 +930,7 @@ export default function Index({ inventories, summary, filters }: Props) {
 |--------------------------------------------------------------------------
 */
 
-type SummaryCardTone =
-    | 'blue'
-    | 'slate'
-    | 'purple'
-    | 'green'
-    | 'amber'
-    | 'red';
+type SummaryCardTone = 'blue' | 'slate' | 'purple' | 'green' | 'amber' | 'red';
 
 const SUMMARY_CARD_TONES: Record<
     SummaryCardTone,
@@ -1061,6 +1035,268 @@ function SummaryCard({
 |--------------------------------------------------------------------------
 */
 
+/*
+|--------------------------------------------------------------------------
+| Product Rows
+|--------------------------------------------------------------------------
+|
+| A product's summary row, and, when opened, a nested table of its
+| sizes with each size's own stock status and threshold control.
+*/
+
+function ProductRows({
+    group,
+    isOpen,
+    isAdmin,
+    isFiltered,
+    onToggle,
+    onSetThreshold,
+}: {
+    group: ProductGroup;
+    isOpen: boolean;
+    isAdmin: boolean;
+    isFiltered: boolean;
+    onToggle: () => void;
+    onSetThreshold: (inventory: InventoryRow) => void;
+}) {
+    return (
+        <>
+            <tr
+                onClick={onToggle}
+                className={`cursor-pointer border-t border-slate-100 transition hover:bg-blue-50/50 ${isOpen ? 'bg-blue-50/40' : ''}`}
+            >
+                <td className="px-5 py-4">
+                    <div className="flex items-center gap-3">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                            {isOpen ? (
+                                <ChevronDown size={18} />
+                            ) : (
+                                <ChevronRight size={18} />
+                            )}
+                        </span>
+
+                        <div>
+                            <p className="font-black text-slate-900">
+                                {group.product.name}
+                            </p>
+
+                            <div className="mt-1 flex flex-wrap gap-2">
+                                <span className="font-mono text-xs font-bold text-blue-600">
+                                    {group.product.code}
+                                </span>
+
+                                {group.product.category && (
+                                    <span className="text-xs font-semibold text-slate-400">
+                                        {group.product.category}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </td>
+
+                <td className="px-5 py-4">
+                    <span className="text-sm font-black text-slate-800">
+                        {group.variant_count}
+                    </span>
+
+                    <span className="ml-1 text-xs text-slate-400">
+                        {group.variant_count === 1 ? 'size' : 'sizes'}
+                    </span>
+                </td>
+
+                <QuantityCell value={group.total_on_hand} />
+
+                <QuantityCell value={group.total_reserved} />
+
+                <QuantityCell value={group.total_available} emphasized />
+
+                <td className="px-5 py-4">
+                    <ProductStockSummary group={group} />
+                </td>
+
+                <td
+                    className="px-5 py-4 text-right"
+                    onClick={(event) => event.stopPropagation()}
+                >
+                    {group.product.id && (
+                        <Link
+                            href={`/admin/products/${group.product.id}/variants`}
+                            className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm font-black whitespace-nowrap text-blue-700 transition hover:bg-blue-50"
+                        >
+                            <Pencil size={14} />
+                            Manage Variants
+                        </Link>
+                    )}
+                </td>
+            </tr>
+
+            {isOpen && (
+                <tr className="bg-slate-50/70">
+                    <td colSpan={7} className="px-5 pt-1 pb-5">
+                        {isFiltered &&
+                            group.variants.length < group.variant_count && (
+                                <p className="mb-2 pl-11 text-xs font-semibold text-slate-500">
+                                    Showing {group.variants.length} of{' '}
+                                    {group.variant_count} sizes that match your
+                                    search or filter.
+                                </p>
+                            )}
+
+                        <div className="ml-11 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                            <table className="w-full">
+                                <thead className="bg-slate-50">
+                                    <tr>
+                                        <TableHeading>
+                                            Size / Variant
+                                        </TableHeading>
+
+                                        <TableHeading>SKU</TableHeading>
+
+                                        <TableHeading>On Hand</TableHeading>
+
+                                        <TableHeading>Reserved</TableHeading>
+
+                                        <TableHeading>Available</TableHeading>
+
+                                        <TableHeading>
+                                            Restock Threshold
+                                        </TableHeading>
+
+                                        <TableHeading>Status</TableHeading>
+
+                                        {isAdmin && (
+                                            <th className="px-5 py-4 text-right text-xs font-black tracking-wide text-slate-400 uppercase">
+                                                Threshold
+                                            </th>
+                                        )}
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    {group.variants.map((inventory) => (
+                                        <tr
+                                            key={inventory.id}
+                                            className="border-t border-slate-100"
+                                        >
+                                            <td className="px-5 py-3">
+                                                <p className="font-bold whitespace-nowrap text-slate-800">
+                                                    {
+                                                        inventory.variant
+                                                            .variant_name
+                                                    }
+                                                </p>
+
+                                                {inventory.variant.program &&
+                                                    !inventory.variant.variant_name.includes(
+                                                        inventory.variant
+                                                            .program,
+                                                    ) && (
+                                                        <p className="mt-0.5 text-xs text-slate-400">
+                                                            {
+                                                                inventory
+                                                                    .variant
+                                                                    .program
+                                                            }
+                                                        </p>
+                                                    )}
+                                            </td>
+
+                                            <td className="px-5 py-3 font-mono text-xs font-bold whitespace-nowrap text-slate-600">
+                                                {inventory.variant.sku}
+                                            </td>
+
+                                            <QuantityCell
+                                                value={
+                                                    inventory.quantity_on_hand
+                                                }
+                                            />
+
+                                            <QuantityCell
+                                                value={
+                                                    inventory.quantity_reserved
+                                                }
+                                            />
+
+                                            <QuantityCell
+                                                value={
+                                                    inventory.available_quantity
+                                                }
+                                                emphasized
+                                            />
+
+                                            <td className="px-5 py-3">
+                                                <span className="font-black text-slate-800">
+                                                    {inventory.reorder_level}
+                                                </span>
+                                            </td>
+
+                                            <td className="px-5 py-3">
+                                                <StockStatusBadge
+                                                    status={
+                                                        inventory.stock_status
+                                                    }
+                                                />
+                                            </td>
+
+                                            {isAdmin && (
+                                                <td className="px-5 py-3 text-right">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            onSetThreshold(
+                                                                inventory,
+                                                            )
+                                                        }
+                                                        className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2 text-sm font-black whitespace-nowrap text-blue-700 transition hover:bg-blue-100"
+                                                    >
+                                                        <Settings2 size={15} />
+                                                        Set Threshold
+                                                    </button>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </td>
+                </tr>
+            )}
+        </>
+    );
+}
+
+/**
+ * The product's overall stock picture: which of its sizes need
+ * attention, or that all of them are in stock.
+ */
+function ProductStockSummary({ group }: { group: ProductGroup }) {
+    if (group.low_stock_count === 0 && group.out_of_stock_count === 0) {
+        return (
+            <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-black text-emerald-700">
+                All in stock
+            </span>
+        );
+    }
+
+    return (
+        <div className="flex flex-wrap gap-2">
+            {group.out_of_stock_count > 0 && (
+                <span className="inline-flex rounded-full bg-red-100 px-3 py-1.5 text-xs font-black text-red-700">
+                    {group.out_of_stock_count} out of stock
+                </span>
+            )}
+
+            {group.low_stock_count > 0 && (
+                <span className="inline-flex rounded-full bg-amber-100 px-3 py-1.5 text-xs font-black text-amber-700">
+                    {group.low_stock_count} low stock
+                </span>
+            )}
+        </div>
+    );
+}
+
 function TableHeading({ children }: { children: ReactNode }) {
     return (
         <th className="px-5 py-4 text-left text-xs font-black tracking-wide text-slate-400 uppercase">
@@ -1102,7 +1338,7 @@ function StockStatusBadge({ status }: { status: StockStatus }) {
 
     return (
         <span
-            className={`inline-flex rounded-full px-3 py-1.5 text-xs font-black ${config.className} `}
+            className={`inline-flex rounded-full px-3 py-1.5 text-xs font-black whitespace-nowrap ${config.className} `}
         >
             {config.label}
         </span>
@@ -1143,26 +1379,26 @@ function getStockStatusConfig(status: StockStatus): {
 |--------------------------------------------------------------------------
 */
 
-function Pagination({ inventories }: { inventories: PaginatedInventories }) {
-    if (inventories.last_page <= 1) {
+function Pagination({ products }: { products: PaginatedProducts }) {
+    if (products.last_page <= 1) {
         return null;
     }
 
     return (
         <div className="flex flex-col gap-4 border-t border-slate-100 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-500">
-                Showing <strong>{inventories.from ?? 0}</strong> to{' '}
-                <strong>{inventories.to ?? 0}</strong> of{' '}
-                <strong>{inventories.total}</strong> records
+                Showing <strong>{products.from ?? 0}</strong> to{' '}
+                <strong>{products.to ?? 0}</strong> of{' '}
+                <strong>{products.total}</strong> products
             </p>
 
             <div className="flex items-center gap-2">
                 <button
                     type="button"
-                    disabled={!inventories.prev_page_url}
+                    disabled={!products.prev_page_url}
                     onClick={() => {
-                        if (inventories.prev_page_url) {
-                            router.visit(inventories.prev_page_url, {
+                        if (products.prev_page_url) {
+                            router.visit(products.prev_page_url, {
                                 preserveScroll: true,
 
                                 preserveState: true,
@@ -1176,15 +1412,15 @@ function Pagination({ inventories }: { inventories: PaginatedInventories }) {
                 </button>
 
                 <span className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700">
-                    Page {inventories.current_page} of {inventories.last_page}
+                    Page {products.current_page} of {products.last_page}
                 </span>
 
                 <button
                     type="button"
-                    disabled={!inventories.next_page_url}
+                    disabled={!products.next_page_url}
                     onClick={() => {
-                        if (inventories.next_page_url) {
-                            router.visit(inventories.next_page_url, {
+                        if (products.next_page_url) {
+                            router.visit(products.next_page_url, {
                                 preserveScroll: true,
 
                                 preserveState: true,
@@ -1216,7 +1452,7 @@ function Pagination({ inventories }: { inventories: PaginatedInventories }) {
 
 function InventoryPreviewModal({
     view,
-    inventories,
+    products,
     onClose,
     onBack,
     onOpenDetails,
@@ -1229,7 +1465,7 @@ function InventoryPreviewModal({
               backLabel: string | null;
           }
         | null;
-    inventories: PaginatedInventories;
+    products: PaginatedProducts;
     onClose: () => void;
     onBack: () => void;
     onOpenDetails: (row: InventoryRow) => void;
@@ -1286,7 +1522,7 @@ function InventoryPreviewModal({
                             <p className="mt-1 text-sm text-slate-500">
                                 {row
                                     ? row.variant.sku
-                                    : `${inventories.total} record${inventories.total === 1 ? '' : 's'}`}
+                                    : `${products.total} product${products.total === 1 ? '' : 's'}`}
                             </p>
                         </div>
                     </div>
@@ -1373,52 +1609,47 @@ function InventoryPreviewModal({
                                 </div>
                             </div>
                         </>
-                    ) : inventories.data.length > 0 ? (
-                        groupInventoryByProduct(inventories.data).map(
-                            (group) => (
-                                <div
-                                    key={group.product.code}
-                                    className="space-y-2"
-                                >
-                                    <div className="flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2.5">
-                                        <Package
-                                            size={16}
-                                            className="shrink-0 text-blue-600"
-                                        />
+                    ) : products.data.length > 0 ? (
+                        products.data.map((group) => (
+                            <div key={group.product.code} className="space-y-2">
+                                <div className="flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2.5">
+                                    <Package
+                                        size={16}
+                                        className="shrink-0 text-blue-600"
+                                    />
 
-                                        <p className="text-lg font-black text-blue-900">
-                                            {group.product.name}
-                                        </p>
+                                    <p className="text-lg font-black text-blue-900">
+                                        {group.product.name}
+                                    </p>
 
-                                        <p className="font-mono text-xs text-blue-500">
-                                            {group.product.code}
-                                        </p>
+                                    <p className="font-mono text-xs text-blue-500">
+                                        {group.product.code}
+                                    </p>
 
-                                        {group.product.id && (
-                                            <Link
-                                                href={`/admin/products/${group.product.id}/variants`}
-                                                className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-2.5 py-1 text-xs font-black text-blue-700 transition hover:bg-blue-100"
-                                            >
-                                                <Pencil size={12} />
-                                                Manage Variants
-                                            </Link>
-                                        )}
-                                    </div>
-
-                                    <div className="space-y-2 pl-2">
-                                        {group.rows.map((item) => (
-                                            <InventoryPreviewRow
-                                                key={item.id}
-                                                row={item}
-                                                onDetails={() =>
-                                                    onOpenDetails(item)
-                                                }
-                                            />
-                                        ))}
-                                    </div>
+                                    {group.product.id && (
+                                        <Link
+                                            href={`/admin/products/${group.product.id}/variants`}
+                                            className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-2.5 py-1 text-xs font-black text-blue-700 transition hover:bg-blue-100"
+                                        >
+                                            <Pencil size={12} />
+                                            Manage Variants
+                                        </Link>
+                                    )}
                                 </div>
-                            ),
-                        )
+
+                                <div className="space-y-2 pl-2">
+                                    {group.variants.map((item) => (
+                                        <InventoryPreviewRow
+                                            key={item.id}
+                                            row={item}
+                                            onDetails={() =>
+                                                onOpenDetails(item)
+                                            }
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        ))
                     ) : (
                         <p className="py-10 text-center text-sm text-slate-500">
                             No inventory records in this category.
@@ -1427,26 +1658,25 @@ function InventoryPreviewModal({
                 </div>
 
                 {/* PAGINATION (list view only) */}
-                {!row && inventories.last_page > 1 && (
+                {!row && products.last_page > 1 && (
                     <div className="flex items-center justify-between gap-4 border-t border-slate-100 px-6 py-4">
                         <button
                             type="button"
-                            disabled={!inventories.prev_page_url}
-                            onClick={() => visitPage(inventories.prev_page_url)}
+                            disabled={!products.prev_page_url}
+                            onClick={() => visitPage(products.prev_page_url)}
                             className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                             Previous
                         </button>
 
                         <p className="text-sm font-bold text-slate-500">
-                            Page {inventories.current_page} of{' '}
-                            {inventories.last_page}
+                            Page {products.current_page} of {products.last_page}
                         </p>
 
                         <button
                             type="button"
-                            disabled={!inventories.next_page_url}
-                            onClick={() => visitPage(inventories.next_page_url)}
+                            disabled={!products.next_page_url}
+                            onClick={() => visitPage(products.next_page_url)}
                             className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                             Next
@@ -1507,35 +1737,6 @@ function InventoryPreviewRow({
             </button>
         </div>
     );
-}
-
-/*
-|--------------------------------------------------------------------------
-| Group By Product
-|--------------------------------------------------------------------------
-|
-| The backend already sorts by product name then variant name, so
-| this just folds consecutive rows for the same product together
-| instead of re-sorting — each product appears once, with all of its
-| variants listed underneath it.
-*/
-
-function groupInventoryByProduct(
-    rows: InventoryRow[],
-): { product: InventoryProduct; rows: InventoryRow[] }[] {
-    const groups: { product: InventoryProduct; rows: InventoryRow[] }[] = [];
-
-    for (const row of rows) {
-        const lastGroup = groups[groups.length - 1];
-
-        if (lastGroup && lastGroup.product.code === row.product.code) {
-            lastGroup.rows.push(row);
-        } else {
-            groups.push({ product: row.product, rows: [row] });
-        }
-    }
-
-    return groups;
 }
 
 function InventoryStatBlock({

@@ -822,6 +822,17 @@ const {
                 return;
             }
 
+            if (
+                !form.data
+                    .expected_delivery_date
+            ) {
+                setLocalError(
+                    'Please select the expected delivery date.',
+                );
+
+                return;
+            }
+
             setShowCreateConfirm(
                 true,
             );
@@ -1022,7 +1033,7 @@ const confirmCreatePurchaseOrder =
 
                                 <div>
                                     <label className="mb-2 block text-sm font-bold text-slate-700">
-                                        Expected Delivery
+                                        Expected Delivery *
                                     </label>
 
                                     <DatePicker
@@ -1038,8 +1049,19 @@ const confirmCreatePurchaseOrder =
                                                 value,
                                             )
                                         }
-                                        placeholder="Optional"
+                                        placeholder="Select a date"
                                     />
+
+                                    {form.errors
+                                        .expected_delivery_date && (
+                                        <p className="mt-2 text-sm font-semibold text-red-600">
+                                            {
+                                                form
+                                                    .errors
+                                                    .expected_delivery_date
+                                            }
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div>

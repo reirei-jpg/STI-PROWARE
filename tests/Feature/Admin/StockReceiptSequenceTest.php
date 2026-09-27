@@ -20,13 +20,13 @@ test('sequential receipts on the same day get distinct sequential receipt number
     $variant = poReceivingCostVariant($admin);
     $poItem = poReceivingCostItem($admin, $variant, 50.00);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $poItem->purchase_order_id,
         'purchase_order_item_id' => $poItem->id,
         'quantity' => 5,
     ])->assertSessionDoesntHaveErrors();
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $poItem->purchase_order_id,
         'purchase_order_item_id' => $poItem->id,
         'quantity' => 5,

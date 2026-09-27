@@ -898,6 +898,17 @@ export default function Show({
                 return;
             }
 
+            if (
+                !editItemForm
+                    .expected_delivery_date
+            ) {
+                setLocalError(
+                    'Please select the expected delivery date.',
+                );
+
+                return;
+            }
+
             setShowEditItemConfirm(
     true,
 );
@@ -3095,7 +3106,7 @@ return;
 
                         <div className="mt-5">
                             <FormField
-                                label="Expected Delivery (whole order)"
+                                label="Expected Delivery (whole order) *"
                             >
                                 <DatePicker
                                     value={
@@ -3119,7 +3130,7 @@ return;
                                                     : current,
                                         )
                                     }
-                                    placeholder="No date set"
+                                    placeholder="Select a date"
                                 />
                             </FormField>
                         </div>

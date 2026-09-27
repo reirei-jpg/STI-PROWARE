@@ -45,6 +45,7 @@ function orderedPurchaseOrder(User $admin)
 
     $response = test()->actingAs($admin)->post('/admin/purchase-orders', [
         'supplier_name' => 'Test Supplier',
+        'expected_delivery_date' => now()->addDay()->toDateString(),
         'items' => [
             ['source_type' => 'existing_catalog', 'product_variant_id' => $variant->id, 'quantity_ordered' => 1],
         ],
@@ -86,16 +87,20 @@ test('the corrected expected delivery date still cannot be in the past', functio
     ]);
 });
 
-test('the expected delivery date can be cleared entirely', function () {
+test('the expected delivery date cannot be cleared — every purchase order must keep one for tracking', function () {
     $admin = deliveryDateAdmin();
     $purchaseOrder = orderedPurchaseOrder($admin);
+
+    $originalDate = $purchaseOrder->expected_delivery_date->toDateString();
 
     $this->actingAs($admin)->patch(
         "/admin/purchase-orders/{$purchaseOrder->id}/expected-delivery-date",
         ['expected_delivery_date' => null],
-    )->assertSessionHasNoErrors();
+    )->assertSessionHasErrors([
+        'expected_delivery_date' => 'Please select the expected delivery date.',
+    ]);
 
-    expect($purchaseOrder->fresh()->expected_delivery_date)->toBeNull();
+    expect($purchaseOrder->fresh()->expected_delivery_date->toDateString())->toBe($originalDate);
 });
 
 test('the expected delivery date cannot be edited on a completed purchase order', function () {

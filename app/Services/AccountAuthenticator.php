@@ -25,6 +25,16 @@ class AccountAuthenticator
     public const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 
     /**
+     * Login requests allowed per minute for one email from one address.
+     * Deliberately higher than MAX_FAILED_LOGIN_ATTEMPTS, so someone
+     * mistyping at normal speed always reaches the lockout (and its
+     * message) first; this limit only catches rapid, automated attempts.
+     */
+    public const LOGIN_ATTEMPTS_PER_MINUTE = 10;
+
+    public const LOCKED_MESSAGE = 'This account has been locked due to too many failed login attempts. Please contact an administrator.';
+
+    /**
      * @throws ValidationException
      */
     public function authenticate(
@@ -45,17 +55,20 @@ class AccountAuthenticator
         */
         if ($user && $user->isLocked()) {
             throw ValidationException::withMessages([
-                'email' => 'This account has been locked due to too many failed login attempts. Please contact an administrator.',
+                'email' => self::LOCKED_MESSAGE,
             ]);
         }
 
         /*
         | Deliberately identical whether the email does not exist or the
         | password is wrong, so a failed attempt never reveals which one.
+        | The attempt that locks the account says so straight away.
         */
         if (! $user || ! Hash::check($password, $user->password)) {
-            if ($user) {
-                $this->recordFailedLoginAttempt($user, $request);
+            if ($user && $this->recordFailedLoginAttempt($user, $request)) {
+                throw ValidationException::withMessages([
+                    'email' => self::LOCKED_MESSAGE,
+                ]);
             }
 
             throw ValidationException::withMessages([
@@ -95,11 +108,13 @@ class AccountAuthenticator
      * not match, locking it once the threshold is reached. Unlike the
      * per-minute rate limiter, this floor does not reset every 60 seconds and
      * cannot be sidestepped by waiting or switching IP address.
+     *
+     * Returns true when this attempt is the one that locked the account.
      */
     private function recordFailedLoginAttempt(
         User $user,
         Request $request,
-    ): void {
+    ): bool {
         $previousAttempts = $user->failed_login_attempts;
 
         $attempts = $previousAttempts + 1;
@@ -107,7 +122,7 @@ class AccountAuthenticator
         if ($attempts < self::MAX_FAILED_LOGIN_ATTEMPTS) {
             $user->update(['failed_login_attempts' => $attempts]);
 
-            return;
+            return false;
         }
 
         $user->update([
@@ -134,5 +149,7 @@ class AccountAuthenticator
                 'failed_login_attempts' => $attempts,
             ],
         );
+
+        return true;
     }
 }

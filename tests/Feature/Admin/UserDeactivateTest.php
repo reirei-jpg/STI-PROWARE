@@ -113,6 +113,33 @@ test('the user index can be filtered by account status', function () {
     );
 });
 
+test('students never appear in Employee Management — they have their own page', function () {
+    $admin = deactivateTestAdmin();
+
+    User::factory()->create(['role' => 'cashier', 'is_active' => true]);
+    User::factory()->create(['role' => 'student', 'is_active' => true]);
+
+    $response = $this->actingAs($admin)->get('/admin/users');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->where('users.data', fn ($users) => collect($users)->every(
+            fn ($user) => $user['role'] !== 'student',
+        )),
+    );
+
+    /*
+     * "role=student" isn't even an option anymore — falls back to
+     * showing everyone (still excluding students), not to an empty
+     * "no matching role" result.
+     */
+    $response = $this->actingAs($admin)->get('/admin/users?role=student');
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('filters.role', 'all'),
+    );
+});
+
 test('the last active super admin account cannot be deactivated', function () {
     $superAdmin = User::factory()->create([
         'role' => 'super_admin',

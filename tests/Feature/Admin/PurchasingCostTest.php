@@ -103,7 +103,7 @@ test('receiving stock records the purchasing price as the average cost', functio
     $variant = purchasingCostBareVariant($admin);
     $poItem = purchasingCostPurchaseOrderItem($admin, $variant);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $poItem->purchase_order_id,
         'purchase_order_item_id' => $poItem->id,
         'quantity' => 10,
@@ -123,14 +123,14 @@ test('receiving stock twice at different costs computes a weighted average', fun
     $variant = purchasingCostBareVariant($admin);
     $poItem = purchasingCostPurchaseOrderItem($admin, $variant);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $poItem->purchase_order_id,
         'purchase_order_item_id' => $poItem->id,
         'quantity' => 10,
         'unit_cost' => 100,
     ])->assertSessionDoesntHaveErrors();
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $poItem->purchase_order_id,
         'purchase_order_item_id' => $poItem->id,
         'quantity' => 10,
@@ -151,14 +151,14 @@ test('receiving stock without a cost leaves the average cost unchanged', functio
     $variant = purchasingCostBareVariant($admin);
     $poItem = purchasingCostPurchaseOrderItem($admin, $variant);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $poItem->purchase_order_id,
         'purchase_order_item_id' => $poItem->id,
         'quantity' => 10,
         'unit_cost' => 100,
     ])->assertSessionDoesntHaveErrors();
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $poItem->purchase_order_id,
         'purchase_order_item_id' => $poItem->id,
         'quantity' => 5,
@@ -178,7 +178,7 @@ test('checkout freezes the current average cost onto the order item', function (
     $variant = purchasingCostBareVariant($admin);
     $poItem = purchasingCostPurchaseOrderItem($admin, $variant);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $poItem->purchase_order_id,
         'purchase_order_item_id' => $poItem->id,
         'quantity' => 10,
@@ -220,7 +220,7 @@ test('the sales report shows cost and profit for a completed sale', function () 
     $variant = purchasingCostBareVariant($admin);
     $poItem = purchasingCostPurchaseOrderItem($admin, $variant);
 
-    $this->actingAs($admin)->post('/staff/stock-receipts', [
+    $this->actingAs(receivingSpecialist())->post('/staff/stock-receipts', [
         'purchase_order_id' => $poItem->purchase_order_id,
         'purchase_order_item_id' => $poItem->id,
         'quantity' => 10,

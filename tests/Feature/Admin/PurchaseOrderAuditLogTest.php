@@ -31,6 +31,7 @@ test('creating a purchase order writes an audit log entry', function () {
 
     $this->actingAs($admin)->post('/admin/purchase-orders', [
         'supplier_name' => 'Acme Supplies',
+        'expected_delivery_date' => now()->addDay()->toDateString(),
         'items' => [
             [
                 'source_type' => 'new_inventory',

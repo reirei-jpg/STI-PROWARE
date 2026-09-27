@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\LoginRequest;
 use App\Http\Resources\Api\V1\UserResource;
 use App\Services\AccountAuthenticator;
+use App\Services\StudentRegistrar;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -14,7 +15,37 @@ class AuthController extends Controller
 {
     public function __construct(
         private readonly AccountAuthenticator $authenticator,
+        private readonly StudentRegistrar $registrar,
     ) {}
+
+    /**
+     * Register a new student account from the mobile app and sign them
+     * straight in, the same way the website's registration form does.
+     *
+     * Validation and account creation are StudentRegistrar's job, shared
+     * with the website's own registration action, so a student registering
+     * from the phone is held to the exact same rules as one registering
+     * from a browser.
+     */
+    public function register(Request $request): JsonResponse
+    {
+        $user = $this->registrar->register($request->all());
+
+        $deviceName = (string) ($request->input('device_name') ?: 'mobile');
+
+        $token = $user->createToken($deviceName, ['student']);
+
+        return response()->json([
+            'data' => [
+                'token' => $token->plainTextToken,
+                'token_type' => 'Bearer',
+                'expires_at' => now()
+                    ->addMinutes((int) config('sanctum.expiration'))
+                    ->toIso8601String(),
+                'user' => new UserResource($user->load('student')),
+            ],
+        ], 201);
+    }
 
     /**
      * Sign a student in and hand the mobile app a token.

@@ -237,17 +237,16 @@ class InventoryController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Sorting
+        | Group By Product
         |--------------------------------------------------------------------------
         |
-        | Sort using the related product name, then variant name.
+        | The page lists products, and each product expands to show its
+        | variants. Search and the status filter decide which variants
+        | match; a product is listed when at least one of its variants
+        | matches, and only the matching variants are shown under it.
+        | The product's own totals always cover all of its variants.
         |
-        | This keeps variants of the same product grouped together.
-        | Ordering by product_variant_id alone does not do this — that
-        | ID has no relationship to product identity, so it was
-        | previously scattering a product's variants across the list.
-        | The join is needed because "product name" is not a column on
-        | the inventories table itself.
+        | Twenty products are returned per page, sorted by product name.
         */
 
         $inventoryQuery
@@ -262,6 +261,33 @@ class InventoryController extends Controller
                 'product_variants.product_id',
                 '=',
                 'products.id',
+            );
+
+        $productPage = (clone $inventoryQuery)
+            ->toBase()
+            ->select(
+                'products.id',
+                'products.name',
+            )
+            ->groupBy(
+                'products.id',
+                'products.name',
+            )
+            ->orderBy(
+                'products.name',
+            )
+            ->paginate(20)
+            ->withQueryString();
+
+        $productIds = $productPage
+            ->getCollection()
+            ->pluck('id')
+            ->all();
+
+        $matchingVariants = (clone $inventoryQuery)
+            ->whereIn(
+                'products.id',
+                $productIds,
             )
             ->orderBy(
                 'products.name',
@@ -271,102 +297,72 @@ class InventoryController extends Controller
             )
             ->select(
                 'inventories.*',
+            )
+            ->get()
+            ->map(
+                fn (Inventory $inventory): array => $this->presentInventoryRow($inventory),
+            )
+            ->groupBy(
+                fn (array $row): int => (int) $row['product']['id'],
             );
 
-        /*
-        |--------------------------------------------------------------------------
-        | Pagination
-        |--------------------------------------------------------------------------
-        |
-        | Only 20 inventory rows are returned to the browser at once.
-        |
-        | withQueryString() keeps:
-        |
-        | ?search=uniform&status=low_stock
-        |
-        | when moving between pages.
-        |
-        */
+        $productTotals = Inventory::query()
+            ->join(
+                'product_variants',
+                'inventories.product_variant_id',
+                '=',
+                'product_variants.id',
+            )
+            ->whereIn(
+                'product_variants.product_id',
+                $productIds,
+            )
+            ->groupBy(
+                'product_variants.product_id',
+            )
+            ->selectRaw('product_variants.product_id AS product_id')
+            ->selectRaw('COUNT(*) AS variant_count')
+            ->selectRaw('COALESCE(SUM(inventories.quantity_on_hand), 0) AS total_on_hand')
+            ->selectRaw('COALESCE(SUM(inventories.quantity_reserved), 0) AS total_reserved')
+            ->selectRaw('COALESCE(SUM(GREATEST(inventories.quantity_on_hand - inventories.quantity_reserved, 0)), 0) AS total_available')
+            ->selectRaw('COUNT(*) FILTER (WHERE GREATEST(inventories.quantity_on_hand - inventories.quantity_reserved, 0) = 0) AS out_of_stock_count')
+            ->selectRaw('COUNT(*) FILTER (WHERE GREATEST(inventories.quantity_on_hand - inventories.quantity_reserved, 0) > 0 AND GREATEST(inventories.quantity_on_hand - inventories.quantity_reserved, 0) <= inventories.reorder_level) AS low_stock_count')
+            ->toBase()
+            ->get()
+            ->keyBy('product_id');
 
-        $inventories =
-            $inventoryQuery
-                ->paginate(20)
-                ->withQueryString()
-                ->through(
-                    function (
-                        Inventory $inventory,
-                    ): array {
-                        $variant =
-                            $inventory
-                                ->productVariant;
+        $products = $productPage->through(
+            function (object $productRow) use ($matchingVariants, $productTotals): array {
+                $variants = $matchingVariants
+                    ->get((int) $productRow->id, collect())
+                    ->values();
 
-                        $product =
-                            $variant
-                                ?->product;
+                $totals = $productTotals->get($productRow->id);
 
-                        return [
-                            'id' => $inventory->id,
+                return [
+                    'product' => $variants->first()['product'] ?? [
+                        'id' => (int) $productRow->id,
+                        'code' => 'N/A',
+                        'name' => $productRow->name,
+                        'category' => null,
+                    ],
 
-                            'product_variant_id' => $inventory
-                                ->product_variant_id,
+                    'variant_count' => (int) ($totals->variant_count ?? 0),
 
-                            'product' => [
-                                'id' => $product?->id,
+                    'total_on_hand' => (int) ($totals->total_on_hand ?? 0),
 
-                                'code' => $product?->code
-                                    ?? 'N/A',
+                    'total_reserved' => (int) ($totals->total_reserved ?? 0),
 
-                                'name' => $product?->name
-                                    ?? 'Unknown Product',
+                    'total_available' => (int) ($totals->total_available ?? 0),
 
-                                'category' => $product
-                                    ?->category
-                                    ?->name,
-                            ],
+                    'low_stock_count' => (int) ($totals->low_stock_count ?? 0),
 
-                            'variant' => [
-                                'id' => $variant?->id,
+                    'out_of_stock_count' => (int) ($totals->out_of_stock_count ?? 0),
 
-                                'sku' => $variant?->sku
-                                    ?? 'N/A',
-
-                                'variant_name' => $variant
-                                    ?->variant_name
-                                    ?? 'Standard',
-
-                                'program' => $variant?->program,
-
-                                'size' => $variant?->size,
-
-                                'is_active' => (bool)
-                                    (
-                                        $variant
-                                            ?->is_active
-                                        ?? false
-                                    ),
-                            ],
-
-                            'quantity_on_hand' => (int)
-                                $inventory
-                                    ->quantity_on_hand,
-
-                            'quantity_reserved' => (int)
-                                $inventory
-                                    ->quantity_reserved,
-
-                            'available_quantity' => (int)
-                                $inventory
-                                    ->available_quantity,
-
-                            'reorder_level' => (int)
-                                $inventory
-                                    ->reorder_level,
-
-                            'stock_status' => $inventory
-                                ->stock_status,
-                        ];
-                    },
-                );
+                    'variants' => $variants->all(),
+                ];
+            },
+        );
 
         /*
         |--------------------------------------------------------------------------
@@ -435,7 +431,7 @@ class InventoryController extends Controller
         return Inertia::render(
             'staff/Inventory/Index',
             [
-                'inventories' => $inventories,
+                'products' => $products,
 
                 'summary' => $summary,
 
@@ -446,6 +442,58 @@ class InventoryController extends Controller
                 ],
             ],
         );
+    }
+
+    /**
+     * One variant's stock, in the shape the Inventory page shows it.
+     *
+     * @return array{id: int, product_variant_id: int, product: array{id: int|null, code: string, name: string, category: string|null}, variant: array{id: int|null, sku: string, variant_name: string, program: string|null, size: string|null, is_active: bool}, quantity_on_hand: int, quantity_reserved: int, available_quantity: int, reorder_level: int, stock_status: string}
+     */
+    private function presentInventoryRow(Inventory $inventory): array
+    {
+        $variant = $inventory->productVariant;
+
+        $product = $variant?->product;
+
+        return [
+            'id' => $inventory->id,
+
+            'product_variant_id' => $inventory->product_variant_id,
+
+            'product' => [
+                'id' => $product?->id,
+
+                'code' => $product?->code ?? 'N/A',
+
+                'name' => $product?->name ?? 'Unknown Product',
+
+                'category' => $product?->category?->name,
+            ],
+
+            'variant' => [
+                'id' => $variant?->id,
+
+                'sku' => $variant?->sku ?? 'N/A',
+
+                'variant_name' => $variant?->variant_name ?? 'Standard',
+
+                'program' => $variant?->program,
+
+                'size' => $variant?->size,
+
+                'is_active' => (bool) ($variant?->is_active ?? false),
+            ],
+
+            'quantity_on_hand' => (int) $inventory->quantity_on_hand,
+
+            'quantity_reserved' => (int) $inventory->quantity_reserved,
+
+            'available_quantity' => (int) $inventory->available_quantity,
+
+            'reorder_level' => (int) $inventory->reorder_level,
+
+            'stock_status' => $inventory->stock_status,
+        ];
     }
 
     /**

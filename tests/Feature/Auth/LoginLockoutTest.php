@@ -2,6 +2,7 @@
 
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Services\AccountAuthenticator;
 
 test('a wrong password and an unknown email produce the identical invalid credentials message', function () {
     $user = User::factory()->create([
@@ -48,6 +49,29 @@ test('an account locks itself after 5 failed login attempts', function () {
 
     expect($log)->not->toBeNull();
     expect($log->subject_id)->toBe($user->id);
+});
+
+test('on the website, the fifth wrong password says the account is locked, and the next try inside the minute is not a rate-limit error', function () {
+    $user = User::factory()->create([
+        'role' => User::ROLE_CASHIER,
+    ]);
+
+    $attempt = fn (string $password) => $this->from(route('login'))->post(route('login.store'), [
+        'email' => $user->email,
+        'password' => $password,
+    ]);
+
+    for ($i = 0; $i < 4; $i++) {
+        $attempt('wrong-password')->assertSessionHasErrors(['email' => 'Invalid credentials.']);
+    }
+
+    $attempt('wrong-password')->assertSessionHasErrors(['email' => AccountAuthenticator::LOCKED_MESSAGE]);
+
+    $attempt('password')
+        ->assertRedirect(route('login'))
+        ->assertSessionHasErrors(['email' => AccountAuthenticator::LOCKED_MESSAGE]);
+
+    $this->assertGuest();
 });
 
 test('a locked account cannot log in even with the correct password', function () {

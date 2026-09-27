@@ -109,16 +109,19 @@ class PreorderConfigurationController extends Controller
             'expected_release_date' => [
                 'nullable',
                 'date',
+                'after_or_equal:today',
             ],
 
             'preorder_starts_at' => [
                 'nullable',
                 'date',
+                'after_or_equal:now',
             ],
 
             'preorder_ends_at' => [
                 'nullable',
                 'date',
+                'after_or_equal:now',
                 'after:preorder_starts_at',
             ],
 
@@ -179,6 +182,14 @@ class PreorderConfigurationController extends Controller
                 'max:90',
             ],
         ], [
+            'expected_release_date.after_or_equal' => 'The expected release date cannot be in the past.',
+
+            'preorder_starts_at.after_or_equal' => 'The preorder start cannot be in the past.',
+
+            'preorder_ends_at.after_or_equal' => 'The preorder end cannot be in the past.',
+
+            'preorder_ends_at.after' => 'The preorder end must be after the preorder start.',
+
             'preorder_capacity.max' => "The preorder capacity cannot exceed the {$quantityOrdered} unit(s) ordered from the supplier.",
 
             'preorder_limit_per_student.max' => "The per-student preorder limit cannot exceed the {$quantityOrdered} unit(s) ordered from the supplier.",

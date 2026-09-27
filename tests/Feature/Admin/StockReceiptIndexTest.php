@@ -2,6 +2,8 @@
 
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderItem;
 use App\Models\StockMovement;
 use App\Models\User;
 use Illuminate\Support\Str;
@@ -87,6 +89,103 @@ test('the summary counts and date filter reflect only today\'s receipts', functi
     $filteredResponse->assertInertia(fn ($page) => $page
         ->where('receipts.total', 1)
         ->where('receipts.data.0.id', $todayReceipt->id),
+    );
+});
+
+test('receipt history includes outstanding purchase orders still awaiting delivery', function () {
+    $admin = stockReceiptAdmin();
+    $variant = stockReceiptVariant($admin);
+
+    $purchaseOrder = PurchaseOrder::query()->create([
+        'po_number' => 'PO-TEST-'.Str::random(8),
+        'supplier_name' => 'Outstanding Supplier',
+        'status' => PurchaseOrder::STATUS_ORDERED,
+        'created_by' => $admin->id,
+        'ordered_at' => now(),
+        'expected_delivery_date' => now()->addDays(5),
+    ]);
+
+    $purchaseOrder->items()->create([
+        'item_type' => PurchaseOrderItem::TYPE_CATALOG,
+        'merchandise_origin' => PurchaseOrderItem::ORIGIN_EXISTING,
+        'product_variant_id' => $variant->id,
+        'quantity_ordered' => 10,
+        'quantity_received' => 0,
+        'track_inventory' => true,
+    ]);
+
+    $response = $this->actingAs($admin)->get('/staff/stock-receipts');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('outstandingPurchaseOrders', 1)
+        ->where('outstandingPurchaseOrders.0.po_number', $purchaseOrder->po_number)
+        ->where('outstandingPurchaseOrders.0.items.0.quantity_remaining', 10),
+    );
+});
+
+test('a specialist can also view outstanding purchase orders on receipt history', function () {
+    $specialist = User::factory()->create([
+        'role' => 'specialist',
+        'is_active' => true,
+    ]);
+
+    $variant = stockReceiptVariant($specialist);
+
+    $purchaseOrder = PurchaseOrder::query()->create([
+        'po_number' => 'PO-TEST-'.Str::random(8),
+        'supplier_name' => 'Outstanding Supplier',
+        'status' => PurchaseOrder::STATUS_ORDERED,
+        'created_by' => $specialist->id,
+        'ordered_at' => now(),
+        'expected_delivery_date' => now()->addDays(2),
+    ]);
+
+    $purchaseOrder->items()->create([
+        'item_type' => PurchaseOrderItem::TYPE_CATALOG,
+        'merchandise_origin' => PurchaseOrderItem::ORIGIN_EXISTING,
+        'product_variant_id' => $variant->id,
+        'quantity_ordered' => 4,
+        'quantity_received' => 0,
+        'track_inventory' => true,
+    ]);
+
+    $response = $this->actingAs($specialist)->get('/staff/stock-receipts');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('outstandingPurchaseOrders', 1),
+    );
+});
+
+test('a purchase order that is fully received no longer counts as outstanding', function () {
+    $admin = stockReceiptAdmin();
+    $variant = stockReceiptVariant($admin);
+
+    $purchaseOrder = PurchaseOrder::query()->create([
+        'po_number' => 'PO-TEST-'.Str::random(8),
+        'supplier_name' => 'Completed Supplier',
+        'status' => PurchaseOrder::STATUS_COMPLETED,
+        'created_by' => $admin->id,
+        'ordered_at' => now()->subDays(10),
+        'completed_at' => now(),
+        'expected_delivery_date' => now()->subDays(3),
+    ]);
+
+    $purchaseOrder->items()->create([
+        'item_type' => PurchaseOrderItem::TYPE_CATALOG,
+        'merchandise_origin' => PurchaseOrderItem::ORIGIN_EXISTING,
+        'product_variant_id' => $variant->id,
+        'quantity_ordered' => 6,
+        'quantity_received' => 6,
+        'track_inventory' => true,
+    ]);
+
+    $response = $this->actingAs($admin)->get('/staff/stock-receipts');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('outstandingPurchaseOrders', 0),
     );
 });
 

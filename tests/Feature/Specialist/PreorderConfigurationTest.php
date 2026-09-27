@@ -234,6 +234,58 @@ test('a valid early-bird configuration paired with a capacity is saved', functio
         ->and((float) $product->preorder_early_bird_discount_percent)->toBe(10.0);
 });
 
+test('the expected release date cannot be in the past', function () {
+    $specialist = createSpecialistUser();
+    $item = createNewMerchandisePurchaseOrderItem($specialist);
+
+    $response = $this
+        ->actingAs($specialist)
+        ->from('/staff/stock-receipts/create')
+        ->patch(
+            "/specialist/purchase-order-items/{$item->id}/preorder-configuration",
+            preorderConfigPayload(['expected_release_date' => now()->subDay()->toDateString()]),
+        );
+
+    $response->assertSessionHasErrors('expected_release_date');
+
+    expect($item->fresh()->productVariant->product->expected_release_date)->toBeNull();
+});
+
+test('the preorder start cannot be in the past', function () {
+    $specialist = createSpecialistUser();
+    $item = createNewMerchandisePurchaseOrderItem($specialist);
+
+    $response = $this
+        ->actingAs($specialist)
+        ->from('/staff/stock-receipts/create')
+        ->patch(
+            "/specialist/purchase-order-items/{$item->id}/preorder-configuration",
+            preorderConfigPayload(['preorder_starts_at' => now()->subHour()->toDateTimeString()]),
+        );
+
+    $response->assertSessionHasErrors('preorder_starts_at');
+
+    expect($item->fresh()->productVariant->product->preorder_starts_at)->toBeNull();
+});
+
+test('the preorder end cannot be before the preorder start', function () {
+    $specialist = createSpecialistUser();
+    $item = createNewMerchandisePurchaseOrderItem($specialist);
+
+    $response = $this
+        ->actingAs($specialist)
+        ->from('/staff/stock-receipts/create')
+        ->patch(
+            "/specialist/purchase-order-items/{$item->id}/preorder-configuration",
+            preorderConfigPayload([
+                'preorder_starts_at' => now()->addDays(5)->toDateTimeString(),
+                'preorder_ends_at' => now()->addDays(2)->toDateTimeString(),
+            ]),
+        );
+
+    $response->assertSessionHasErrors('preorder_ends_at');
+});
+
 test('a fully valid preorder configuration within every bound is saved', function () {
     $specialist = createSpecialistUser();
     $item = createNewMerchandisePurchaseOrderItem($specialist, quantityOrdered: 20);

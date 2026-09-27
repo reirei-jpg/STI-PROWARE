@@ -154,6 +154,7 @@ test('the edit page refuses an already-ordered purchase order', function () {
 
     $this->actingAs($admin)->post('/admin/purchase-orders', [
         'supplier_name' => 'Real Order',
+        'expected_delivery_date' => now()->addDay()->toDateString(),
         'items' => [
             [
                 'source_type' => 'existing_catalog',
@@ -211,6 +212,7 @@ test('updateDraft refuses an already-ordered purchase order', function () {
 
     $this->actingAs($admin)->post('/admin/purchase-orders', [
         'supplier_name' => 'Real Order',
+        'expected_delivery_date' => now()->addDay()->toDateString(),
         'items' => [
             ['source_type' => 'existing_catalog', 'product_variant_id' => $variant->id, 'quantity_ordered' => 1],
         ],
@@ -235,6 +237,7 @@ test('finalizing a draft with valid data turns it into a real ordered purchase o
 
     $response = $this->actingAs($admin)->patch("/admin/purchase-orders/{$purchaseOrder->id}", [
         'supplier_name' => 'Final Supplier',
+        'expected_delivery_date' => now()->addDay()->toDateString(),
         'items' => [
             [
                 'source_type' => 'existing_catalog',
@@ -268,6 +271,32 @@ test('finalizing a draft still requires at least one valid item', function () {
         'supplier_name' => 'Final Supplier',
         'items' => [],
     ])->assertSessionHasErrors('items');
+
+    expect($purchaseOrder->fresh()->status)->toBe(PurchaseOrder::STATUS_DRAFT);
+});
+
+test('finalizing a draft still requires an expected delivery date', function () {
+    $admin = draftAdmin();
+    $variant = draftVariant($admin);
+
+    $this->actingAs($admin)->postJson('/admin/purchase-orders/draft', [
+        'supplier_name' => 'Draft Supplier',
+    ]);
+
+    $purchaseOrder = PurchaseOrder::query()->latest('id')->first();
+
+    $this->actingAs($admin)->patch("/admin/purchase-orders/{$purchaseOrder->id}", [
+        'supplier_name' => 'Final Supplier',
+        'items' => [
+            [
+                'source_type' => 'existing_catalog',
+                'product_variant_id' => $variant->id,
+                'quantity_ordered' => 3,
+            ],
+        ],
+    ])->assertSessionHasErrors([
+        'expected_delivery_date' => 'Please select the expected delivery date.',
+    ]);
 
     expect($purchaseOrder->fresh()->status)->toBe(PurchaseOrder::STATUS_DRAFT);
 });

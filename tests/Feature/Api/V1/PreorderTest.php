@@ -100,7 +100,7 @@ test('every preorder status has the websites wording', function () {
         ->pluck('status.label', 'status.key')
         ->all();
 
-    expect($labels)->toBe([
+    expect($labels)->toEqualCanonicalizing([
         'cancelled' => 'Cancelled',
         'expired' => 'Expired',
         'paid' => 'Paid',

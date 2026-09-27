@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { Check, Eye, EyeOff, LockKeyhole, Mail } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import {
@@ -219,7 +220,7 @@ export default function Login() {
                         <Text className="font-sans text-sm text-slate-500">
                             Student without an account?{' '}
                             <Text
-                                onPress={() => comingSoon('Register')}
+                                onPress={() => router.push('/register')}
                                 className="font-sans-semibold text-blue-600"
                             >
                                 Register

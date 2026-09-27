@@ -16,11 +16,18 @@ class AccountPasswordChanger
     /**
      * Save the new password, record it in the audit log, and sign the account
      * out of every other phone (the phone doing the change stays signed in).
+     *
+     * Setting any new password — voluntary or in response to a forced
+     * temporary-password change — satisfies must_change_password, so it is
+     * always cleared here rather than only by the website's dedicated forced
+     * flow. This is what lets a mobile app change its own temporary password
+     * and immediately continue, the same way the website already does.
      */
     public function change(Request $request, User $user, string $newPassword): void
     {
         $user->update([
             'password' => $newPassword,
+            'must_change_password' => false,
         ]);
 
         AuditLogger::log(

@@ -74,7 +74,7 @@ test('linking a manual item to an existing variant succeeds', function () {
     $variant = linkTestVariant($admin);
     $item = linkTestManualItem($admin);
 
-    $this->actingAs($admin)
+    $this->actingAs(receivingSpecialist())
         ->post("/staff/stock-receipts/purchase-order-items/{$item->id}/link-variant", [
             'product_variant_id' => $variant->id,
         ])
@@ -99,7 +99,7 @@ test('an item already linked to a variant cannot be linked again to a different 
         'track_inventory' => true,
     ]);
 
-    $this->actingAs($admin)->post(
+    $this->actingAs(receivingSpecialist())->post(
         "/staff/stock-receipts/purchase-order-items/{$item->id}/link-variant",
         ['product_variant_id' => $variantB->id],
     );

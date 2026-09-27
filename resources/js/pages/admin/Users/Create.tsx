@@ -1,3 +1,9 @@
+
+import {
+    Head,
+    Link,
+    useForm,
+} from '@inertiajs/react';
 import {
     ArrowLeft,
     BriefcaseBusiness,
@@ -9,21 +15,15 @@ import {
 } from 'lucide-react';
 
 import {
-    Head,
-    Link,
-    useForm,
-} from '@inertiajs/react';
-
-import {
     useState,
 } from 'react';
 
-import AdminLayout from '@/layouts/AdminLayout';
 
 import ActionConfirmModal from '@/components/action-feedback/ActionConfirmModal';
 import ActionNotification from '@/components/action-feedback/ActionNotification';
 import ActionProcessingButton from '@/components/action-feedback/ActionProcessingButton';
 import { useActionFeedback } from '@/components/action-feedback/useActionFeedback';
+import AdminLayout from '@/layouts/AdminLayout';
 
 type StaffRole =
     | 'cashier'
@@ -33,7 +33,6 @@ type StaffRole =
 interface StaffFormData {
     name: string;
     employee_id: string;
-    email: string;
     role: StaffRole;
     position_id: string;
     supervisor_id: string;
@@ -86,13 +85,44 @@ export default function Create({
         useForm<StaffFormData>({
             name: '',
             employee_id: '',
-            email: '',
             role: 'cashier',
             position_id: '',
             supervisor_id: '',
             password: '',
             password_confirmation: '',
         });
+
+    /*
+     * The staff email is never typed directly — it's generated from
+     * the Full Name and Employee ID, the same way a student's school
+     * email is generated from their last name and Student ID. This is
+     * only a preview; the real value is always derived server-side
+     * from the submitted name and Employee ID (see
+     * StaffSchoolEmailGenerator), so it can't be spoofed. Computed
+     * directly during render since it's entirely derived from form
+     * data already available here.
+     */
+    const normalizedName = form.data.name
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .split(/[^a-z0-9]+/)
+        .filter((word) => word.length > 0)
+        .join('.');
+
+    const normalizedEmployeeId = form.data.employee_id
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z0-9]/g, '');
+
+    const generatedEmail =
+        normalizedName.length > 0
+        && normalizedEmployeeId.length > 0
+            ? `${normalizedName}.${normalizedEmployeeId}@proware.sti.edu.ph`
+            : '';
 
 const {
     processing,
@@ -236,9 +266,18 @@ const confirmCreate = (): void => {
                     </p>
 
                     <p className="mt-1 text-xs leading-5 text-amber-700">
-                        Student accounts must continue
-                        using the approved Student
-                        Registry registration process.
+                        Students register themselves at
+                        the Student Registration page, or
+                        you can create an account for one
+                        directly from{' '}
+                        <Link
+                            href="/admin/students/create"
+                            className="font-bold underline underline-offset-2 hover:text-amber-900"
+                        >
+                            Students &rarr; Create Student
+                            Account
+                        </Link>
+                        .
                     </p>
                 </section>
 
@@ -286,10 +325,11 @@ const confirmCreate = (): void => {
                                     ) =>
                                         form.setData(
                                             'name',
-                                            event.target.value,
+                                            event.target.value.slice(0, 255),
                                         )
                                     }
-                                    placeholder="e.g. Maria Santos"
+                                    placeholder="e.g. Juan Dela Cruz"
+                                    maxLength={255}
                                     autoComplete="name"
                                     className={inputClass}
                                 />
@@ -320,22 +360,19 @@ const confirmCreate = (): void => {
                                     ) =>
                                         form.setData(
                                             'employee_id',
-                                            event.target.value,
+                                            event.target.value.slice(0, 15),
                                         )
                                     }
                                     placeholder="e.g. EMP-0001"
+                                    maxLength={15}
+                                    autoComplete="off"
                                     className={inputClass}
                                 />
                             </InputWrapper>
                         </FormField>
 
-                        {/* EMAIL */}
-                        <FormField
-                            label="Email Address"
-                            error={
-                                form.errors.email
-                            }
-                        >
+                        {/* GENERATED EMAIL */}
+                        <FormField label="Generated Staff Email">
                             <InputWrapper>
                                 <Mail
                                     size={18}
@@ -343,23 +380,19 @@ const confirmCreate = (): void => {
                                 />
 
                                 <input
-                                    type="email"
-                                    value={
-                                        form.data.email
-                                    }
-                                    onChange={(
-                                        event,
-                                    ) =>
-                                        form.setData(
-                                            'email',
-                                            event.target.value,
-                                        )
-                                    }
-                                    placeholder="staff@example.com"
-                                    autoComplete="email"
+                                    type="text"
+                                    autoComplete="off"
+                                    value={generatedEmail}
+                                    readOnly
+                                    placeholder="Fill in Full Name and Employee ID first"
                                     className={inputClass}
                                 />
                             </InputWrapper>
+
+                            <p className="mt-2 text-xs leading-5 text-slate-400">
+                                Generated automatically from the Full
+                                Name and Employee ID above.
+                            </p>
                         </FormField>
 
                         {/* ROLE */}
@@ -368,111 +401,115 @@ const confirmCreate = (): void => {
                             error={
                                 form.errors.role
                             }
+                            className="lg:col-span-2"
                         >
-                            <select
-                                value={
-                                    form.data.role
-                                }
-                                onChange={(event) => {
-                                    const role =
-                                        event.target.value as StaffRole;
-
-                                    form.setData((current) => ({
-                                        ...current,
-                                        role,
-                                        position_id: '',
-                                        supervisor_id: '',
-                                    }));
-                                }}
+                            <div
                                 className="
-                                    w-full
-                                    rounded-xl
-                                    border
-                                    border-slate-200
-                                    bg-white
-                                    px-4
-                                    py-3
-                                    text-sm
-                                    font-semibold
-                                    text-slate-800
-                                    outline-none
-                                    transition
-                                    focus:border-blue-500
-                                    focus:ring-4
-                                    focus:ring-blue-100
+                                    grid
+                                    gap-3
+                                    sm:grid-cols-3
                                 "
                             >
-                                <option value="cashier">
-                                    Cashier
-                                </option>
+                                <SelectableTile
+                                    label="Cashier"
+                                    description="Confirms student payments through the QR payment workflow."
+                                    checked={form.data.role === 'cashier'}
+                                    onChange={() =>
+                                        form.setData((current) => ({
+                                            ...current,
+                                            role: 'cashier',
+                                            position_id: '',
+                                            supervisor_id: '',
+                                        }))
+                                    }
+                                />
 
-                                <option value="specialist">
-                                    Specialist
-                                </option>
+                                <SelectableTile
+                                    label="Specialist"
+                                    description="Receives stock and releases paid merchandise through QR fulfillment."
+                                    checked={form.data.role === 'specialist'}
+                                    onChange={() =>
+                                        form.setData((current) => ({
+                                            ...current,
+                                            role: 'specialist',
+                                            position_id: '',
+                                            supervisor_id: '',
+                                        }))
+                                    }
+                                />
 
                                 {canCreateAdmin && (
-                                    <option value="admin">
-                                        Admin
-                                    </option>
+                                    <SelectableTile
+                                        label="Admin"
+                                        description="Manages products, users, reports, and overall PROWARE oversight."
+                                        checked={form.data.role === 'admin'}
+                                        onChange={() =>
+                                            form.setData((current) => ({
+                                                ...current,
+                                                role: 'admin',
+                                                position_id: '',
+                                                supervisor_id: '',
+                                            }))
+                                        }
+                                    />
                                 )}
-                            </select>
-
-                            <RoleDescription
-                                role={
-                                    form.data.role
-                                }
-                            />
+                            </div>
                         </FormField>
 
                         {/* POSITION */}
                         <FormField
                             label="Position"
                             error={form.errors.position_id}
+                            className="lg:col-span-2"
                         >
-                            <select
-                                value={form.data.position_id}
-                                onChange={(event) =>
-                                    form.setData(
-                                        'position_id',
-                                        event.target.value,
-                                    )
-                                }
-                                className="
-                                    w-full
-                                    rounded-xl
-                                    border
-                                    border-slate-200
-                                    bg-white
-                                    px-4
-                                    py-3
-                                    text-sm
-                                    font-semibold
-                                    text-slate-800
-                                    outline-none
-                                    transition
-                                    focus:border-blue-500
-                                    focus:ring-4
-                                    focus:ring-blue-100
-                                "
-                            >
-                                <option value="">
-                                    Select position
-                                </option>
+                            {(() => {
+                                const availablePositions = positions.filter(
+                                    (position) =>
+                                        position.role === form.data.role,
+                                );
 
-                                {positions
-                                    .filter(
-                                        (position) =>
-                                            position.role === form.data.role,
-                                    )
-                                    .map((position) => (
-                                        <option
-                                            key={position.id}
-                                            value={position.id}
-                                        >
-                                            {position.name}
-                                        </option>
-                                    ))}
-                            </select>
+                                if (availablePositions.length === 0) {
+                                    return (
+                                        <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-500">
+                                            No active positions have been set
+                                            up for this role yet.
+                                        </p>
+                                    );
+                                }
+
+                                return (
+                                    <div
+                                        className="
+                                            grid
+                                            gap-3
+                                            sm:grid-cols-2
+                                            lg:grid-cols-3
+                                        "
+                                    >
+                                        {availablePositions.map(
+                                            (position) => (
+                                                <SelectableTile
+                                                    key={position.id}
+                                                    label={position.name}
+                                                    checked={
+                                                        form.data
+                                                            .position_id ===
+                                                        String(position.id)
+                                                    }
+                                                    onChange={() =>
+                                                        form.setData(
+                                                            'position_id',
+                                                            String(
+                                                                position.id,
+                                                            ),
+                                                        )
+                                                    }
+                                                />
+                                            ),
+                                        )}
+                                    </div>
+                                );
+                            })()}
 
                             <p className="mt-2 text-xs leading-5 text-slate-400">
                                 Positions shown here match the selected
@@ -784,7 +821,7 @@ const confirmCreate = (): void => {
 <ActionConfirmModal
     open={confirmCreateOpen}
     title="Create Staff Account?"
-    message={`Create a new ${form.data.role} account for ${form.data.name || 'this employee'}?`}
+    message={`Create a new ${form.data.role} account for ${form.data.name || 'this employee'}? Their login email will be ${generatedEmail || '(fill in Full Name and Employee ID first)'}.`}
     confirmText="Create Account"
     processingText="Creating..."
     processing={processing}
@@ -820,14 +857,16 @@ const confirmCreate = (): void => {
 function FormField({
     label,
     error,
+    className = '',
     children,
 }: {
     label: string;
     error?: string;
+    className?: string;
     children: React.ReactNode;
 }) {
     return (
-        <div>
+        <div className={className}>
             <label className="mb-2 block text-sm font-black text-slate-700">
                 {label}
             </label>
@@ -890,32 +929,62 @@ const inputClass = `
 
 /*
 |--------------------------------------------------------------------------
-| Role Description
+| Selectable Tile
 |--------------------------------------------------------------------------
+|
+| A single-select "checkbox" tile: checking one unchecks the others in
+| its group, since a staff member can only have one Role and one
+| Position. Built as a real checkbox input (not a styled div) so it
+| stays keyboard- and screen-reader-accessible.
 */
 
-function RoleDescription({
-    role,
+function SelectableTile({
+    label,
+    description,
+    checked,
+    onChange,
 }: {
-    role: StaffRole;
+    label: string;
+    description?: string;
+    checked: boolean;
+    onChange: () => void;
 }) {
-    const descriptions: Record<
-        StaffRole,
-        string
-    > = {
-        cashier:
-            'Confirms student payments through the QR payment workflow.',
-
-        specialist:
-            'Receives stock and releases paid merchandise through QR fulfillment.',
-
-        admin:
-            'Manages products, users, reports, and overall PROWARE oversight.',
-    };
-
     return (
-        <p className="mt-2 text-xs leading-5 text-slate-400">
-            {descriptions[role]}
-        </p>
+        <label
+            className={`
+                flex
+                cursor-pointer
+                items-start
+                gap-3
+                rounded-xl
+                border
+                p-4
+                transition
+                ${
+                    checked
+                        ? 'border-blue-500 bg-blue-50/60 ring-4 ring-blue-100'
+                        : 'border-slate-200 bg-white hover:bg-slate-50'
+                }
+            `}
+        >
+            <input
+                type="checkbox"
+                checked={checked}
+                onChange={onChange}
+                className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+
+            <div>
+                <p className="text-sm font-black text-slate-800">
+                    {label}
+                </p>
+
+                {description && (
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                        {description}
+                    </p>
+                )}
+            </div>
+        </label>
     );
 }
