@@ -206,3 +206,23 @@ test('a super admin can view receipt history and a single receipt', function () 
         ->get("/staff/stock-receipts/{$movement->id}")
         ->assertOk();
 });
+
+test('receipt history page links keep the search but drop the To Be Received tab', function () {
+    $specialist = receivingSpecialist();
+    $variant = stockReceiptVariant($specialist);
+
+    foreach (range(1, 16) as $offset) {
+        stockReceiptMovement($specialist, $variant, now()->subMinutes($offset));
+    }
+
+    $response = $this->actingAs($specialist)
+        ->get('/staff/stock-receipts?tab=to_be_received&search=Test');
+
+    $response->assertOk();
+
+    $nextPageUrl = $response->inertiaProps('receipts.next_page_url');
+
+    expect($nextPageUrl)->toContain('page=2')
+        ->and($nextPageUrl)->toContain('search=Test')
+        ->and($nextPageUrl)->not->toContain('tab=');
+});

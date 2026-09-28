@@ -208,10 +208,15 @@ class StockReceiptController extends Controller
         |--------------------------------------------------------------------------
         */
 
+        /*
+         * Page links keep the search filters but never the "tab" value:
+         * they belong to Receipt History, so following one must not
+         * reopen the To Be Received tab the page was first opened on.
+         */
         $receipts =
             $query
                 ->paginate(15)
-                ->withQueryString()
+                ->appends($request->except(['page', 'tab']))
                 ->through(
                     function (
                         StockMovement $movement,

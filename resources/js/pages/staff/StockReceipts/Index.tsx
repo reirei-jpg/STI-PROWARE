@@ -330,6 +330,24 @@ export default function Index({
                 : 'history'),
     );
 
+    /*
+     * Keeps the address bar in step with the open tab, so a refresh or a
+     * shared link reopens the tab the user is actually looking at.
+     */
+    const switchTab = (tab: ReceiptTab): void => {
+        setActiveTab(tab);
+
+        const url = new URL(window.location.href);
+
+        if (tab === 'to_be_received') {
+            url.searchParams.set('tab', 'to_be_received');
+        } else {
+            url.searchParams.delete('tab');
+        }
+
+        window.history.replaceState(window.history.state, '', url);
+    };
+
     const today = todayDateString();
 
     const outstandingSummary = outstandingPurchaseOrders.reduce(
@@ -478,14 +496,14 @@ export default function Index({
                 <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
                     <TabButton
                         active={activeTab === 'history'}
-                        onClick={() => setActiveTab('history')}
+                        onClick={() => switchTab('history')}
                     >
                         Receipt History
                     </TabButton>
 
                     <TabButton
                         active={activeTab === 'to_be_received'}
-                        onClick={() => setActiveTab('to_be_received')}
+                        onClick={() => switchTab('to_be_received')}
                     >
                         To Be Received
                         {outstandingSummary.overdue
